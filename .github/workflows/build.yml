@@ -3,23 +3,14 @@ name: Build and Release APK
 on:
   push:
     branches: [ main, master ]
-    paths:
-      - 'Auto-GLM-Android/**'
-      - '.github/workflows/build.yml'
   pull_request:
     branches: [ main, master ]
-    paths:
-      - 'Auto-GLM-Android/**'
   workflow_dispatch:  # 允许手动触发
 
 jobs:
   build:
     name: Build Release APK
     runs-on: ubuntu-latest
-    
-    defaults:
-      run:
-        working-directory: Auto-GLM-Android
     
     steps:
       - name: Checkout repository
@@ -75,14 +66,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AutoGLM-Mobile-APK-${{ steps.version.outputs.date }}
-          path: Auto-GLM-Android/build/app/outputs/flutter-apk/AutoGLM-Mobile-*.apk
+          path: build/app/outputs/flutter-apk/AutoGLM-Mobile-*.apk
           retention-days: 30
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
         with:
           name: AutoGLM-Mobile-AAB-${{ steps.version.outputs.date }}
-          path: Auto-GLM-Android/build/app/outputs/bundle/release/app-release.aab
+          path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 
   release:
@@ -98,7 +89,7 @@ jobs:
       - name: Get version from pubspec
         id: version
         run: |
-          VERSION=$(grep 'version:' Auto-GLM-Android/pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download APK Artifact
