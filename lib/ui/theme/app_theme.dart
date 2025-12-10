@@ -1,109 +1,137 @@
 import 'package:flutter/material.dart';
 
-/// AutoGLM Mobile 应用主题配置
-/// 色彩体系：温暖的米色系
+/// App theme configuration with warm beige color palette
 class AppTheme {
-  // 主色调 - 温暖的米色系
+  AppTheme._();
+  
+  // Primary colors - warm beige
   static const Color primaryBeige = Color(0xFFF5F1E8);
   static const Color secondaryBeige = Color(0xFFE8DFC3);
-  static const Color warmBeige = Color(0xFFDDD4BB);
+  static const Color warmBeige = Color(0xFFD4C8A8);
   
-  // 强调色 - 柔和的橙色系  
+  // Accent colors - soft orange
   static const Color accentOrange = Color(0xFFFFA574);
-  static const Color accentOrangeDeep = Color(0xFFFF8C42);
   static const Color accentOrangeLight = Color(0xFFFFD4B8);
+  static const Color accentOrangeDeep = Color(0xFFFF8C42);
   
-  // 背景色
+  // Background colors
   static const Color backgroundLight = Color(0xFFFAFAFA);
   static const Color backgroundGrey = Color(0xFFF0F0F0);
   static const Color surfaceWhite = Color(0xFFFFFFFF);
   
-  // 文字色
+  // Text colors
   static const Color textPrimary = Color(0xFF333333);
   static const Color textSecondary = Color(0xFF666666);
   static const Color textHint = Color(0xFF999999);
   
-  // 状态色
-  static const Color success = Color(0xFF7CB342);
-  static const Color error = Color(0xFFE57373);
-  static const Color warning = Color(0xFFFFB74D);
-  static const Color info = Color(0xFF90A4AE);
+  // Status colors
+  static const Color success = Color(0xFF4CAF50);
+  static const Color warning = Color(0xFFFF9800);
+  static const Color error = Color(0xFFE53935);
+  static const Color info = Color(0xFF2196F3);
   
-  // 间距
+  // Spacing
   static const double spacingXS = 4.0;
   static const double spacingSM = 8.0;
   static const double spacingMD = 16.0;
   static const double spacingLG = 24.0;
   static const double spacingXL = 32.0;
   
-  // 圆角
+  // Border radius
   static const double radiusSM = 8.0;
   static const double radiusMD = 12.0;
   static const double radiusLG = 16.0;
   static const double radiusXL = 24.0;
   
-  // 按钮高度
+  // Button height
   static const double buttonHeight = 48.0;
-  static const double buttonMinTouchTarget = 44.0;
+  static const double minTouchSize = 44.0;
   
-  /// 创建亮色主题
+  // Screenshot preview max height ratio
+  static const double screenshotMaxHeightRatio = 0.6;
+  
+  /// Light theme
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: accentOrange,
-      scaffoldBackgroundColor: backgroundLight,
       
-      // 色彩方案
-      colorScheme: const ColorScheme.light(
+      // Color scheme
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: accentOrange,
+        brightness: Brightness.light,
         primary: accentOrange,
-        onPrimary: Colors.white,
-        secondary: secondaryBeige,
-        onSecondary: textPrimary,
+        secondary: accentOrangeDeep,
         surface: surfaceWhite,
+        onPrimary: Colors.white,
+        onSecondary: Colors.white,
         onSurface: textPrimary,
-        error: error,
-        onError: Colors.white,
-        outline: warmBeige,
       ),
       
-      // AppBar 主题
-      appBarTheme: const AppBarTheme(
-        backgroundColor: primaryBeige,
+      // Scaffold
+      scaffoldBackgroundColor: backgroundLight,
+      
+      // AppBar
+      appBarTheme: AppBarTheme(
+        backgroundColor: surfaceWhite,
         foregroundColor: textPrimary,
         elevation: 0,
         centerTitle: true,
-        titleTextStyle: TextStyle(
+        titleTextStyle: const TextStyle(
           color: textPrimary,
           fontSize: 18,
           fontWeight: FontWeight.w600,
         ),
+        iconTheme: const IconThemeData(color: textPrimary),
+        shadowColor: textHint.withOpacity(0.2),
       ),
       
-      // 卡片主题
+      // Card
       cardTheme: CardTheme(
         color: surfaceWhite,
         elevation: 2,
-        shadowColor: textHint.withValues(alpha: 0.2),
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(radiusMD)),
-        ),
-        margin: const EdgeInsets.symmetric(
-          horizontal: spacingMD,
-          vertical: spacingSM,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusMD),
         ),
       ),
       
-      // 按钮主题
+      // Input decoration
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: backgroundGrey,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: spacingMD,
+          vertical: spacingSM,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSM),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSM),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSM),
+          borderSide: const BorderSide(color: accentOrange, width: 2),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(radiusSM),
+          borderSide: const BorderSide(color: error, width: 1),
+        ),
+        hintStyle: const TextStyle(color: textHint),
+      ),
+      
+      // Elevated button
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: accentOrange,
           foregroundColor: Colors.white,
-          elevation: 2,
           minimumSize: const Size(double.infinity, buttonHeight),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(radiusMD)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusSM),
           ),
+          elevation: 0,
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
@@ -111,13 +139,14 @@ class AppTheme {
         ),
       ),
       
+      // Outlined button
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: accentOrange,
-          side: const BorderSide(color: accentOrange, width: 1.5),
           minimumSize: const Size(double.infinity, buttonHeight),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(radiusMD)),
+          side: const BorderSide(color: accentOrange, width: 1.5),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusSM),
           ),
           textStyle: const TextStyle(
             fontSize: 16,
@@ -126,6 +155,7 @@ class AppTheme {
         ),
       ),
       
+      // Text button
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: accentOrange,
@@ -136,34 +166,75 @@ class AppTheme {
         ),
       ),
       
-      // 输入框主题
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: surfaceWhite,
-        hintStyle: const TextStyle(color: textHint),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: spacingMD,
-          vertical: spacingMD,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMD),
-          borderSide: const BorderSide(color: warmBeige),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMD),
-          borderSide: const BorderSide(color: warmBeige),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMD),
-          borderSide: const BorderSide(color: accentOrange, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(radiusMD),
-          borderSide: const BorderSide(color: error),
+      // Floating action button
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: accentOrange,
+        foregroundColor: Colors.white,
+        elevation: 4,
+      ),
+      
+      // Chip
+      chipTheme: ChipThemeData(
+        backgroundColor: secondaryBeige,
+        labelStyle: const TextStyle(color: textPrimary),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSM),
         ),
       ),
       
-      // 文字主题
+      // Divider
+      dividerTheme: const DividerThemeData(
+        color: warmBeige,
+        thickness: 1,
+        space: 1,
+      ),
+      
+      // Progress indicator
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: accentOrange,
+        linearTrackColor: secondaryBeige,
+      ),
+      
+      // Snackbar
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: textPrimary,
+        contentTextStyle: const TextStyle(color: Colors.white),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusSM),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      
+      // Dialog
+      dialogTheme: DialogTheme(
+        backgroundColor: surfaceWhite,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusLG),
+        ),
+        titleTextStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 18,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      
+      // Bottom sheet
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: surfaceWhite,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(radiusXL),
+          ),
+        ),
+      ),
+      
+      // List tile
+      listTileTheme: const ListTileThemeData(
+        contentPadding: EdgeInsets.symmetric(horizontal: spacingMD),
+        minLeadingWidth: 24,
+      ),
+      
+      // Text theme
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
           fontSize: 28,
@@ -193,7 +264,7 @@ class AppTheme {
         titleSmall: TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w500,
-          color: textSecondary,
+          color: textPrimary,
         ),
         bodyLarge: TextStyle(
           fontSize: 16,
@@ -209,119 +280,38 @@ class AppTheme {
         ),
         labelLarge: TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: textSecondary,
-        ),
-      ),
-      
-      // 底部导航主题
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: surfaceWhite,
-        selectedItemColor: accentOrange,
-        unselectedItemColor: textHint,
-        type: BottomNavigationBarType.fixed,
-        elevation: 8,
-      ),
-      
-      // 进度指示器主题
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: accentOrange,
-        linearTrackColor: secondaryBeige,
-      ),
-      
-      // 浮动按钮主题
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: accentOrange,
-        foregroundColor: Colors.white,
-        elevation: 4,
-      ),
-      
-      // 分割线主题
-      dividerTheme: const DividerThemeData(
-        color: warmBeige,
-        thickness: 1,
-        space: spacingMD,
-      ),
-      
-      // 芯片主题
-      chipTheme: ChipThemeData(
-        backgroundColor: secondaryBeige,
-        selectedColor: accentOrange,
-        labelStyle: const TextStyle(color: textPrimary),
-        padding: const EdgeInsets.symmetric(
-          horizontal: spacingSM,
-          vertical: spacingXS,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusSM),
-        ),
-      ),
-      
-      // 对话框主题
-      dialogTheme: const DialogTheme(
-        backgroundColor: surfaceWhite,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(radiusLG)),
-        ),
-        titleTextStyle: TextStyle(
-          fontSize: 18,
           fontWeight: FontWeight.w600,
           color: textPrimary,
         ),
-      ),
-      
-      // 底部弹窗主题
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: surfaceWhite,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(radiusXL),
-          ),
+        labelMedium: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: textSecondary,
         ),
-      ),
-      
-      // Snackbar主题
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: textPrimary,
-        contentTextStyle: const TextStyle(color: Colors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(radiusSM),
+        labelSmall: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+          color: textHint,
         ),
-        behavior: SnackBarBehavior.floating,
       ),
     );
   }
   
-  /// 创建渐变背景装饰
-  static BoxDecoration get gradientBackground {
-    return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [primaryBeige, backgroundLight],
-      ),
-    );
-  }
+  /// Card shadow
+  static List<BoxShadow> get cardShadow => [
+    BoxShadow(
+      color: textHint.withOpacity(0.1),
+      blurRadius: 8,
+      offset: const Offset(0, 2),
+    ),
+  ];
   
-  /// 创建卡片阴影
-  static List<BoxShadow> get cardShadow {
-    return [
-      BoxShadow(
-        color: textHint.withValues(alpha: 0.1),
-        blurRadius: 8,
-        offset: const Offset(0, 2),
-      ),
-    ];
-  }
-  
-  /// 创建软阴影
-  static List<BoxShadow> get softShadow {
-    return [
-      BoxShadow(
-        color: textHint.withValues(alpha: 0.08),
-        blurRadius: 16,
-        offset: const Offset(0, 4),
-      ),
-    ];
-  }
+  /// Elevated shadow
+  static List<BoxShadow> get elevatedShadow => [
+    BoxShadow(
+      color: textHint.withOpacity(0.08),
+      blurRadius: 16,
+      offset: const Offset(0, 4),
+    ),
+  ];
 }

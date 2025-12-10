@@ -4,7 +4,7 @@ import '../theme/app_theme.dart';
 
 /// 截图预览卡片组件
 class ScreenshotPreview extends StatelessWidget {
-  /// Base64编码的截图数据
+  /// Base64编码的截图数�?
   final String? base64Data;
   
   /// 截图宽度
@@ -16,7 +16,7 @@ class ScreenshotPreview extends StatelessWidget {
   /// 是否正在加载
   final bool isLoading;
   
-  /// 加载进度（0-1）
+  /// 加载进度�?-1�?
   final double? loadingProgress;
   
   /// 当前步骤信息
@@ -116,7 +116,7 @@ class ScreenshotPreview extends StatelessWidget {
   Widget _buildLoadingOverlay(BuildContext context) {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withValues(alpha: 0.4),
+        color: Colors.black.withOpacity(0.4),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -134,7 +134,7 @@ class ScreenshotPreview extends StatelessWidget {
               ),
               const SizedBox(height: AppTheme.spacingMD),
               Text(
-                '执行中...',
+                '执行�?..',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,

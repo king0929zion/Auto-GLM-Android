@@ -11,7 +11,7 @@ class AppConfig {
   static const String defaultApiKey = 'EMPTY';
   static const String defaultModelName = 'autoglm-phone-9b';
   
-  /// 模型参数默认值
+  /// 模型参数默认�?
   static const int defaultMaxTokens = 3000;
   static const double defaultTemperature = 0.0;
   static const double defaultTopP = 0.85;

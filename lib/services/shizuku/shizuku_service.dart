@@ -1,5 +1,5 @@
 /// Shizuku服务接口定义
-/// 这个抽象类定义了所有需要通过Shizuku实现的设备控制功能
+/// 这个抽象类定义了所有需要通过Shizuku实现的设备控制功�?
 /// 实际实现需要在Android原生层通过Kotlin处理
 abstract class ShizukuService {
   /// 检查Shizuku是否可用
@@ -21,21 +21,21 @@ abstract class ShizukuService {
   Future<int> getVersion();
 }
 
-/// Shizuku状态
+/// Shizuku状�?
 enum ShizukuStatus {
-  /// 未安装
+  /// 未安�?
   notInstalled,
   
-  /// 已安装但未启动
+  /// 已安装但未启�?
   notStarted,
   
-  /// 已启动但未授权
+  /// 已启动但未授�?
   notAuthorized,
   
-  /// 已授权可用
+  /// 已授权可�?
   authorized,
   
-  /// 未知状态
+  /// 未知状�?
   unknown,
 }
 

@@ -1,13 +1,13 @@
 import 'dart:convert';
 import '../data/models/models.dart';
 
-/// 动作解析器
-/// 复刻原Python项目的 parse_action 函数
-/// 支持更健壮的解析，处理各种边界情况
+/// 动作解析�?
+/// 复刻原Python项目�?parse_action 函数
+/// 支持更健壮的解析，处理各种边界情�?
 class ActionParser {
   
   /// 解析模型响应中的动作
-  /// 支持 do(...) 和 finish(...) 格式
+  /// 支持 do(...) �?finish(...) 格式
   static ActionData parse(String response) {
     final trimmed = response.trim();
     
@@ -34,7 +34,7 @@ class ActionParser {
   static ActionData _parseFinish(String response) {
     String? message;
     
-    // 尝试多种格式的消息提取
+    // 尝试多种格式的消息提�?
     // 格式1: finish(message="xxx")
     // 格式2: finish(message='xxx')
     // 格式3: finish("xxx")
@@ -108,9 +108,9 @@ class ActionParser {
     );
   }
   
-  /// 提取字符串参数
+  /// 提取字符串参�?
   static String? _extractStringParam(String response, String paramName) {
-    // 支持双引号和单引号
+    // 支持双引号和单引�?
     final patterns = [
       RegExp('$paramName\\s*=\\s*"([^"]*)"'),
       RegExp("$paramName\\s*=\\s*'([^']*)'"),
@@ -156,7 +156,7 @@ class ActionParser {
   
   /// 解析动作类型
   static ActionType _parseActionType(String actionName) {
-    // 标准化动作名称（处理大小写和空格）
+    // 标准化动作名称（处理大小写和空格�?
     final normalized = actionName.toLowerCase().trim();
     
     switch (normalized) {
@@ -213,7 +213,7 @@ class ActionParser {
       case ActionType.typeName:
         return action.text != null;
       case ActionType.wait:
-        return true; // duration 可选
+        return true; // duration 可�?
       case ActionType.finish:
         return true;
       default:
@@ -221,7 +221,7 @@ class ActionParser {
     }
   }
   
-  /// 获取动作描述（用于UI显示）
+  /// 获取动作描述（用于UI显示�?
   static String getActionDescription(ActionData action) {
     switch (action.type) {
       case ActionType.launch:
@@ -233,7 +233,7 @@ class ActionParser {
       case ActionType.longPress:
         return '长按: (${action.element?[0]}, ${action.element?[1]})';
       case ActionType.swipe:
-        return '滑动: (${action.start?[0]}, ${action.start?[1]}) → (${action.end?[0]}, ${action.end?[1]})';
+        return '滑动: (${action.start?[0]}, ${action.start?[1]}) �?(${action.end?[0]}, ${action.end?[1]})';
       case ActionType.type:
       case ActionType.typeName:
         return '输入: "${action.text}"';

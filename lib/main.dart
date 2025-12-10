@@ -7,7 +7,7 @@ import 'ui/screens/screens.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 初始化设置存储
+  // 初始化设置存�?
   await SettingsRepository.instance.init();
   
   // 设置状态栏样式

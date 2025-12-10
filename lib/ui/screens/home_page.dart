@@ -5,7 +5,7 @@ import '../../config/settings_repository.dart';
 import '../theme/app_theme.dart';
 import '../widgets/widgets.dart';
 
-/// 主页面 - 任务执行界面
+/// 主页�?- 任务执行界面
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -29,7 +29,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _initializeAgent() async {
-    // 从设置加载配置
+    // 从设置加载配�?
     final settings = SettingsRepository.instance;
     final modelConfig = settings.getModelConfig();
     final agentConfig = AgentConfig(
@@ -56,7 +56,7 @@ class _HomePageState extends State<HomePage> {
       });
     } catch (e) {
       setState(() {
-        _errorMessage = '初始化失败: $e';
+        _errorMessage = '初始化失�? $e';
       });
     }
     
@@ -74,7 +74,7 @@ class _HomePageState extends State<HomePage> {
       _steps.add(result);
     });
     
-    // 滚动到底部
+    // 滚动到底�?
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -123,7 +123,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             Icon(Icons.pan_tool_alt, color: AppTheme.info),
             const SizedBox(width: 8),
-            const Text('需要手动操作'),
+            const Text('需要手动操�?),
           ],
         ),
         content: Column(
@@ -155,7 +155,7 @@ class _HomePageState extends State<HomePage> {
     final task = _taskController.text.trim();
     if (task.isEmpty) return;
     
-    // 保存到任务历史
+    // 保存到任务历�?
     await SettingsRepository.instance.addTaskToHistory(task);
     
     setState(() {
@@ -280,7 +280,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
         
-        // 截图预览区 
+        // 截图预览�?
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMD),
           child: ScreenshotPreview(
@@ -294,19 +294,19 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
         
-        // 思考历史列表
+        // 思考历史列�?
         Expanded(
           child: _buildStepsList(),
         ),
         
-        // 底部输入区
+        // 底部输入�?
         Container(
           padding: const EdgeInsets.all(AppTheme.spacingMD),
           decoration: BoxDecoration(
             color: AppTheme.primaryBeige,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: Colors.black.withOpacity(0.05),
                 blurRadius: 8,
                 offset: const Offset(0, -2),
               ),

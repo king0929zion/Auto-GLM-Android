@@ -4,7 +4,7 @@ import '../../config/settings_repository.dart';
 
 /// 任务历史页面
 class TaskHistoryPage extends StatefulWidget {
-  /// 选择任务的回调
+  /// 选择任务的回�?
   final void Function(String task)? onTaskSelected;
   
   const TaskHistoryPage({super.key, this.onTaskSelected});
@@ -183,7 +183,7 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('已删除'),
+          content: const Text('已删�?),
           action: SnackBarAction(
             label: '撤销',
             onPressed: () {
@@ -203,7 +203,7 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('清除历史'),
-        content: const Text('确定要清除所有任务历史吗？'),
+        content: const Text('确定要清除所有任务历史吗�?),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

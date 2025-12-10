@@ -14,7 +14,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _formKey = GlobalKey<FormState>();
   
-  // 模型配置控制器
+  // 模型配置控制�?
   final _baseUrlController = TextEditingController();
   final _apiKeyController = TextEditingController();
   final _modelNameController = TextEditingController();
@@ -66,7 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('设置已保存'),
+            content: Text('设置已保�?),
             backgroundColor: AppTheme.success,
           ),
         );
@@ -172,7 +172,7 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildCard([
             _buildSliderTile(
               title: '最大步骤数',
-              subtitle: '单次任务最多执行 $_maxSteps 步',
+              subtitle: '单次任务最多执�?$_maxSteps �?,
               value: _maxSteps.toDouble(),
               min: 10,
               max: 200,
@@ -200,16 +200,16 @@ class _SettingsPageState extends State<SettingsPage> {
           
           const SizedBox(height: AppTheme.spacingLG),
           
-          // Shizuku 状态部分
+          // Shizuku 状态部�?
           _buildSectionHeader(
             icon: Icons.security,
-            title: 'Shizuku 状态',
+            title: 'Shizuku 状�?,
           ),
           _buildCard([
             _buildStatusTile(
               title: 'Shizuku 服务',
               subtitle: '需要安装并授权 Shizuku',
-              isConnected: false, // TODO: 实际检测
+              isConnected: false, // TODO: 实际检�?
               onTap: () => Navigator.pushNamed(context, '/shizuku'),
             ),
           ]),
@@ -224,8 +224,8 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildCard([
             ListTile(
               leading: const Icon(Icons.apps, color: AppTheme.accentOrange),
-              title: const Text('支持的应用'),
-              subtitle: const Text('查看可用的应用列表'),
+              title: const Text('支持的应�?),
+              subtitle: const Text('查看可用的应用列�?),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.pushNamed(context, '/apps'),
             ),
@@ -233,7 +233,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ListTile(
               leading: const Icon(Icons.history, color: AppTheme.accentOrange),
               title: const Text('任务历史'),
-              subtitle: const Text('查看和复用历史任务'),
+              subtitle: const Text('查看和复用历史任�?),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.pushNamed(context, '/history'),
             ),
@@ -278,12 +278,12 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _resetOnboarding() async {
-    // 重置首次运行状态
+    // 重置首次运行状�?
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('first_run', true);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('下次启动将显示引导页面')),
+        const SnackBar(content: Text('下次启动将显示引导页�?)),
       );
     }
   }
@@ -436,7 +436,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
           const SizedBox(width: 8),
           Text(
-            isConnected ? '已连接' : '未连接',
+            isConnected ? '已连�? : '未连�?,
             style: TextStyle(
               color: isConnected ? AppTheme.success : AppTheme.error,
             ),
@@ -448,9 +448,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   void _checkShizukuStatus() {
-    // TODO: 实际检查 Shizuku 状态
+    // TODO: 实际检�?Shizuku 状�?
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('请确保已安装并授权 Shizuku')),
+      const SnackBar(content: Text('请确保已安装并授�?Shizuku')),
     );
   }
 }

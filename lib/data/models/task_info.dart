@@ -1,9 +1,9 @@
 import 'action_data.dart';
 
-/// 任务执行状态
+/// 任务执行状�?
 enum TaskStatus {
   idle,        // 空闲
-  running,     // 运行中
+  running,     // 运行�?
   paused,      // 暂停
   completed,   // 完成
   failed,      // 失败
@@ -17,13 +17,13 @@ class StepResult {
   /// 是否成功
   final bool success;
   
-  /// 是否已完成任务
+  /// 是否已完成任�?
   final bool finished;
   
-  /// 执行的动作
+  /// 执行的动�?
   final ActionData? action;
   
-  /// AI思考过程
+  /// AI思考过�?
   final String thinking;
   
   /// 结果消息
@@ -55,16 +55,16 @@ class TaskInfo {
   /// 任务描述
   final String task;
   
-  /// 任务状态
+  /// 任务状�?
   final TaskStatus status;
   
   /// 当前步骤
   final int currentStep;
   
-  /// 最大步骤
+  /// 最大步�?
   final int maxSteps;
   
-  /// 开始时间
+  /// 开始时�?
   final DateTime? startTime;
   
   /// 结束时间
@@ -88,7 +88,7 @@ class TaskInfo {
     this.resultMessage,
   });
   
-  /// 创建新任务
+  /// 创建新任�?
   factory TaskInfo.create({
     required String task,
     int maxSteps = 100,
@@ -101,7 +101,7 @@ class TaskInfo {
     );
   }
   
-  /// 复制并修改
+  /// 复制并修�?
   TaskInfo copyWith({
     String? id,
     String? task,
@@ -129,13 +129,13 @@ class TaskInfo {
   /// 是否正在运行
   bool get isRunning => status == TaskStatus.running;
   
-  /// 是否已结束
+  /// 是否已结�?
   bool get isFinished => 
     status == TaskStatus.completed || 
     status == TaskStatus.failed || 
     status == TaskStatus.cancelled;
     
-  /// 获取进度（0-1）
+  /// 获取进度�?-1�?
   double get progress {
     if (maxSteps == 0) return 0;
     return currentStep / maxSteps;

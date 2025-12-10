@@ -1,6 +1,6 @@
 import 'package:intl/intl.dart';
 
-/// 英文系统提示词
+/// 英文系统提示�?
 class PromptsEn {
   /// 获取格式化的今日日期
   static String get formattedDate {
@@ -8,7 +8,7 @@ class PromptsEn {
     return DateFormat('EEEE, MMMM d, yyyy').format(now);
   }
 
-  /// 获取系统提示词
+  /// 获取系统提示�?
   static String get systemPrompt => '''Today's date is: ${formattedDate}
 You are an intelligent agent analyst who can execute a series of operations to complete tasks based on operation history and current state screenshots.
 You must strictly output in the following format:

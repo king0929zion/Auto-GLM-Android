@@ -20,7 +20,7 @@ enum ActionType {
   unknown,
 }
 
-/// 动作数据类
+/// 动作数据�?
 class ActionData {
   /// 动作类型
   final ActionType type;
@@ -28,34 +28,34 @@ class ActionData {
   /// 原始动作名称
   final String actionName;
   
-  /// 应用名称（用于Launch）
+  /// 应用名称（用于Launch�?
   final String? app;
   
-  /// 元素坐标 [x, y]（用于Tap、DoubleTap、LongPress）
+  /// 元素坐标 [x, y]（用于Tap、DoubleTap、LongPress�?
   final List<int>? element;
   
-  /// 文本内容（用于Type）
+  /// 文本内容（用于Type�?
   final String? text;
   
-  /// 起始坐标 [x, y]（用于Swipe）
+  /// 起始坐标 [x, y]（用于Swipe�?
   final List<int>? start;
   
-  /// 结束坐标 [x, y]（用于Swipe）
+  /// 结束坐标 [x, y]（用于Swipe�?
   final List<int>? end;
   
-  /// 等待时长（用于Wait）
+  /// 等待时长（用于Wait�?
   final String? duration;
   
   /// 消息内容
   final String? message;
   
-  /// 指令内容（用于Call_API）
+  /// 指令内容（用于Call_API�?
   final String? instruction;
   
-  /// 是否为敏感操作
+  /// 是否为敏感操�?
   final bool isSensitive;
   
-  /// 元数据标记
+  /// 元数据标�?
   final String? metadata;
 
   const ActionData({
@@ -73,13 +73,13 @@ class ActionData {
     this.metadata,
   });
   
-  /// 从模型响应解析动作
+  /// 从模型响应解析动�?
   factory ActionData.parse(String response) {
     final trimmed = response.trim();
     
     // 解析 finish 动作
     if (trimmed.startsWith('finish')) {
-      final msgMatch = RegExp(r'message=["\'](.+?)["\']').firstMatch(trimmed);
+      final msgMatch = RegExp(r'message=["' "'" r'](.+?)["' "'" r']').firstMatch(trimmed);
       return ActionData(
         type: ActionType.finish,
         actionName: 'finish',
@@ -102,11 +102,26 @@ class ActionData {
     );
   }
   
+  /// 提取字符串参数的辅助方法
+  static String? _extractStringParam(String response, String paramName) {
+    // 尝试双引�?
+    var pattern = RegExp(paramName + r'="([^"]*)"');
+    var match = pattern.firstMatch(response);
+    if (match != null) return match.group(1);
+    
+    // 尝试单引�?
+    pattern = RegExp(paramName + r"='([^']*)'");
+    match = pattern.firstMatch(response);
+    if (match != null) return match.group(1);
+    
+    return null;
+  }
+  
   /// 解析do动作
   static ActionData _parseDoAction(String response) {
     // 提取action参数
-    final actionMatch = RegExp(r'action=["\'](.+?)["\']').firstMatch(response);
-    if (actionMatch == null) {
+    final actionName = _extractStringParam(response, 'action');
+    if (actionName == null) {
       return ActionData(
         type: ActionType.unknown,
         actionName: 'unknown',
@@ -115,15 +130,14 @@ class ActionData {
       );
     }
     
-    final actionName = actionMatch.group(1)!;
     final type = _parseActionType(actionName);
     
     // 提取各种参数
-    final appMatch = RegExp(r'app=["\'](.+?)["\']').firstMatch(response);
-    final textMatch = RegExp(r'text=["\'](.+?)["\']').firstMatch(response);
-    final messageMatch = RegExp(r'message=["\'](.+?)["\']').firstMatch(response);
-    final durationMatch = RegExp(r'duration=["\'](.+?)["\']').firstMatch(response);
-    final instructionMatch = RegExp(r'instruction=["\'](.+?)["\']').firstMatch(response);
+    final app = _extractStringParam(response, 'app');
+    final text = _extractStringParam(response, 'text');
+    final message = _extractStringParam(response, 'message');
+    final duration = _extractStringParam(response, 'duration');
+    final instruction = _extractStringParam(response, 'instruction');
     
     // 提取坐标
     final elementMatch = RegExp(r'element=\[(\d+),\s*(\d+)\]').firstMatch(response);
@@ -138,15 +152,15 @@ class ActionData {
     return ActionData(
       type: type,
       actionName: actionName,
-      app: appMatch?.group(1),
-      text: textMatch?.group(1),
-      message: messageMatch?.group(1),
-      duration: durationMatch?.group(1),
-      instruction: instructionMatch?.group(1),
+      app: app,
+      text: text,
+      message: message,
+      duration: duration,
+      instruction: instruction,
       element: parseCoord(elementMatch),
       start: parseCoord(startMatch),
       end: parseCoord(endMatch),
-      isSensitive: messageMatch != null && type == ActionType.tap,
+      isSensitive: message != null && type == ActionType.tap,
       metadata: 'do',
     );
   }
@@ -187,13 +201,13 @@ class ActionData {
     }
   }
   
-  /// 是否为结束动作
+  /// 是否为结束动�?
   bool get isFinish => type == ActionType.finish;
   
   /// 是否为do动作
   bool get isDo => metadata == 'do';
   
-  /// 转换为JSON字符串表示
+  /// 转换为JSON字符串表�?
   String toJsonString() {
     final map = <String, dynamic>{
       'action': actionName,

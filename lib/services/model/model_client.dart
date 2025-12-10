@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../data/models/models.dart';
 
-/// 模型响应数据类
+/// 模型响应数据�?
 class ModelResponse {
-  /// AI思考过程
+  /// AI思考过�?
   final String thinking;
   
-  /// 动作字符串
+  /// 动作字符�?
   final String action;
   
   /// 原始响应内容
@@ -25,7 +25,7 @@ class ModelClient {
   /// 模型配置
   final ModelConfig config;
   
-  /// HTTP客户端
+  /// HTTP客户�?
   late final Dio _dio;
 
   ModelClient({required this.config}) {
@@ -127,7 +127,7 @@ class ModelClient {
   }
 }
 
-/// 消息构建器
+/// 消息构建�?
 class MessageBuilder {
   /// 创建系统消息
   static Map<String, dynamic> createSystemMessage(String content) {
@@ -158,7 +158,7 @@ class MessageBuilder {
     return {'role': 'assistant', 'content': content};
   }
 
-  /// 从消息中移除图片（节省上下文空间）
+  /// 从消息中移除图片（节省上下文空间�?
   static Map<String, dynamic> removeImagesFromMessage(
     Map<String, dynamic> message,
   ) {
@@ -178,7 +178,7 @@ class MessageBuilder {
   }
 }
 
-/// 模型客户端异常
+/// 模型客户端异�?
 class ModelClientException implements Exception {
   final String message;
   final int? statusCode;

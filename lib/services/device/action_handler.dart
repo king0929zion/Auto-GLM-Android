@@ -14,7 +14,7 @@ class ActionResult {
   /// 结果消息
   final String? message;
   
-  /// 是否需要确认
+  /// 是否需要确�?
   final bool requiresConfirmation;
 
   const ActionResult({
@@ -25,10 +25,10 @@ class ActionResult {
   });
 }
 
-/// 动作处理器
-/// 负责将AI模型输出的动作转换为实际的设备操作
+/// 动作处理�?
+/// 负责将AI模型输出的动作转换为实际的设备操�?
 class ActionHandler {
-  /// 设备控制器
+  /// 设备控制�?
   final DeviceController deviceController;
   
   /// 敏感操作确认回调
@@ -145,7 +145,7 @@ class ActionHandler {
       );
     }
     
-    // 检查敏感操作
+    // 检查敏感操�?
     if (action.isSensitive && action.message != null) {
       if (confirmationCallback != null) {
         final confirmed = await confirmationCallback!(action.message!);
@@ -258,13 +258,13 @@ class ActionHandler {
 
   /// 处理Note动作
   ActionResult _handleNote(ActionData action) {
-    // 记录页面内容，实际实现取决于具体需求
+    // 记录页面内容，实际实现取决于具体需�?
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理Call_API动作
   ActionResult _handleCallApi(ActionData action) {
-    // 总结或评论内容，实际实现取决于具体需求
+    // 总结或评论内容，实际实现取决于具体需�?
     return const ActionResult(success: true, shouldFinish: false);
   }
 

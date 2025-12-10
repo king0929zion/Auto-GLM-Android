@@ -16,7 +16,7 @@ class SettingsRepository {
     return _instance!;
   }
   
-  /// 初始化
+  /// 初始�?
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
   }
@@ -31,7 +31,7 @@ class SettingsRepository {
   
   // ===== 模型配置 =====
   
-  /// 获取保存的模型配置
+  /// 获取保存的模型配�?
   ModelConfig getModelConfig() {
     return ModelConfig(
       baseUrl: prefs.getString(AppConfig.keyBaseUrl) ?? AppConfig.defaultBaseUrl,
@@ -108,14 +108,14 @@ class SettingsRepository {
     return prefs.getStringList(_keyTaskHistory) ?? [];
   }
   
-  /// 添加任务到历史
+  /// 添加任务到历�?
   Future<void> addTaskToHistory(String task) async {
     final history = taskHistory;
     
-    // 移除重复项
+    // 移除重复�?
     history.remove(task);
     
-    // 添加到开头
+    // 添加到开�?
     history.insert(0, task);
     
     // 限制大小
@@ -143,7 +143,7 @@ class SettingsRepository {
     await prefs.setBool(_keyFirstRun, false);
   }
   
-  // ===== Shizuku状态 =====
+  // ===== Shizuku状�?=====
   
   static const String _keyShizukuWarned = 'shizuku_warned';
   

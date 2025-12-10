@@ -11,10 +11,10 @@ class AppPackages {
     // 电商
     '淘宝': 'com.taobao.taobao',
     '京东': 'com.jingdong.app.mall',
-    '拼多多': 'com.xunmeng.pinduoduo',
+    '拼多�?: 'com.xunmeng.pinduoduo',
     
     // 生活社交
-    '小红书': 'com.xingin.xhs',
+    '小红�?: 'com.xingin.xhs',
     '豆瓣': 'com.douban.frodo',
     '知乎': 'com.zhihu.android',
     
@@ -25,15 +25,15 @@ class AppPackages {
     // 美食服务
     '美团': 'com.sankuai.meituan',
     '大众点评': 'com.dianping.v1',
-    '饿了么': 'me.ele',
-    '肯德基': 'com.yek.android.kfc.activitys',
+    '饿了�?: 'me.ele',
+    '肯德�?: 'com.yek.android.kfc.activitys',
     
     // 旅行出行
     '携程': 'ctrip.android.view',
     '铁路12306': 'com.MobileTicket',
     '12306': 'com.MobileTicket',
-    '去哪儿': 'com.Qunar',
-    '去哪儿旅行': 'com.Qunar',
+    '去哪�?: 'com.Qunar',
+    '去哪儿旅�?: 'com.Qunar',
     '滴滴出行': 'com.sdu.did.psnger',
     
     // 视频娱乐
@@ -41,12 +41,12 @@ class AppPackages {
     '抖音': 'com.ss.android.ugc.aweme',
     '快手': 'com.smile.gifmaker',
     '腾讯视频': 'com.tencent.qqlive',
-    '爱奇艺': 'com.qiyi.video',
+    '爱奇�?: 'com.qiyi.video',
     '优酷视频': 'com.youku.phone',
     '芒果TV': 'com.hunantv.imgo.activity',
     
     // 音乐
-    '网易云音乐': 'com.netease.cloudmusic',
+    '网易云音�?: 'com.netease.cloudmusic',
     'QQ音乐': 'com.tencent.qqmusic',
     '汽水音乐': 'com.luna.music',
     '喜马拉雅': 'com.ximalaya.ting.android',
@@ -73,14 +73,14 @@ class AppPackages {
     
     // 房产
     '贝壳找房': 'com.lianjia.beike',
-    '安居客': 'com.anjuke.android.app',
+    '安居�?: 'com.anjuke.android.app',
     
     // 金融
-    '同花顺': 'com.hexin.plat.android',
+    '同花�?: 'com.hexin.plat.android',
     
     // 游戏
     '星穹铁道': 'com.miHoYo.hkrpg',
-    '崩坏：星穹铁道': 'com.miHoYo.hkrpg',
+    '崩坏：星穹铁�?: 'com.miHoYo.hkrpg',
     '恋与深空': 'com.papegames.lysk.cn',
     
     // 系统
@@ -107,12 +107,12 @@ class AppPackages {
     'Temu': 'com.einnovation.temu',
   };
 
-  /// 根据应用名获取包名
+  /// 根据应用名获取包�?
   static String? getPackageName(String appName) {
     return packages[appName];
   }
 
-  /// 根据包名获取应用名
+  /// 根据包名获取应用�?
   static String? getAppName(String packageName) {
     for (final entry in packages.entries) {
       if (entry.value == packageName) {

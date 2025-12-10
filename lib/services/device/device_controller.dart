@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../../data/models/models.dart';
 
 /// 设备控制服务
-/// 通过Platform Channel与Android原生层通信，
+/// 通过Platform Channel与Android原生层通信�?
 /// 使用Shizuku/InputManager执行设备操作
 class DeviceController {
   /// 平台通道名称
@@ -18,7 +18,7 @@ class DeviceController {
   /// 屏幕高度
   int _screenHeight = 2400;
   
-  /// 坐标系统最大值（0-1000）
+  /// 坐标系统最大值（0-1000�?
   static const int coordinateMax = 1000;
   
   /// 获取屏幕宽度
@@ -82,7 +82,7 @@ class DeviceController {
   }
   
   /// 点击指定坐标
-  /// [x], [y] 为相对坐标 (0-1000)
+  /// [x], [y] 为相对坐�?(0-1000)
   Future<bool> tap(int x, int y, {int delayMs = 1000}) async {
     final absX = _convertToAbsolute(x, _screenWidth);
     final absY = _convertToAbsolute(y, _screenHeight);
@@ -173,11 +173,11 @@ class DeviceController {
   /// 输入文本
   Future<bool> typeText(String text) async {
     try {
-      // 先清除现有文本
+      // 先清除现有文�?
       await _channel.invokeMethod('clearText');
       await Future.delayed(const Duration(milliseconds: 500));
       
-      // 输入新文本
+      // 输入新文�?
       await _channel.invokeMethod('typeText', {'text': text});
       await Future.delayed(const Duration(milliseconds: 500));
       
@@ -187,7 +187,7 @@ class DeviceController {
     }
   }
   
-  /// 按下返回键
+  /// 按下返回�?
   Future<bool> pressBack({int delayMs = 1000}) async {
     try {
       await _channel.invokeMethod('pressBack', {'delay': delayMs});
@@ -197,7 +197,7 @@ class DeviceController {
     }
   }
   
-  /// 按下Home键
+  /// 按下Home�?
   Future<bool> pressHome({int delayMs = 1000}) async {
     try {
       await _channel.invokeMethod('pressHome', {'delay': delayMs});
