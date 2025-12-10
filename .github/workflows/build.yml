@@ -1,0 +1,144 @@
+name: Build and Release APK
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'Auto-GLM-Android/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'Auto-GLM-Android/**'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: Auto-GLM-Android
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/my-release-key.keystore
+
+      - name: Create key.properties
+        run: |
+          cat > android/key.properties << EOF
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          keyAlias=${{ secrets.KEY_ALIAS }}
+          storeFile=my-release-key.keystore
+          EOF
+
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      - name: Build Release App Bundle
+        run: flutter build appbundle --release
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
+
+      - name: Rename APK
+        run: |
+          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/AutoGLM-Mobile-${{ steps.version.outputs.version }}.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoGLM-Mobile-APK-${{ steps.version.outputs.date }}
+          path: Auto-GLM-Android/build/app/outputs/flutter-apk/AutoGLM-Mobile-*.apk
+          retention-days: 30
+
+      - name: Upload AAB Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AutoGLM-Mobile-AAB-${{ steps.version.outputs.date }}
+          path: Auto-GLM-Android/build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version from pubspec
+        id: version
+        run: |
+          VERSION=$(grep 'version:' Auto-GLM-Android/pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Download APK Artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: AutoGLM-Mobile-APK-*
+          merge-multiple: true
+          path: ./artifacts
+
+      - name: Download AAB Artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: AutoGLM-Mobile-AAB-*
+          merge-multiple: true
+          path: ./artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          name: AutoGLM Mobile v${{ steps.version.outputs.version }}
+          body: |
+            ## AutoGLM Mobile v${{ steps.version.outputs.version }}
+            
+            自动构建版本，提交: ${{ github.sha }}
+            
+            ### 下载
+            - **APK**: 直接安装到 Android 设备
+            - **AAB**: 用于 Google Play 发布
+            
+            ### 要求
+            - Android 9.0+ (API 28)
+            - Shizuku 13.0+
+            
+            ### 更新内容
+            查看提交历史了解详细变更。
+          files: |
+            ./artifacts/*.apk
+            ./artifacts/*.aab
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

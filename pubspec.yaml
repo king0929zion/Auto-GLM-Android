@@ -1,0 +1,49 @@
+name: auto_glm_mobile
+description: "AutoGLM Mobile - AI-powered phone automation using Shizuku"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Icons
+  cupertino_icons: ^1.0.8
+  
+  # HTTP client for API requests
+  dio: ^5.4.0
+  
+  # State management
+  provider: ^6.1.1
+  
+  # Image handling
+  image: ^4.1.7
+  
+  # Local storage
+  shared_preferences: ^2.2.2
+  
+  # Platform channels support
+  flutter_riverpod: ^2.4.9
+  
+  # JSON serialization
+  json_annotation: ^4.8.1
+  
+  # Intl for date formatting
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.8
+  json_serializable: ^6.7.1
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/

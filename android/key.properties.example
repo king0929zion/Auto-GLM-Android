@@ -1,0 +1,14 @@
+# 签名配置文件示例
+# 
+# 使用方法:
+# 1. 复制此文件为 key.properties
+# 2. 填入你的签名信息
+# 3. 不要将 key.properties 提交到版本控制
+#
+# 生成keystore命令:
+# keytool -genkey -v -keystore my-release-key.keystore -keyalg RSA -keysize 2048 -validity 10000 -alias mykey
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=mykey
+storeFile=my-release-key.keystore
