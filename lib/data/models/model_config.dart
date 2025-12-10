@@ -1,4 +1,4 @@
-/// 模型配置数据�?
+/// 模型配置数据类
 class ModelConfig {
   /// API基础URL
   final String baseUrl;
@@ -9,7 +9,7 @@ class ModelConfig {
   /// 模型名称
   final String modelName;
   
-  /// 最大token�?
+  /// 最大token数
   final int maxTokens;
   
   /// 温度参数
@@ -57,7 +57,7 @@ class ModelConfig {
     };
   }
   
-  /// 复制并修�?
+  /// 复制并修改
   ModelConfig copyWith({
     String? baseUrl,
     String? apiKey,

@@ -40,7 +40,7 @@ class TaskStatusBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 任务标题和状�?
+          // 任务标题和状态
           Row(
             children: [
               Expanded(
@@ -82,7 +82,7 @@ class TaskStatusBar extends StatelessWidget {
           
           const SizedBox(height: AppTheme.spacingMD),
           
-          // 进度�?
+          // 进度条
           _buildProgressBar(),
         ],
       ),
@@ -97,17 +97,17 @@ class TaskStatusBar extends StatelessWidget {
     switch (task!.status) {
       case TaskStatus.running:
         color = AppTheme.accentOrange;
-        text = '执行�?;
+        text = '执行中';
         icon = Icons.play_circle_outline;
         break;
       case TaskStatus.paused:
         color = AppTheme.warning;
-        text = '已暂�?;
+        text = '已暂停';
         icon = Icons.pause_circle_outline;
         break;
       case TaskStatus.completed:
         color = AppTheme.success;
-        text = '已完�?;
+        text = '已完成';
         icon = Icons.check_circle_outline;
         break;
       case TaskStatus.failed:
@@ -117,7 +117,7 @@ class TaskStatusBar extends StatelessWidget {
         break;
       case TaskStatus.waitingConfirmation:
         color = AppTheme.warning;
-        text = '待确�?;
+        text = '待确认';
         icon = Icons.help_outline;
         break;
       case TaskStatus.waitingTakeover:
@@ -250,6 +250,6 @@ class TaskStatusBar extends StatelessWidget {
   String _formatDuration(Duration duration) {
     final minutes = duration.inMinutes;
     final seconds = duration.inSeconds % 60;
-    return '${minutes}�?{seconds}�?;
+    return '${minutes}分${seconds}秒';
   }
 }

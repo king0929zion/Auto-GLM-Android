@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../../data/models/models.dart';
 
-/// 思考过程卡片组�?
+/// 思考过程卡片组件
 class ThinkingCard extends StatefulWidget {
-  /// 思考内�?
+  /// 思考内容
   final String thinking;
   
   /// 动作数据
@@ -58,7 +58,7 @@ class _ThinkingCardState extends State<ThinkingCard>
           // 头部
           _buildHeader(),
           
-          // 思考内�?
+          // 思考内容
           if (_isExpanded) ...[
             const Divider(height: 1, color: AppTheme.warmBeige),
             _buildThinkingContent(),
@@ -127,7 +127,7 @@ class _ThinkingCardState extends State<ThinkingCard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.isExecuting ? '思考中...' : '思考过�?,
+                    widget.isExecuting ? '思考中...' : '思考过程',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -183,7 +183,7 @@ class _ThinkingCardState extends State<ThinkingCard>
               ),
               const SizedBox(width: AppTheme.spacingXS),
               Text(
-                '💭 思�?,
+                '💭 思考',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,

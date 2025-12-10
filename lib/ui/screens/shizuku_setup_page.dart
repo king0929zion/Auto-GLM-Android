@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import '../../services/shizuku/shizuku_service.dart';
 
-/// Shizuku设置和引导页�?
+/// Shizuku设置和引导页面
 class ShizukuSetupPage extends StatefulWidget {
   const ShizukuSetupPage({super.key});
 
@@ -26,13 +26,13 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
     setState(() => _isChecking = true);
     
     try {
-      // 这里会调用原生层检查Shizuku状�?
+      // 这里会调用原生层检查Shizuku状态
       // 目前使用模拟数据
       await Future.delayed(const Duration(milliseconds: 500));
       
       // 实际实现会从Platform Channel获取
       setState(() {
-        _status = ShizukuStatus.notAuthorized; // 模拟状�?
+        _status = ShizukuStatus.notAuthorized; // 模拟状态
         _version = '13.1.5';
       });
     } catch (e) {
@@ -54,14 +54,14 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _isChecking ? null : _checkStatus,
-            tooltip: '刷新状�?,
+            tooltip: '刷新状态',
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppTheme.spacingMD),
         children: [
-          // 状态卡�?
+          // 状态卡片
           _buildStatusCard(),
           
           const SizedBox(height: AppTheme.spacingLG),
@@ -88,25 +88,25 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
       case ShizukuStatus.authorized:
         statusColor = AppTheme.success;
         statusIcon = Icons.check_circle;
-        statusText = '已就�?;
-        statusDesc = 'Shizuku 服务运行正常，可以正常使�?;
+        statusText = '已就绪';
+        statusDesc = 'Shizuku 服务运行正常，可以正常使用';
         break;
       case ShizukuStatus.notAuthorized:
         statusColor = AppTheme.warning;
         statusIcon = Icons.warning_amber;
-        statusText = '需要授�?;
+        statusText = '需要授权';
         statusDesc = 'Shizuku 服务已运行，但需要本应用授权';
         break;
       case ShizukuStatus.notStarted:
         statusColor = AppTheme.error;
         statusIcon = Icons.error_outline;
-        statusText = '未启�?;
+        statusText = '未启动';
         statusDesc = 'Shizuku 已安装，但服务未启动';
         break;
       case ShizukuStatus.notInstalled:
         statusColor = AppTheme.error;
         statusIcon = Icons.cancel_outlined;
-        statusText = '未安�?;
+        statusText = '未安装';
         statusDesc = '请先安装 Shizuku 应用';
         break;
       case ShizukuStatus.unknown:
@@ -114,7 +114,7 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
         statusColor = AppTheme.textHint;
         statusIcon = Icons.help_outline;
         statusText = '检测中...';
-        statusDesc = '正在检�?Shizuku 状�?;
+        statusDesc = '正在检测 Shizuku 状态';
     }
     
     return Container(
@@ -125,7 +125,7 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
       ),
       child: Column(
         children: [
-          // 状态头�?
+          // 状态头部
           Container(
             padding: const EdgeInsets.all(AppTheme.spacingLG),
             decoration: BoxDecoration(
@@ -201,7 +201,7 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
           width: double.infinity,
           child: ElevatedButton.icon(
             icon: const Icon(Icons.check),
-            label: const Text('已配置完�?),
+            label: const Text('已配置完成'),
             onPressed: () => Navigator.pop(context),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.success,
@@ -257,7 +257,7 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Icon(Icons.refresh),
-            label: const Text('检测状�?),
+            label: const Text('检测状态'),
             onPressed: _isChecking ? null : _checkStatus,
           ),
         );
@@ -295,14 +295,14 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
           _buildStepItem(
             number: 1,
             title: '安装 Shizuku',
-            description: '�?GitHub �?Google Play 下载安装 Shizuku 应用',
+            description: '从 GitHub 或 Google Play 下载安装 Shizuku 应用',
             completed: _status != ShizukuStatus.notInstalled,
           ),
           
           _buildStepItem(
             number: 2,
             title: '启动 Shizuku 服务',
-            description: '使用以下任一方式启动：\n�?无线调试：在 Shizuku 中按提示操作\n�?ADB：adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh',
+            description: '使用以下任一方式启动：\n• 无线调试：在 Shizuku 中按提示操作\n• ADB：adb shell sh /sdcard/Android/data/moe.shizuku.privileged.api/start.sh',
             completed: _status == ShizukuStatus.authorized || 
                        _status == ShizukuStatus.notAuthorized,
             hasCommand: true,
@@ -311,8 +311,8 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
           
           _buildStepItem(
             number: 3,
-            title: '授权本应�?,
-            description: '�?Shizuku 应用中找到本应用并授�?,
+            title: '授权本应用',
+            description: '在 Shizuku 应用中找到本应用并授权',
             completed: _status == ShizukuStatus.authorized,
           ),
         ],
@@ -443,18 +443,18 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
           const Divider(height: 1),
           
           _buildFAQItem(
-            question: '什么是 Shizuku�?,
-            answer: 'Shizuku 是一个让普通应用可以直接使用系�?API 的工具。相�?ADB 方案，它可以完全在手机上运行，无需电脑�?,
+            question: '什么是 Shizuku？',
+            answer: 'Shizuku 是一个让普通应用可以直接使用系统 API 的工具。相比 ADB 方案，它可以完全在手机上运行，无需电脑。',
           ),
           
           _buildFAQItem(
-            question: '每次重启都需要重新配置吗�?,
-            answer: '是的，通过无线调试启动�?Shizuku 会在手机重启后失效。如果你的手机已�?Root，可以选择 Root 方式启动实现开机自启�?,
+            question: '每次重启都需要重新配置吗？',
+            answer: '是的，通过无线调试启动的 Shizuku 会在手机重启后失效。如果你的手机已经 Root，可以选择 Root 方式启动实现开机自启。',
           ),
           
           _buildFAQItem(
             question: '为什么需要这个权限？',
-            answer: 'AutoGLM 需要模拟触摸和输入来自动完成任务，这些操作需�?Shizuku 提供的系统权限。所有操作都在您的设备上本地执行�?,
+            answer: 'AutoGLM 需要模拟触摸和输入来自动完成任务，这些操作需要 Shizuku 提供的系统权限。所有操作都在您的设备上本地执行。',
           ),
         ],
       ),
@@ -488,21 +488,21 @@ class _ShizukuSetupPageState extends State<ShizukuSetupPage> {
   void _requestPermission() {
     // 调用原生层请求Shizuku权限
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('请在 Shizuku 应用中授�?)),
+      const SnackBar(content: Text('请在 Shizuku 应用中授权')),
     );
   }
 
   void _downloadShizuku() {
     // 打开Shizuku下载页面
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('请访�?https://shizuku.rikka.app/ 下载')),
+      const SnackBar(content: Text('请访问 https://shizuku.rikka.app/ 下载')),
     );
   }
 
   void _copyCommand(String command) {
     Clipboard.setData(ClipboardData(text: command));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('命令已复制到剪贴�?)),
+      const SnackBar(content: Text('命令已复制到剪贴板')),
     );
   }
 }

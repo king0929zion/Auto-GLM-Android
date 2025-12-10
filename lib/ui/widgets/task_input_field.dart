@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// 任务输入框组�?
+/// 任务输入框组件
 class TaskInputField extends StatefulWidget {
-  /// 输入控制�?
+  /// 输入控制器
   final TextEditingController? controller;
   
   /// 提交回调
@@ -104,7 +104,7 @@ class _TaskInputFieldState extends State<TaskInputField> {
             onSubmitted: (_) => _handleSubmit(),
           ),
           
-          // 底部工具�?
+          // 底部工具栏
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppTheme.spacingSM,
@@ -146,7 +146,7 @@ class _TaskInputFieldState extends State<TaskInputField> {
                 
                 const Spacer(),
                 
-                // 发送按�?
+                // 发送按钮
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   child: widget.isLoading
@@ -170,7 +170,7 @@ class _TaskInputFieldState extends State<TaskInputField> {
                             ? AppTheme.accentOrange
                             : AppTheme.textHint,
                         ),
-                        tooltip: '开始执�?,
+                        tooltip: '开始执行',
                       ),
                 ),
               ],
@@ -209,10 +209,10 @@ class _TaskExamplesSheet extends StatelessWidget {
   const _TaskExamplesSheet({required this.onSelect});
   
   static const List<String> examples = [
-    '打开微信，给张三发一条消息说"明天�?',
-    '打开淘宝，搜�?蓝牙耳机"，筛选价�?00-200�?,
-    '打开美团，点一份附近的麻辣烫外�?,
-    '打开高德地图，导航到最近的星巴�?,
+    '打开微信，给张三发一条消息说"明天见"',
+    '打开淘宝，搜索"蓝牙耳机"，筛选价格100-200元',
+    '打开美团，点一份附近的麻辣烫外卖',
+    '打开高德地图，导航到最近的星巴克',
     '打开抖音，搜索并关注"官方账号"',
     '打开设置，打开WiFi并连接家里的网络',
   ];
@@ -229,7 +229,7 @@ class _TaskExamplesSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 拖动�?
+          // 拖动条
           Container(
             width: 40,
             height: 4,

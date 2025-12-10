@@ -3,7 +3,7 @@ import 'prompts_en.dart';
 
 /// 国际化支持类
 class I18n {
-  /// 获取系统提示�?
+  /// 获取系统提示词
   static String getSystemPrompt(String lang) {
     switch (lang) {
       case 'en':

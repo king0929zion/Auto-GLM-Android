@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../../config/apps.dart';
 
-/// 支持的应用列表页�?
-/// 复刻原Python项目�?--list-apps 功能
+/// 支持的应用列表页面
+/// 复刻原Python项目的 --list-apps 功能
 class AppsListPage extends StatefulWidget {
   const AppsListPage({super.key});
 
@@ -19,12 +19,12 @@ class _AppsListPageState extends State<AppsListPage> {
   static const Map<String, List<String>> _categories = {
     '全部': [],
     '社交通讯': ['微信', 'QQ', '微博', 'Telegram', 'WhatsApp', 'Twitter'],
-    '电商购物': ['淘宝', '京东', '拼多�?, 'Temu'],
-    '生活服务': ['美团', '大众点评', '饿了�?, '高德地图', '百度地图', '滴滴出行'],
-    '视频娱乐': ['bilibili', '抖音', '快手', '腾讯视频', '爱奇�?, '优酷视频'],
-    '音乐': ['网易云音�?, 'QQ音乐', '汽水音乐', '喜马拉雅'],
-    '阅读': ['小红�?, '知乎', '豆瓣', '番茄小说', '今日头条'],
-    '旅行出行': ['携程', '铁路12306', '去哪�?],
+    '电商购物': ['淘宝', '京东', '拼多多', 'Temu'],
+    '生活服务': ['美团', '大众点评', '饿了么', '高德地图', '百度地图', '滴滴出行'],
+    '视频娱乐': ['bilibili', '抖音', '快手', '腾讯视频', '爱奇艺', '优酷视频'],
+    '音乐': ['网易云音乐', 'QQ音乐', '汽水音乐', '喜马拉雅'],
+    '阅读': ['小红书', '知乎', '豆瓣', '番茄小说', '今日头条'],
+    '旅行出行': ['携程', '铁路12306', '去哪儿'],
     '工具': ['Settings', 'Chrome', 'Gmail', 'Clock', 'Contacts'],
     '游戏': ['星穹铁道', '恋与深空'],
   };
@@ -32,13 +32,13 @@ class _AppsListPageState extends State<AppsListPage> {
   List<MapEntry<String, String>> get _filteredApps {
     var apps = AppPackages.packages.entries.toList();
     
-    // 按分类筛�?
+    // 按分类筛选
     if (_selectedCategory != '全部') {
       final categoryApps = _categories[_selectedCategory] ?? [];
       apps = apps.where((e) => categoryApps.contains(e.key)).toList();
     }
     
-    // 按搜索词筛�?
+    // 按搜索词筛选
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       apps = apps.where((e) => 
@@ -62,13 +62,13 @@ class _AppsListPageState extends State<AppsListPage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: const Text('支持的应�?),
+        title: const Text('支持的应用'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Text(
-                '${filteredApps.length} 个应�?,
+                '${filteredApps.length} 个应用',
                 style: const TextStyle(
                   color: AppTheme.textSecondary,
                   fontSize: 14,
@@ -80,12 +80,12 @@ class _AppsListPageState extends State<AppsListPage> {
       ),
       body: Column(
         children: [
-          // 搜索�?
+          // 搜索栏
           Padding(
             padding: const EdgeInsets.all(AppTheme.spacingMD),
             child: TextField(
               decoration: InputDecoration(
-                hintText: '搜索应用名称或包�?..',
+                hintText: '搜索应用名称或包名...',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                   ? IconButton(
@@ -106,7 +106,7 @@ class _AppsListPageState extends State<AppsListPage> {
             ),
           ),
           
-          // 分类筛�?
+          // 分类筛选
           SizedBox(
             height: 40,
             child: ListView.builder(
@@ -170,7 +170,7 @@ class _AppsListPageState extends State<AppsListPage> {
           ),
           const SizedBox(height: AppTheme.spacingMD),
           const Text(
-            '没有找到匹配的应�?,
+            '没有找到匹配的应用',
             style: TextStyle(color: AppTheme.textSecondary),
           ),
         ],
@@ -229,7 +229,7 @@ class _AppsListPageState extends State<AppsListPage> {
     // 复制到剪贴板
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('已复�? $text'),
+        content: Text('已复制: $text'),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -249,7 +249,7 @@ class _AppsListPageState extends State<AppsListPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 拖动�?
+            // 拖动条
             Center(
               child: Container(
                 width: 40,
@@ -315,7 +315,7 @@ class _AppsListPageState extends State<AppsListPage> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '打开$appName，给张三发消�?,
+                '打开$appName，给张三发消息',
                 style: const TextStyle(fontSize: 14),
               ),
             ),

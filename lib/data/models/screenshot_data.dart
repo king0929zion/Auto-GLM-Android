@@ -1,9 +1,9 @@
 import 'dart:typed_data';
 import 'dart:convert';
 
-/// 截图数据�?
+/// 截图数据类
 class ScreenshotData {
-  /// Base64编码的图片数�?
+  /// Base64编码的图片数据
   final String base64Data;
   
   /// 屏幕宽度
@@ -15,7 +15,7 @@ class ScreenshotData {
   /// 是否为敏感页面（如支付页面导致截图失败）
   final bool isSensitive;
   
-  /// 截图时间�?
+  /// 截图时间戳
   final DateTime timestamp;
 
   const ScreenshotData({
@@ -26,7 +26,7 @@ class ScreenshotData {
     required this.timestamp,
   });
   
-  /// 从字节数据创�?
+  /// 从字节数据创建
   factory ScreenshotData.fromBytes({
     required Uint8List bytes,
     required int width,
@@ -65,7 +65,7 @@ class ScreenshotData {
   /// 获取data URL格式
   String get dataUrl => 'data:image/png;base64,$base64Data';
   
-  /// 复制并修�?
+  /// 复制并修改
   ScreenshotData copyWith({
     String? base64Data,
     int? width,
