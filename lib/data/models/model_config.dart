@@ -23,7 +23,7 @@ class ModelConfig {
   
   const ModelConfig({
     this.baseUrl = 'https://api-inference.modelscope.cn/v1',
-    this.apiKey = 'EMPTY',
+    this.apiKey = '',
     this.modelName = 'ZhipuAI/AutoGLM-Phone-9B',
     this.maxTokens = 3000,
     this.temperature = 0.0,
@@ -35,7 +35,7 @@ class ModelConfig {
   factory ModelConfig.fromJson(Map<String, dynamic> json) {
     return ModelConfig(
       baseUrl: json['baseUrl'] as String? ?? 'https://api-inference.modelscope.cn/v1',
-      apiKey: json['apiKey'] as String? ?? 'EMPTY',
+      apiKey: json['apiKey'] as String? ?? '',
       modelName: json['modelName'] as String? ?? 'ZhipuAI/AutoGLM-Phone-9B',
       maxTokens: json['maxTokens'] as int? ?? 3000,
       temperature: (json['temperature'] as num?)?.toDouble() ?? 0.0,

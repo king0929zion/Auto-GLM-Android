@@ -163,12 +163,24 @@ class _SettingsPageState extends State<SettingsPage> {
               controller: _apiKeyController,
               label: 'API 密钥',
               hint: '请输入你的魔搭社区API Key',
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入API Key，否则无法使用模型';
+                }
+                return null;
+              },
             ),
             const Divider(height: 1),
             _buildTextField(
               controller: _modelNameController,
               label: '模型名称',
               hint: 'ZhipuAI/AutoGLM-Phone-9B',
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return '请输入模型名称';
+                }
+                return null;
+              },
             ),
           ]),
           

@@ -200,9 +200,7 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 - API Key: 在[魔搭社区](https://www.modelscope.cn)获取你的API Token
 - 模型名称: `ZhipuAI/AutoGLM-Phone-9B`
 
-或者使用本地部署：
-- API URL: `http://your-server:8000/v1`
-- 模型名称: `ZhipuAI/AutoGLM-Phone-9B`
+> ⚠️ **重要**：必须在魔搭社区获取有效的API Token，否则会报错。默认配置不含 API Key，需要用户自行填写。
 
 ### 5. 运行
 ```bash

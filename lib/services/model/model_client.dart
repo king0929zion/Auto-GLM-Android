@@ -99,8 +99,18 @@ class ModelClient {
         errorMsg = '服务器错误，请稍后重试';
       } else if (e.response != null) {
         final respData = e.response?.data;
-        if (respData is Map && respData['error'] != null) {
-          errorMsg = '${respData['error']['message'] ?? respData['error']}';
+        if (respData is Map) {
+          // 魔搭API错误格式: {'errors': {'message': '...'}}
+          if (respData['errors'] != null && respData['errors'] is Map) {
+            errorMsg = '魔搭API错误: ${respData['errors']['message'] ?? respData['errors']}';
+          }
+          // OpenAI标准错误格式: {'error': {'message': '...'}}
+          else if (respData['error'] != null) {
+            errorMsg = 'API错误: ${respData['error']['message'] ?? respData['error']}';
+          }
+          else {
+            errorMsg = '请求失败 (${e.response?.statusCode}): $respData';
+          }
         } else {
           errorMsg = '请求失败 (${e.response?.statusCode}): $respData';
         }
