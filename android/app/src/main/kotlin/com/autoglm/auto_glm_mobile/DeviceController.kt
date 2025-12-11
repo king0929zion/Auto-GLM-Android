@@ -95,40 +95,79 @@ class DeviceController(private val context: Context) {
     
     /**
      * 获取屏幕截图
-     * 通过shell命令执行screencap
+     * 通过Shizuku执行shell命令获取截图
+     * 方法：先保存到文件再读取（与原Python项目一致）
      */
     fun getScreenshot(timeout: Int, callback: (Bitmap?, Boolean) -> Unit) {
         executor.execute {
             try {
-                // 尝试通过shell执行screencap命令
-                if (Shizuku.pingBinder() && 
-                    Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                android.util.Log.d("DeviceController", "Starting screenshot capture...")
+                
+                // 检查Shizuku权限
+                if (!Shizuku.pingBinder()) {
+                    android.util.Log.e("DeviceController", "Shizuku binder not available")
+                    callback(null, false)
+                    return@execute
+                }
+                
+                if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                    android.util.Log.e("DeviceController", "Shizuku permission not granted")
+                    callback(null, false)
+                    return@execute
+                }
+                
+                val tempFile = "/data/local/tmp/autoglm_screenshot.png"
+                
+                // 方法1: 使用screencap保存到文件
+                val captureProcess = Runtime.getRuntime().exec(arrayOf(
+                    "sh", "-c", "screencap -p $tempFile"
+                ))
+                val captureResult = captureProcess.waitFor()
+                android.util.Log.d("DeviceController", "screencap exit code: $captureResult")
+                
+                if (captureResult == 0) {
+                    // 读取截图文件
+                    val catProcess = Runtime.getRuntime().exec(arrayOf(
+                        "sh", "-c", "cat $tempFile"
+                    ))
                     
-                    // 使用shell命令执行screencap
-                    val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "screencap -p"))
-                    
-                    val inputStream = process.inputStream
+                    val inputStream = catProcess.inputStream
                     val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
                     inputStream.close()
-                    process.waitFor()
+                    catProcess.waitFor()
+                    
+                    // 清理临时文件
+                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "rm -f $tempFile"))
                     
                     if (bitmap != null) {
                         android.util.Log.d("DeviceController", "Screenshot captured: ${bitmap.width}x${bitmap.height}")
                         callback(bitmap, false)
                         return@execute
-                    } else {
-                        android.util.Log.e("DeviceController", "Screenshot bitmap is null")
                     }
-                } else {
-                    android.util.Log.e("DeviceController", "Shizuku not available or not authorized")
                 }
                 
-                // 如果截图失败，返回空
+                // 方法2: 直接管道输出
+                android.util.Log.d("DeviceController", "Trying direct pipe method...")
+                val directProcess = Runtime.getRuntime().exec(arrayOf(
+                    "sh", "-c", "screencap -p"
+                ))
+                
+                val directStream = directProcess.inputStream
+                val directBitmap = android.graphics.BitmapFactory.decodeStream(directStream)
+                directStream.close()
+                directProcess.waitFor()
+                
+                if (directBitmap != null) {
+                    android.util.Log.d("DeviceController", "Screenshot captured (direct): ${directBitmap.width}x${directBitmap.height}")
+                    callback(directBitmap, false)
+                    return@execute
+                }
+                
+                android.util.Log.e("DeviceController", "All screenshot methods failed")
                 callback(null, false)
                 
             } catch (e: Exception) {
                 android.util.Log.e("DeviceController", "Screenshot error: ${e.message}", e)
-                // 检查是否是安全页面导致的失败
                 val isSensitive = e.message?.contains("secure") == true
                 callback(null, isSensitive)
             }
