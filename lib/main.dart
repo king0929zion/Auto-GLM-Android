@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'config/settings_repository.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/screens/screens.dart';
+import 'ui/screens/permission_setup_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,13 +43,14 @@ class AutoGLMApp extends StatelessWidget {
       // 应用主题
       theme: AppTheme.lightTheme,
       
-      // 初始路由
-      initialRoute: isFirstRun ? '/welcome' : '/',
+      // 初始路由 - 首次运行显示欢迎页，否则显示权限检查页
+      initialRoute: isFirstRun ? '/welcome' : '/permission_setup',
       
       // 路由配置
       routes: {
         '/': (context) => const HomePage(),
         '/welcome': (context) => const WelcomePage(),
+        '/permission_setup': (context) => const PermissionSetupPage(),
         '/settings': (context) => const SettingsPage(),
         '/apps': (context) => const AppsListPage(),
         '/shizuku': (context) => const ShizukuSetupPage(),

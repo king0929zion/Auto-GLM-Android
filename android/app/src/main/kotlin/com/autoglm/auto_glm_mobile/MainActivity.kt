@@ -78,15 +78,19 @@ class MainActivity : FlutterActivity() {
             "updateFloatingWindow" -> updateFloatingWindow(call, result)
             "isAccessibilityEnabled" -> isAccessibilityEnabled(result)
             "openAccessibilitySettings" -> openAccessibilitySettings(result)
+            "checkOverlayPermission" -> checkOverlayPermission(result)
+            "openOverlaySettings" -> openOverlaySettings(result)
             else -> result.notImplemented()
         }
     }
     
     private fun showFloatingWindow(call: MethodCall, result: MethodChannel.Result) {
         val content = call.argument<String>("content") ?: ""
+        val thinking = call.argument<String>("thinking") ?: ""
         val intent = Intent(this, FloatingWindowService::class.java).apply {
             putExtra("action", "show")
             putExtra("content", content)
+            putExtra("thinking", thinking)
         }
         startService(intent)
         result.success(true)
@@ -102,9 +106,11 @@ class MainActivity : FlutterActivity() {
     
     private fun updateFloatingWindow(call: MethodCall, result: MethodChannel.Result) {
         val content = call.argument<String>("content") ?: ""
+        val thinking = call.argument<String>("thinking") ?: ""
         val intent = Intent(this, FloatingWindowService::class.java).apply {
             putExtra("action", "update")
             putExtra("content", content)
+            putExtra("thinking", thinking)
         }
         startService(intent)
         result.success(true)
@@ -437,6 +443,38 @@ class MainActivity : FlutterActivity() {
             val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             startActivity(intent)
+            result.success(true)
+        } catch (e: Exception) {
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 检查悬浮窗权限
+     */
+    private fun checkOverlayPermission(result: MethodChannel.Result) {
+        result.success(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                android.provider.Settings.canDrawOverlays(this)
+            } else {
+                true
+            }
+        )
+    }
+    
+    /**
+     * 打开悬浮窗设置页面
+     */
+    private fun openOverlaySettings(result: MethodChannel.Result) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    android.net.Uri.parse("package:$packageName")
+                )
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(intent)
+            }
             result.success(true)
         } catch (e: Exception) {
             result.success(false)

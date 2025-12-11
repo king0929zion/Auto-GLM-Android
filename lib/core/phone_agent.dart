@@ -313,9 +313,12 @@ class PhoneAgent extends ChangeNotifier {
         MessageBuilder.removeImagesFromMessage(_context.last);
     }
     
-    // 更新悬浮窗显示当前动作
+    // 更新悬浮窗显示当前动作和思考
     final actionText = '步骤 $_stepCount: ${action.actionName}';
-    await _deviceController.updateFloatingWindow(actionText);
+    await _deviceController.updateFloatingWindow(
+      actionText, 
+      thinking: response.thinking,
+    );
     
     // 执行动作
     ActionResult actionResult;
