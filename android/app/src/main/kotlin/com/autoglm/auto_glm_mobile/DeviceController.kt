@@ -176,30 +176,33 @@ class DeviceController(private val context: Context) {
     
     /**
      * 获取当前前台应用
+     * 使用 dumpsys window 命令（与原Python项目一致）
      */
     fun getCurrentApp(): String {
         return try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
-                val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) 
-                    as UsageStatsManager
-                val endTime = System.currentTimeMillis()
-                val beginTime = endTime - 5000
-                
-                val usageStats = usageStatsManager.queryUsageStats(
-                    UsageStatsManager.INTERVAL_BEST, beginTime, endTime
-                )
-                
-                if (usageStats.isNotEmpty()) {
-                    val sortedStats = usageStats.sortedByDescending { it.lastTimeUsed }
-                    val packageName = sortedStats.firstOrNull()?.packageName
-                    
-                    if (packageName != null) {
-                        return getAppNameFromPackage(packageName) ?: packageName
+            // 使用 dumpsys window 获取当前焦点窗口
+            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "dumpsys window"))
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+            
+            android.util.Log.d("DeviceController", "Getting current app...")
+            
+            // 解析窗口焦点信息
+            for (line in output.split("\n")) {
+                if (line.contains("mCurrentFocus") || line.contains("mFocusedApp")) {
+                    // 查找已知应用包名
+                    for ((appName, packageName) in APP_PACKAGES) {
+                        if (line.contains(packageName)) {
+                            android.util.Log.d("DeviceController", "Current app: $appName")
+                            return appName
+                        }
                     }
                 }
             }
+            
             "System Home"
         } catch (e: Exception) {
+            android.util.Log.e("DeviceController", "Error getting current app: ${e.message}")
             "System Home"
         }
     }
@@ -208,6 +211,13 @@ class DeviceController(private val context: Context) {
      * 从包名获取应用名称
      */
     private fun getAppNameFromPackage(packageName: String): String? {
+        // 先从APP_PACKAGES中查找
+        for ((appName, pkg) in APP_PACKAGES) {
+            if (pkg == packageName) {
+                return appName
+            }
+        }
+        // 否则从系统获取
         return try {
             val pm = context.packageManager
             val appInfo = pm.getApplicationInfo(packageName, 0)
@@ -215,6 +225,58 @@ class DeviceController(private val context: Context) {
         } catch (e: Exception) {
             null
         }
+    }
+    
+    companion object {
+        /**
+         * 应用名称到包名的映射（复刻原Python项目的apps.py）
+         */
+        val APP_PACKAGES = mapOf(
+            // 社交通讯
+            "微信" to "com.tencent.mm",
+            "QQ" to "com.tencent.mobileqq",
+            "微博" to "com.sina.weibo",
+            // 电商购物
+            "淘宝" to "com.taobao.taobao",
+            "京东" to "com.jingdong.app.mall",
+            "拼多多" to "com.xunmeng.pinduoduo",
+            // 生活服务
+            "小红书" to "com.xingin.xhs",
+            "豆瓣" to "com.douban.frodo",
+            "知乎" to "com.zhihu.android",
+            // 地图导航
+            "高德地图" to "com.autonavi.minimap",
+            "百度地图" to "com.baidu.BaiduMap",
+            // 外卖美食
+            "美团" to "com.sankuai.meituan",
+            "大众点评" to "com.dianping.v1",
+            "饿了么" to "me.ele",
+            "肯德基" to "com.yek.android.kfc.activitys",
+            // 出行旅游
+            "携程" to "ctrip.android.view",
+            "铁路12306" to "com.MobileTicket",
+            "12306" to "com.MobileTicket",
+            "去哪儿" to "com.Qunar",
+            "滴滴出行" to "com.sdu.did.psnger",
+            // 视频娱乐
+            "bilibili" to "tv.danmaku.bili",
+            "抖音" to "com.ss.android.ugc.aweme",
+            "快手" to "com.smile.gifmaker",
+            "腾讯视频" to "com.tencent.qqlive",
+            "爱奇艺" to "com.qiyi.video",
+            "优酷视频" to "com.youku.phone",
+            // 音乐
+            "网易云音乐" to "com.netease.cloudmusic",
+            "QQ音乐" to "com.tencent.qqmusic",
+            // 办公
+            "飞书" to "com.ss.android.lark",
+            "QQ邮箱" to "com.tencent.androidqqmail",
+            // 系统
+            "Settings" to "com.android.settings",
+            "设置" to "com.android.settings",
+            "Chrome" to "com.android.chrome",
+            "浏览器" to "com.android.browser"
+        )
     }
     
     /**
