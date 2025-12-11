@@ -95,17 +95,17 @@ class DeviceController(private val context: Context) {
     
     /**
      * 获取屏幕截图
-     * 注意：需要MediaProjection权限或Shizuku权限
+     * 通过shell命令执行screencap
      */
     fun getScreenshot(timeout: Int, callback: (Bitmap?, Boolean) -> Unit) {
         executor.execute {
             try {
-                // 尝试通过Shizuku执行screencap命令
+                // 尝试通过shell执行screencap命令
                 if (Shizuku.pingBinder() && 
                     Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                     
-                    // 使用Shizuku的ShizukuRemoteProcess执行命令
-                    val process = Shizuku.newProcess(arrayOf("screencap", "-p"), null, null)
+                    // 使用shell命令执行screencap
+                    val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "screencap -p"))
                     
                     val inputStream = process.inputStream
                     val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
@@ -123,7 +123,7 @@ class DeviceController(private val context: Context) {
                     android.util.Log.e("DeviceController", "Shizuku not available or not authorized")
                 }
                 
-                // 如果Shizuku不可用，返回空
+                // 如果截图失败，返回空
                 callback(null, false)
                 
             } catch (e: Exception) {
