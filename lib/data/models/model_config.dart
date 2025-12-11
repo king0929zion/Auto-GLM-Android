@@ -22,9 +22,9 @@ class ModelConfig {
   final double frequencyPenalty;
   
   const ModelConfig({
-    this.baseUrl = 'http://localhost:8000/v1',
+    this.baseUrl = 'https://api-inference.modelscope.cn/v1',
     this.apiKey = 'EMPTY',
-    this.modelName = 'autoglm-phone-9b',
+    this.modelName = 'ZhipuAI/AutoGLM-Phone-9B',
     this.maxTokens = 3000,
     this.temperature = 0.0,
     this.topP = 0.85,
@@ -34,9 +34,9 @@ class ModelConfig {
   /// 从JSON创建
   factory ModelConfig.fromJson(Map<String, dynamic> json) {
     return ModelConfig(
-      baseUrl: json['baseUrl'] as String? ?? 'http://localhost:8000/v1',
+      baseUrl: json['baseUrl'] as String? ?? 'https://api-inference.modelscope.cn/v1',
       apiKey: json['apiKey'] as String? ?? 'EMPTY',
-      modelName: json['modelName'] as String? ?? 'autoglm-phone-9b',
+      modelName: json['modelName'] as String? ?? 'ZhipuAI/AutoGLM-Phone-9B',
       maxTokens: json['maxTokens'] as int? ?? 3000,
       temperature: (json['temperature'] as num?)?.toDouble() ?? 0.0,
       topP: (json['topP'] as num?)?.toDouble() ?? 0.85,

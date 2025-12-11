@@ -196,8 +196,13 @@ adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.s
 
 ### 4. 配置模型API
 在应用设置中配置：
+- API URL: `https://api-inference.modelscope.cn/v1`（魔搭社区推理API）
+- API Key: 在[魔搭社区](https://www.modelscope.cn)获取你的API Token
+- 模型名称: `ZhipuAI/AutoGLM-Phone-9B`
+
+或者使用本地部署：
 - API URL: `http://your-server:8000/v1`
-- 模型名称: `autoglm-phone-9b`
+- 模型名称: `ZhipuAI/AutoGLM-Phone-9B`
 
 ### 5. 运行
 ```bash

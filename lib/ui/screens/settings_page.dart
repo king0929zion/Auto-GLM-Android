@@ -147,7 +147,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _buildTextField(
               controller: _baseUrlController,
               label: 'API 基础URL',
-              hint: 'http://localhost:8000/v1',
+              hint: 'https://api-inference.modelscope.cn/v1',
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return '请输入API URL';
@@ -168,7 +168,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _buildTextField(
               controller: _modelNameController,
               label: '模型名称',
-              hint: 'autoglm-phone-9b',
+              hint: 'ZhipuAI/AutoGLM-Phone-9B',
             ),
           ]),
           
