@@ -5,6 +5,9 @@ import '../config/i18n.dart';
 import '../services/model/model_client.dart';
 import '../services/device/device_controller.dart';
 import '../services/device/action_handler.dart';
+import '../services/history_service.dart';
+import '../data/models/task_record.dart';
+import 'package:uuid/uuid.dart';
 
 /// PhoneAgent 配置
 class AgentConfig {
@@ -53,6 +56,15 @@ class PhoneAgent extends ChangeNotifier {
   
   /// 动作处理器
   late final ActionHandler _actionHandler;
+  
+  /// 历史记录服务
+  final HistoryService _historyService = HistoryService();
+  
+  /// 当前任务日志
+  final List<String> _currentTaskLogs = [];
+  
+  /// 任务开始时间
+  int _taskStartTime = 0;
   
   /// 对话上下文
   final List<Map<String, dynamic>> _context = [];
@@ -133,6 +145,8 @@ class PhoneAgent extends ChangeNotifier {
     _isRunning = true;
     _shouldPause = false;
     _context.clear();
+    _currentTaskLogs.clear();
+    _taskStartTime = DateTime.now().millisecondsSinceEpoch;
     _stepCount = 0;
     
     // 创建任务
@@ -359,6 +373,11 @@ class PhoneAgent extends ChangeNotifier {
     );
     notifyListeners();
     
+    // 记录详细日志
+    final logTime = DateTime.now().toIso8601String();
+    final stepLog = '[$logTime] Step $_stepCount:\nAction: ${action.type}\nThinking: ${response.thinking}\nParams: ${action.parameters}\nResult: ${result.message}\n';
+    _currentTaskLogs.add(stepLog);
+    
     onStepCompleted?.call(result);
     
     return result;
@@ -376,7 +395,31 @@ class PhoneAgent extends ChangeNotifier {
     // 隐藏悬浮窗
     _deviceController.hideFloatingWindow();
     
+    // 保存历史记录
+    _saveHistory(success, message);
+    
     notifyListeners();
+  }
+  
+  /// 保存历史记录
+  Future<void> _saveHistory(bool success, String? message) async {
+    if (_currentTask == null) return;
+    
+    final record = TaskRecord(
+      id: const Uuid().v4(),
+      prompt: _currentTask!.description,
+      startTime: _taskStartTime,
+      endTime: DateTime.now().millisecondsSinceEpoch,
+      status: success ? 'completed' : 'failed',
+      logs: List.from(_currentTaskLogs),
+      errorMessage: success ? null : message,
+    );
+    
+    try {
+      await _historyService.saveRecord(record);
+    } catch (e) {
+      print('Failed to save history: $e');
+    }
   }
 
   /// 释放资源

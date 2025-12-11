@@ -102,36 +102,52 @@ class FloatingWindowService : Service() {
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(24, 12, 24, 12)
+            setPadding(32, 16, 32, 16) // 增加内边距
             
-            // 半透明黑色圆角背景
+            // 半透明深色圆角背景 + 描边
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#DD1A1A1A"))
-                cornerRadius = 50f
+                setColor(Color.parseColor("#E61E1E1E")) // 更不透明
+                cornerRadius = 60f
+                setStroke(2, Color.parseColor("#33FFFFFF")) // 细微描边
             }
         }
         
         // 绿色运行指示器小圆点
         indicator = View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(16, 16).apply {
-                marginEnd = 12
+            layoutParams = LinearLayout.LayoutParams(20, 20).apply {
+                marginEnd = 16
             }
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#4CAF50"))
+                setColor(Color.parseColor("#00E676")) // 更亮的绿色
+                setStroke(2, Color.WHITE) // 白色描边
             }
         }
         
         // 状态文字
         statusText = TextView(this).apply {
-            text = "🤖 运行中"
-            textSize = 12f
+            text = "🤖 AutoGLM 运行中"
+            textSize = 13f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             setTextColor(Color.WHITE)
             maxLines = 1
         }
         
         container.addView(indicator)
         container.addView(statusText)
+        
+        // 点击返回 App
+        container.setOnClickListener {
+             try {
+                val intent = packageManager.getLaunchIntentForPackage(packageName)
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    startActivity(intent)
+                }
+             } catch (e: Exception) {
+                 e.printStackTrace()
+             }
+        }
         
         floatingView = container
         
@@ -331,8 +347,8 @@ class FloatingWindowService : Service() {
     
     fun updateStatus(content: String) {
         floatingView?.post {
-            val shortContent = if (content.length > 15) {
-                "${content.take(15)}..."
+            val shortContent = if (content.length > 25) {
+                "${content.take(25)}..."
             } else {
                 content
             }
