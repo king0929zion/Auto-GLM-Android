@@ -95,8 +95,7 @@ class DeviceController(private val context: Context) {
     
     /**
      * 获取屏幕截图
-     * 通过Shizuku执行shell命令获取截图
-     * 方法：先保存到文件再读取（与原Python项目一致）
+     * 使用Shizuku权限通过shell执行screencap
      */
     fun getScreenshot(timeout: Int, callback: (Bitmap?, Boolean) -> Unit) {
         executor.execute {
@@ -116,28 +115,19 @@ class DeviceController(private val context: Context) {
                     return@execute
                 }
                 
-                val tempFile = "/data/local/tmp/autoglm_screenshot.png"
+                // 使用应用私有目录存储截图（有写入权限）
+                val tempFile = context.cacheDir.absolutePath + "/screenshot.png"
+                android.util.Log.d("DeviceController", "Screenshot temp file: $tempFile")
                 
-                // 方法1: 使用screencap保存到文件
-                val captureProcess = Runtime.getRuntime().exec(arrayOf(
-                    "sh", "-c", "screencap -p $tempFile"
-                ))
-                val captureResult = captureProcess.waitFor()
-                android.util.Log.d("DeviceController", "screencap exit code: $captureResult")
+                // 方法：通过Shizuku的shell执行screencap
+                val shResult = executeShizukuShellCommand("screencap -p $tempFile")
+                android.util.Log.d("DeviceController", "screencap result: $shResult")
                 
-                if (captureResult == 0) {
-                    // 读取截图文件
-                    val catProcess = Runtime.getRuntime().exec(arrayOf(
-                        "sh", "-c", "cat $tempFile"
-                    ))
-                    
-                    val inputStream = catProcess.inputStream
-                    val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
-                    inputStream.close()
-                    catProcess.waitFor()
-                    
-                    // 清理临时文件
-                    Runtime.getRuntime().exec(arrayOf("sh", "-c", "rm -f $tempFile"))
+                // 读取截图文件
+                val file = java.io.File(tempFile)
+                if (file.exists() && file.length() > 0) {
+                    val bitmap = android.graphics.BitmapFactory.decodeFile(tempFile)
+                    file.delete() // 清理
                     
                     if (bitmap != null) {
                         android.util.Log.d("DeviceController", "Screenshot captured: ${bitmap.width}x${bitmap.height}")
@@ -146,21 +136,23 @@ class DeviceController(private val context: Context) {
                     }
                 }
                 
-                // 方法2: 直接管道输出
-                android.util.Log.d("DeviceController", "Trying direct pipe method...")
-                val directProcess = Runtime.getRuntime().exec(arrayOf(
-                    "sh", "-c", "screencap -p"
-                ))
+                android.util.Log.e("DeviceController", "Screenshot file not found or empty, trying alternative...")
                 
-                val directStream = directProcess.inputStream
-                val directBitmap = android.graphics.BitmapFactory.decodeStream(directStream)
-                directStream.close()
-                directProcess.waitFor()
+                // 尝试使用/sdcard目录
+                val sdcardFile = "/sdcard/autoglm_screenshot.png"
+                val sdResult = executeShizukuShellCommand("screencap -p $sdcardFile")
+                android.util.Log.d("DeviceController", "screencap (sdcard) result: $sdResult")
                 
-                if (directBitmap != null) {
-                    android.util.Log.d("DeviceController", "Screenshot captured (direct): ${directBitmap.width}x${directBitmap.height}")
-                    callback(directBitmap, false)
-                    return@execute
+                val sdFile = java.io.File(sdcardFile)
+                if (sdFile.exists() && sdFile.length() > 0) {
+                    val bitmap = android.graphics.BitmapFactory.decodeFile(sdcardFile)
+                    sdFile.delete()
+                    
+                    if (bitmap != null) {
+                        android.util.Log.d("DeviceController", "Screenshot captured (sdcard): ${bitmap.width}x${bitmap.height}")
+                        callback(bitmap, false)
+                        return@execute
+                    }
                 }
                 
                 android.util.Log.e("DeviceController", "All screenshot methods failed")
@@ -175,15 +167,86 @@ class DeviceController(private val context: Context) {
     }
     
     /**
+     * 通过Shizuku执行shell命令
+     * 使用反射调用Shizuku的内部方法
+     */
+    private fun executeShizukuShellCommand(command: String): String {
+        return try {
+            if (!Shizuku.pingBinder() || 
+                Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
+                return "Shizuku not available"
+            }
+            
+            android.util.Log.d("DeviceController", "Executing via Shizuku: $command")
+            
+            // 方法1: 尝试通过反射调用Shizuku.newProcess
+            try {
+                val shizukuClass = Class.forName("rikka.shizuku.Shizuku")
+                val newProcessMethod = shizukuClass.getDeclaredMethod(
+                    "newProcess",
+                    Array<String>::class.java,
+                    Array<String>::class.java,
+                    String::class.java
+                )
+                newProcessMethod.isAccessible = true
+                
+                val process = newProcessMethod.invoke(null, arrayOf("sh", "-c", command), null, null) as Process
+                val output = process.inputStream.bufferedReader().readText()
+                val error = process.errorStream.bufferedReader().readText()
+                val exitCode = process.waitFor()
+                
+                android.util.Log.d("DeviceController", "Shizuku shell exit: $exitCode, out: $output, err: $error")
+                
+                return if (exitCode == 0) output else "Error: $error (exit $exitCode)"
+            } catch (e: Exception) {
+                android.util.Log.w("DeviceController", "Shizuku.newProcess failed: ${e.message}")
+            }
+            
+            // 方法2: 使用ShizukuRemoteProcess直接构造
+            try {
+                val remoteProcessClass = Class.forName("rikka.shizuku.ShizukuRemoteProcess")
+                val constructor = remoteProcessClass.getDeclaredConstructor(
+                    Array<String>::class.java,
+                    Array<String>::class.java,
+                    String::class.java
+                )
+                constructor.isAccessible = true
+                
+                val process = constructor.newInstance(arrayOf("sh", "-c", command), null, null) as Process
+                val output = process.inputStream.bufferedReader().readText()
+                val error = process.errorStream.bufferedReader().readText()
+                val exitCode = process.waitFor()
+                
+                android.util.Log.d("DeviceController", "RemoteProcess exit: $exitCode")
+                return if (exitCode == 0) output else "Error: $error (exit $exitCode)"
+            } catch (e: Exception) {
+                android.util.Log.w("DeviceController", "ShizukuRemoteProcess failed: ${e.message}")
+            }
+            
+            // 方法3: 降级使用普通Runtime.exec（可能无权限）
+            android.util.Log.d("DeviceController", "Falling back to Runtime.exec")
+            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+            val output = process.inputStream.bufferedReader().readText()
+            val error = process.errorStream.bufferedReader().readText()
+            val exitCode = process.waitFor()
+            
+            android.util.Log.d("DeviceController", "Runtime.exec exit: $exitCode")
+            if (exitCode == 0) output else "Error: $error (exit $exitCode)"
+            
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceController", "Shell command error: ${e.message}")
+            "Exception: ${e.message}"
+        }
+    }
+    
+    /**
      * 获取当前前台应用
      * 使用 dumpsys window 命令（与原Python项目一致）
      */
     fun getCurrentApp(): String {
         return try {
-            // 使用 dumpsys window 获取当前焦点窗口
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", "dumpsys window"))
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor()
+            // 使用Shizuku执行dumpsys window
+            val output = executeShizukuShellCommand("dumpsys window")
             
             android.util.Log.d("DeviceController", "Getting current app...")
             
@@ -601,21 +664,10 @@ class DeviceController(private val context: Context) {
     }
     
     /**
-     * 执行Shell命令
+     * 执行Shell命令（使用Shizuku权限）
      */
     private fun executeShellCommand(command: String): String {
-        return if (Shizuku.pingBinder() && 
-                   Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
-            // 通过Shizuku执行命令
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-            process.waitFor()
-            process.inputStream.bufferedReader().readText()
-        } else {
-            // 直接执行（需要root或系统权限）
-            val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
-            process.waitFor()
-            process.inputStream.bufferedReader().readText()
-        }
+        return executeShizukuShellCommand(command)
     }
     
     /**
