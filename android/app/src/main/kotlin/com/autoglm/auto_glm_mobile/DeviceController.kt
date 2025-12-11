@@ -457,45 +457,69 @@ class DeviceController(private val context: Context) {
      * 输入文本
      * 多种输入方式的降级策略：
      * 1. ADB Keyboard广播 (支持中文)
-     * 2. input text命令 (仅ASCII)
-     * 3. 无障碍服务粘贴 (Android 11+)
+     * 2. ADB Keyboard广播 (支持中文，需要安装ADB Keyboard)
+     * 3. input text命令 (仅ASCII)
      */
     fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
                 android.util.Log.d("DeviceController", "typeText: $text")
                 
-                // 方法1: 尝试使用ADB Keyboard (支持中文)
-                val adbKeyboardResult = tryAdbKeyboardInput(text)
-                if (adbKeyboardResult) {
-                    android.util.Log.d("DeviceController", "ADB Keyboard input success")
-                    callback(true, null)
-                    return@execute
+                // 方法1: 无障碍服务直接设置文本 (最可靠，支持中文)
+                if (AutoGLMAccessibilityService.isAvailable()) {
+                    val service = AutoGLMAccessibilityService.getInstance()
+                    if (service != null) {
+                        handler.post {
+                            val result = service.inputText(text)
+                            android.util.Log.d("DeviceController", "Accessibility input result: $result")
+                            if (result) {
+                                callback(true, null)
+                            } else {
+                                // 回退到ADB Keyboard
+                                tryAdbKeyboardAndCallback(text, callback)
+                            }
+                        }
+                        return@execute
+                    }
                 }
                 
-                // 方法2: 使用input text命令 (仅支持ASCII)
-                val inputTextResult = tryInputTextCommand(text)
-                if (inputTextResult) {
-                    android.util.Log.d("DeviceController", "input text command success")
-                    callback(true, null)
-                    return@execute
-                }
-                
-                // 方法3: 使用剪贴板 + 模拟粘贴
-                val clipboardResult = tryClipboardPaste(text)
-                if (clipboardResult) {
-                    android.util.Log.d("DeviceController", "clipboard paste success")
-                    callback(true, null)
-                    return@execute
-                }
-                
-                android.util.Log.e("DeviceController", "All input methods failed")
-                callback(false, "All input methods failed")
+                // 无障碍服务不可用，使用ADB方式
+                tryAdbKeyboardAndCallback(text, callback)
                 
             } catch (e: Exception) {
                 android.util.Log.e("DeviceController", "typeText error: ${e.message}", e)
                 callback(false, e.message)
             }
+        }
+    }
+    
+    /**
+     * 使用ADB方式输入文字并回调
+     */
+    private fun tryAdbKeyboardAndCallback(text: String, callback: (Boolean, String?) -> Unit) {
+        try {
+            // 方法2: 尝试使用ADB Keyboard (支持中文)
+            val adbKeyboardResult = tryAdbKeyboardInput(text)
+            if (adbKeyboardResult) {
+                android.util.Log.d("DeviceController", "ADB Keyboard input success")
+                callback(true, null)
+                return
+            }
+            
+            // 方法3: 使用input text命令 (仅支持ASCII)
+            val inputTextResult = tryInputTextCommand(text)
+            if (inputTextResult) {
+                android.util.Log.d("DeviceController", "input text command success")
+                callback(true, null)
+                return
+            }
+            
+            android.util.Log.e("DeviceController", "All input methods failed")
+            callback(false, "All input methods failed. Please install ADB Keyboard for Chinese input.")
+            
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceController", "ADB input error: ${e.message}", e)
+            callback(false, e.message)
         }
     }
     
@@ -630,6 +654,19 @@ class DeviceController(private val context: Context) {
     fun clearText(callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
+                // 优先使用无障碍服务
+                if (AutoGLMAccessibilityService.isAvailable()) {
+                    val service = AutoGLMAccessibilityService.getInstance()
+                    if (service != null) {
+                        handler.post {
+                            val result = service.clearText()
+                            callback(result, if (result) null else "Failed to clear text")
+                        }
+                        return@execute
+                    }
+                }
+                
+                // 回退到ADB广播
                 executeShizukuShellCommand("am broadcast -a ADB_CLEAR_TEXT")
                 Thread.sleep(300)
                 callback(true, null)

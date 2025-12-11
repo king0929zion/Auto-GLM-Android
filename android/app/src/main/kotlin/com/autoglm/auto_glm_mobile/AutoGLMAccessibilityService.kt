@@ -172,4 +172,89 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         val nodes = root.findAccessibilityNodeInfosByViewId(viewId)
         return nodes?.firstOrNull()
     }
+    
+    /**
+     * 输入文字到当前焦点的输入框
+     * 使用无障碍服务的ACTION_SET_TEXT
+     */
+    fun inputText(text: String): Boolean {
+        try {
+            val root = rootInActiveWindow ?: run {
+                android.util.Log.e("Accessibility", "No root window")
+                return false
+            }
+            
+            // 查找当前焦点的节点
+            val focusedNode = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            if (focusedNode != null && focusedNode.isEditable) {
+                return setTextToNode(focusedNode, text)
+            }
+            
+            // 如果没有焦点节点，尝试查找可编辑的节点
+            val editableNode = findEditableNode(root)
+            if (editableNode != null) {
+                return setTextToNode(editableNode, text)
+            }
+            
+            android.util.Log.e("Accessibility", "No editable node found")
+            return false
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "inputText error: ${e.message}", e)
+            return false
+        }
+    }
+    
+    /**
+     * 设置文本到节点
+     */
+    private fun setTextToNode(node: AccessibilityNodeInfo, text: String): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                val arguments = android.os.Bundle()
+                arguments.putCharSequence(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    text
+                )
+                val result = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+                android.util.Log.d("Accessibility", "ACTION_SET_TEXT result: $result, text: $text")
+                result
+            } else {
+                // 老版本使用剪贴板方式
+                false
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "setTextToNode error: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * 递归查找可编辑节点
+     */
+    private fun findEditableNode(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        if (node.isEditable && node.isFocused) {
+            return node
+        }
+        
+        if (node.isEditable) {
+            return node
+        }
+        
+        for (i in 0 until node.childCount) {
+            val child = node.getChild(i) ?: continue
+            val result = findEditableNode(child)
+            if (result != null) {
+                return result
+            }
+        }
+        
+        return null
+    }
+    
+    /**
+     * 清除当前输入框的文字
+     */
+    fun clearText(): Boolean {
+        return inputText("")
+    }
 }
