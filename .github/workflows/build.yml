@@ -54,13 +54,13 @@ jobs:
       - name: Get version
         id: version
         run: |
-          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d ' \r\n' | sed 's/+/_/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "date=$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_OUTPUT
 
       - name: Rename APK
         run: |
-          mv build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/AutoGLM-Mobile-${{ steps.version.outputs.version }}.apk
+          mv build/app/outputs/flutter-apk/app-release.apk "build/app/outputs/flutter-apk/AutoGLM-Mobile-${{ steps.version.outputs.version }}.apk"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
@@ -89,7 +89,7 @@ jobs:
       - name: Get version from pubspec
         id: version
         run: |
-          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          VERSION=$(grep 'version:' pubspec.yaml | sed 's/version: //' | tr -d ' \r\n' | sed 's/+/_/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Download APK Artifact
