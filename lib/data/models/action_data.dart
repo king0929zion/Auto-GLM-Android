@@ -79,7 +79,7 @@ class ActionData {
     var match = RegExp(name + r'="([^"]*)"').firstMatch(response);
     if (match != null) return match.group(1);
     // Try single quotes
-    match = RegExp(name + r"='([^']*)')").firstMatch(response);
+    match = RegExp(name + r"='([^']*)'").firstMatch(response);
     return match?.group(1);
   }
 
