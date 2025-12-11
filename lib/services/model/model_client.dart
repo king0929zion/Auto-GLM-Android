@@ -49,14 +49,22 @@ class ModelClient {
       'temperature': config.temperature,
       'top_p': config.topP,
       'frequency_penalty': config.frequencyPenalty,
-      'skip_special_tokens': false,
     };
+
+    // Debug log
+    print('=== API Request ===');
+    print('URL: ${config.baseUrl}/chat/completions');
+    print('Model: ${config.modelName}');
+    print('API Key: ${config.apiKey.length > 10 ? config.apiKey.substring(0, 10) : config.apiKey}...');
 
     try {
       final response = await _dio.post(
         '/chat/completions',
         data: body,
       );
+
+      print('=== API Response ===');
+      print('Status: ${response.statusCode}');
 
       final data = response.data;
       final rawContent = data['choices'][0]['message']['content'] as String;
@@ -70,23 +78,42 @@ class ModelClient {
         rawContent: rawContent,
       );
     } on DioException catch (e) {
+      print('=== API Error ===');
+      print('Type: ${e.type}');
+      print('Message: ${e.message}');
+      print('Response: ${e.response?.data}');
+      print('Status Code: ${e.response?.statusCode}');
+      
       String errorMsg;
-      if (e.response?.statusCode == 401) {
-        errorMsg = 'API Key无效，请在设置中配置正确的魔搭社区API Key';
+      if (e.type == DioExceptionType.connectionError) {
+        errorMsg = '网络连接失败，请检查网络';
+      } else if (e.type == DioExceptionType.connectionTimeout) {
+        errorMsg = '连接超时，请检查网络';
+      } else if (e.response?.statusCode == 401) {
+        errorMsg = 'API Key无效，请在设置中配置正确的API Key';
       } else if (e.response?.statusCode == 403) {
         errorMsg = 'API访问被拒绝，请检查API Key权限';
       } else if (e.response?.statusCode == 429) {
         errorMsg = '请求频率过高，请稍后重试';
       } else if (e.response?.statusCode == 500) {
         errorMsg = '服务器错误，请稍后重试';
+      } else if (e.response != null) {
+        final respData = e.response?.data;
+        if (respData is Map && respData['error'] != null) {
+          errorMsg = '${respData['error']['message'] ?? respData['error']}';
+        } else {
+          errorMsg = '请求失败 (${e.response?.statusCode}): $respData';
+        }
       } else {
-        errorMsg = '请求失败: ${e.message}';
+        errorMsg = '请求失败: ${e.message ?? e.type.name}';
       }
       throw ModelClientException(
         errorMsg,
         statusCode: e.response?.statusCode,
       );
     } catch (e) {
+      print('=== Unknown Error ===');
+      print('$e');
       throw ModelClientException('未知错误: $e');
     }
   }
