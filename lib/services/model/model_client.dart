@@ -155,15 +155,29 @@ class ModelClient {
           .trim();
     } else {
       // 没有 <answer> 标签，尝试提取 do(...) 或 finish(...)
-      final doMatch = RegExp(r'do\s*\([^)]+\)').firstMatch(content);
-      final finishMatch = RegExp(r'finish\s*\([^)]*\)').firstMatch(content);
+      // 使用更复杂的正则来匹配带引号内容的括号
+      final doIndex = content.indexOf('do(');
+      final finishIndex = content.indexOf('finish(');
       
-      if (doMatch != null) {
-        action = doMatch.group(0)!;
-        thinking = content.substring(0, doMatch.start).trim();
-      } else if (finishMatch != null) {
-        action = finishMatch.group(0)!;
-        thinking = content.substring(0, finishMatch.start).trim();
+      if (doIndex != -1) {
+        // 找到匹配的右括号
+        final closeIndex = _findMatchingParen(content, doIndex + 2);
+        if (closeIndex != -1) {
+          action = content.substring(doIndex, closeIndex + 1);
+          thinking = content.substring(0, doIndex).trim();
+        } else {
+          action = content.substring(doIndex).trim();
+          thinking = content.substring(0, doIndex).trim();
+        }
+      } else if (finishIndex != -1) {
+        final closeIndex = _findMatchingParen(content, finishIndex + 6);
+        if (closeIndex != -1) {
+          action = content.substring(finishIndex, closeIndex + 1);
+          thinking = content.substring(0, finishIndex).trim();
+        } else {
+          action = content.substring(finishIndex).trim();
+          thinking = content.substring(0, finishIndex).trim();
+        }
       } else {
         // 无法识别，返回整个内容作为action让后续处理
         action = content.trim();
@@ -175,6 +189,33 @@ class ModelClient {
     print('Action: $action');
     
     return (thinking, action);
+  }
+  
+  /// 找到匹配的右括号，考虑引号内的内容
+  int _findMatchingParen(String s, int openIndex) {
+    int depth = 0;
+    bool inDoubleQuote = false;
+    bool inSingleQuote = false;
+    
+    for (int i = openIndex; i < s.length; i++) {
+      final c = s[i];
+      
+      if (c == '"' && !inSingleQuote) {
+        inDoubleQuote = !inDoubleQuote;
+      } else if (c == "'" && !inDoubleQuote) {
+        inSingleQuote = !inSingleQuote;
+      } else if (!inDoubleQuote && !inSingleQuote) {
+        if (c == '(') {
+          depth++;
+        } else if (c == ')') {
+          if (depth == 0) {
+            return i;
+          }
+          depth--;
+        }
+      }
+    }
+    return -1;
   }
 
   /// 检查API是否可用
