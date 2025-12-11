@@ -49,6 +49,7 @@ class ModelClient {
       'temperature': config.temperature,
       'top_p': config.topP,
       'frequency_penalty': config.frequencyPenalty,
+      'stream': false,  // 明确设置为非流式响应，魔搭API默认使用流式响应
     };
 
     // Debug log
