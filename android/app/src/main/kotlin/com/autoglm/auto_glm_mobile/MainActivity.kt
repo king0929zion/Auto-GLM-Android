@@ -72,8 +72,39 @@ class MainActivity : FlutterActivity() {
             "isShizukuRunning" -> isShizukuRunning(result)
             "isShizukuAuthorized" -> isShizukuAuthorized(result)
             "requestShizukuPermission" -> requestShizukuPermission(result)
+            "showFloatingWindow" -> showFloatingWindow(call, result)
+            "hideFloatingWindow" -> hideFloatingWindow(result)
+            "updateFloatingWindow" -> updateFloatingWindow(call, result)
             else -> result.notImplemented()
         }
+    }
+    
+    private fun showFloatingWindow(call: MethodCall, result: MethodChannel.Result) {
+        val content = call.argument<String>("content") ?: ""
+        val intent = Intent(this, FloatingWindowService::class.java).apply {
+            putExtra("action", "show")
+            putExtra("content", content)
+        }
+        startService(intent)
+        result.success(true)
+    }
+    
+    private fun hideFloatingWindow(result: MethodChannel.Result) {
+        val intent = Intent(this, FloatingWindowService::class.java).apply {
+            putExtra("action", "hide")
+        }
+        startService(intent)
+        result.success(true)
+    }
+    
+    private fun updateFloatingWindow(call: MethodCall, result: MethodChannel.Result) {
+        val content = call.argument<String>("content") ?: ""
+        val intent = Intent(this, FloatingWindowService::class.java).apply {
+            putExtra("action", "update")
+            putExtra("content", content)
+        }
+        startService(intent)
+        result.success(true)
     }
     
     private fun isShizukuInstalled(result: MethodChannel.Result) {

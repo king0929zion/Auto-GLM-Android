@@ -104,25 +104,30 @@ class DeviceController(private val context: Context) {
                 if (Shizuku.pingBinder() && 
                     Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                     
-                    val process = Runtime.getRuntime().exec(arrayOf(
-                        "su", "-c", "screencap -p"
-                    ))
+                    // 使用Shizuku的ShizukuRemoteProcess执行命令
+                    val process = Shizuku.newProcess(arrayOf("screencap", "-p"), null, null)
                     
                     val inputStream = process.inputStream
                     val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
                     inputStream.close()
+                    process.waitFor()
                     
                     if (bitmap != null) {
+                        android.util.Log.d("DeviceController", "Screenshot captured: ${bitmap.width}x${bitmap.height}")
                         callback(bitmap, false)
                         return@execute
+                    } else {
+                        android.util.Log.e("DeviceController", "Screenshot bitmap is null")
                     }
+                } else {
+                    android.util.Log.e("DeviceController", "Shizuku not available or not authorized")
                 }
                 
                 // 如果Shizuku不可用，返回空
                 callback(null, false)
                 
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("DeviceController", "Screenshot error: ${e.message}", e)
                 // 检查是否是安全页面导致的失败
                 val isSensitive = e.message?.contains("secure") == true
                 callback(null, isSensitive)

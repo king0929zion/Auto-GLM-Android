@@ -270,6 +270,36 @@ class DeviceController {
     return duration.clamp(1000, 2000);
   }
   
+  /// 显示悬浮窗
+  Future<bool> showFloatingWindow(String content) async {
+    try {
+      await _channel.invokeMethod('showFloatingWindow', {'content': content});
+      return true;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 隐藏悬浮窗
+  Future<bool> hideFloatingWindow() async {
+    try {
+      await _channel.invokeMethod('hideFloatingWindow');
+      return true;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 更新悬浮窗内容
+  Future<bool> updateFloatingWindow(String content) async {
+    try {
+      await _channel.invokeMethod('updateFloatingWindow', {'content': content});
+      return true;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 释放资源
   void dispose() {
     // 清理资源

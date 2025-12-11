@@ -145,6 +145,9 @@ class PhoneAgent extends ChangeNotifier {
     );
     notifyListeners();
     
+    // 显示悬浮窗
+    await _deviceController.showFloatingWindow('正在处理: $task');
+    
     try {
       // 第一步
       var result = await _executeStep(userPrompt: task, isFirst: true);
@@ -310,6 +313,10 @@ class PhoneAgent extends ChangeNotifier {
         MessageBuilder.removeImagesFromMessage(_context.last);
     }
     
+    // 更新悬浮窗显示当前动作
+    final actionText = '步骤 $_stepCount: ${action.actionName}';
+    await _deviceController.updateFloatingWindow(actionText);
+    
     // 执行动作
     ActionResult actionResult;
     try {
@@ -362,6 +369,10 @@ class PhoneAgent extends ChangeNotifier {
       resultMessage: message,
     );
     _isRunning = false;
+    
+    // 隐藏悬浮窗
+    _deviceController.hideFloatingWindow();
+    
     notifyListeners();
   }
 

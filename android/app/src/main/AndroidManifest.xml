@@ -61,6 +61,12 @@
             </intent-filter>
         </activity>
         
+        <!-- 悬浮窗服务 -->
+        <service
+            android:name=".FloatingWindowService"
+            android:enabled="true"
+            android:exported="false" />
+        
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
