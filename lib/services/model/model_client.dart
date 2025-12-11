@@ -49,6 +49,7 @@ class ModelClient {
       'temperature': config.temperature,
       'top_p': config.topP,
       'frequency_penalty': config.frequencyPenalty,
+      'stream': false,  // 明确设置为非流式响应，魔搭API默认使用流式响应
     };
 
     // Debug log
@@ -69,8 +70,17 @@ class ModelClient {
       final data = response.data;
       final rawContent = data['choices'][0]['message']['content'] as String;
 
+      print('=== Model Raw Response ===');
+      print(rawContent);
+      print('=' * 50);
+
       // 解析思考和动作
       final (thinking, action) = _parseResponse(rawContent);
+      
+      print('=== Parsed Result ===');
+      print('Thinking: $thinking');
+      print('Action: $action');
+      print('=' * 50);
 
       return ModelResponse(
         thinking: thinking,
@@ -99,8 +109,18 @@ class ModelClient {
         errorMsg = '服务器错误，请稍后重试';
       } else if (e.response != null) {
         final respData = e.response?.data;
-        if (respData is Map && respData['error'] != null) {
-          errorMsg = '${respData['error']['message'] ?? respData['error']}';
+        if (respData is Map) {
+          // 魔搭API错误格式: {'errors': {'message': '...'}}
+          if (respData['errors'] != null && respData['errors'] is Map) {
+            errorMsg = '魔搭API错误: ${respData['errors']['message'] ?? respData['errors']}';
+          }
+          // OpenAI标准错误格式: {'error': {'message': '...'}}
+          else if (respData['error'] != null) {
+            errorMsg = 'API错误: ${respData['error']['message'] ?? respData['error']}';
+          }
+          else {
+            errorMsg = '请求失败 (${e.response?.statusCode}): $respData';
+          }
         } else {
           errorMsg = '请求失败 (${e.response?.statusCode}): $respData';
         }

@@ -271,10 +271,21 @@ class PhoneAgent extends ChangeNotifier {
     }
     
     // 解析动作
+    debugPrint('=== Before ActionParser ===');
+    debugPrint('Raw action string: ${response.action}');
+    debugPrint('Length: ${response.action.length}');
+    debugPrint('Contains "do(": ${response.action.contains('do(')}'  );
+    debugPrint('Contains "finish(": ${response.action.contains('finish(')}'  );
+    
     ActionData action;
     try {
       action = ActionData.parse(response.action);
+      debugPrint('=== ActionParser Success ===');
+      debugPrint('Parsed type: ${action.type}');
+      debugPrint('Parsed actionName: ${action.actionName}');
     } catch (e) {
+      debugPrint('=== ActionParser Failed ===');
+      debugPrint('Error: $e');
       action = ActionData(
         type: ActionType.finish,
         actionName: 'finish',

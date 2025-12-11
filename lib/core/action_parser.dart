@@ -11,15 +11,27 @@ class ActionParser {
   static ActionData parse(String response) {
     final trimmed = response.trim();
     
-    // 尝试解析 finish 动作
-    if (trimmed.startsWith('finish')) {
-      return _parseFinish(trimmed);
+    // 优先查找 do 动作（即使响应中包含 finish 关键字）
+    final doIndex = trimmed.indexOf('do(');
+    if (doIndex >= 0) {
+      // 提取从 do 开始的部分
+      final doStr = _extractFunctionCall(trimmed.substring(doIndex), 'do');
+      if (doStr != null) {
+        return _parseDo(doStr);
+      }
     }
     
-    // 尝试解析 do 动作
-    if (trimmed.startsWith('do')) {
-      return _parseDo(trimmed);
+    // 尝试解析完整的 finish(...) 动作
+    final finishIndex = trimmed.indexOf('finish(');
+    if (finishIndex >= 0) {
+      final finishStr = _extractFunctionCall(trimmed.substring(finishIndex), 'finish');
+      if (finishStr != null) {
+        return _parseFinish(finishStr);
+      }
     }
+    
+    // 如果只是单独的 "finish" 关键字（没有括号），忽略它，继续查找其他动作
+    // 这种情况通常是模型输出格式不规范
     
     // 无法识别的格式，作为finish处理
     return ActionData(
@@ -28,6 +40,33 @@ class ActionParser {
       message: response,
       metadata: 'finish',
     );
+  }
+  
+  /// 提取函数调用字符串（处理括号匹配）
+  static String? _extractFunctionCall(String text, String functionName) {
+    final startIndex = text.indexOf('$functionName(');
+    if (startIndex < 0) return null;
+    
+    int openCount = 0;
+    int closeIndex = -1;
+    
+    for (int i = startIndex + functionName.length; i < text.length; i++) {
+      if (text[i] == '(') {
+        openCount++;
+      } else if (text[i] == ')') {
+        openCount--;
+        if (openCount == 0) {
+          closeIndex = i;
+          break;
+        }
+      }
+    }
+    
+    if (closeIndex > 0) {
+      return text.substring(startIndex, closeIndex + 1);
+    }
+    
+    return null;
   }
   
   /// 解析 finish 动作

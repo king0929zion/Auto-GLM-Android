@@ -8,7 +8,7 @@ class AppConfig {
   
   /// 默认API配置 - 魔搭社区
   static const String defaultBaseUrl = 'https://api-inference.modelscope.cn/v1';
-  static const String defaultApiKey = 'EMPTY';
+  static const String defaultApiKey = '';  // 用户必须在设置中配置魔搭社区API Token
   static const String defaultModelName = 'ZhipuAI/AutoGLM-Phone-9B';
   
   /// 模型参数默认值
