@@ -3,48 +3,42 @@ package com.autoglm.auto_glm_mobile
 import android.app.Service
 import android.content.Intent
 import android.graphics.PixelFormat
-import android.graphics.Typeface
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.animation.AlphaAnimation
+import android.view.animation.Animation
+import android.view.animation.LinearInterpolator
 import android.widget.TextView
 import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
-import android.text.method.ScrollingMovementMethod
 
 /**
- * 悬浮窗服务 - 显示AI当前步骤和思考过程
- * 更大的窗口，完整展示AI的思考和动作
+ * 简单的运行指示器悬浮窗
+ * 只显示一个小圆点和简单的状态文字
  */
 class FloatingWindowService : Service() {
     
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
-    private var thinkingTextView: TextView? = null
-    private var actionTextView: TextView? = null
-    private var stepTextView: TextView? = null
+    private var statusText: TextView? = null
+    private var indicator: View? = null
     private var layoutParams: WindowManager.LayoutParams? = null
-    private var isExpanded = true
     
     companion object {
         private var instance: FloatingWindowService? = null
         
         fun updateContent(content: String) {
-            instance?.updateText(content)
-        }
-        
-        fun updateThinking(thinking: String) {
-            instance?.updateThinkingText(thinking)
+            instance?.updateStatus(content)
         }
         
         fun show(content: String) {
             instance?.showWindow()
-            instance?.updateText(content)
+            instance?.updateStatus(content)
         }
         
         fun hide() {
@@ -70,179 +64,65 @@ class FloatingWindowService : Service() {
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val action = intent?.getStringExtra("action")
-        val content = intent?.getStringExtra("content") ?: ""
-        val thinking = intent?.getStringExtra("thinking") ?: ""
+        val content = intent?.getStringExtra("content") ?: "运行中..."
         
         when (action) {
             "show" -> {
                 showWindow()
-                updateText(content)
-                if (thinking.isNotEmpty()) {
-                    updateThinkingText(thinking)
-                }
+                updateStatus(content)
             }
             "hide" -> hideWindow()
-            "update" -> {
-                updateText(content)
-                if (thinking.isNotEmpty()) {
-                    updateThinkingText(thinking)
-                }
-            }
-            "updateThinking" -> updateThinkingText(content)
+            "update" -> updateStatus(content)
         }
         
         return START_STICKY
     }
     
     private fun createFloatingWindow() {
-        // 获取屏幕宽度
-        val displayMetrics = resources.displayMetrics
-        val screenWidth = displayMetrics.widthPixels
-        val windowWidth = (screenWidth * 0.85).toInt() // 85%屏幕宽度
-        
-        // 主容器 - 半透明黑色背景，大圆角
+        // 主容器 - 小型胶囊状
         val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(32, 24, 32, 24)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(24, 12, 24, 12)
             
             // 半透明黑色圆角背景
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#E6121212")) // 90%透明度黑色
-                cornerRadius = 28f
-            }
-            
-            layoutParams = LinearLayout.LayoutParams(
-                windowWidth,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        
-        // 顶部：图标、标题和折叠按钮
-        val headerLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-        }
-        
-        // AI图标
-        val iconView = TextView(this).apply {
-            text = "🤖"
-            textSize = 20f
-            setPadding(0, 0, 16, 0)
-        }
-        
-        // 标题
-        val titleView = TextView(this).apply {
-            text = "AutoGLM"
-            textSize = 16f
-            setTextColor(Color.parseColor("#4CAF50"))
-            setTypeface(null, Typeface.BOLD)
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
-            )
-        }
-        
-        // 步骤标签
-        stepTextView = TextView(this).apply {
-            text = "步骤 1"
-            textSize = 12f
-            setTextColor(Color.parseColor("#888888"))
-            setPadding(16, 0, 0, 0)
-        }
-        
-        headerLayout.addView(iconView)
-        headerLayout.addView(titleView)
-        headerLayout.addView(stepTextView)
-        
-        // 分隔线
-        val divider = View(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                1
-            ).apply {
-                topMargin = 16
-                bottomMargin = 16
-            }
-            setBackgroundColor(Color.parseColor("#333333"))
-        }
-        
-        // 思考区域标题
-        val thinkingLabel = TextView(this).apply {
-            text = "💭 思考"
-            textSize = 12f
-            setTextColor(Color.parseColor("#9E9E9E"))
-            setPadding(0, 0, 0, 8)
-        }
-        
-        // 思考内容 - 可滚动
-        val thinkingScroll = ScrollView(this).apply {
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                200 // 固定高度，可滚动
-            ).apply {
-                bottomMargin = 16
+                setColor(Color.parseColor("#DD1A1A1A"))
+                cornerRadius = 50f
             }
         }
         
-        thinkingTextView = TextView(this).apply {
-            text = "正在分析屏幕..."
-            textSize = 13f
-            setTextColor(Color.parseColor("#BDBDBD"))
-            setLineSpacing(4f, 1.1f)
-            setPadding(12, 12, 12, 12)
-            
+        // 绿色运行指示器小圆点
+        indicator = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(16, 16).apply {
+                marginEnd = 12
+            }
             background = GradientDrawable().apply {
-                setColor(Color.parseColor("#1A1A1A"))
-                cornerRadius = 12f
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#4CAF50"))
             }
         }
         
-        thinkingScroll.addView(thinkingTextView)
-        
-        // 动作区域标题
-        val actionLabel = TextView(this).apply {
-            text = "🎯 动作"
+        // 状态文字
+        statusText = TextView(this).apply {
+            text = "🤖 运行中"
             textSize = 12f
-            setTextColor(Color.parseColor("#9E9E9E"))
-            setPadding(0, 0, 0, 8)
-        }
-        
-        // 动作内容
-        actionTextView = TextView(this).apply {
-            text = "等待执行..."
-            textSize = 15f
             setTextColor(Color.WHITE)
-            setTypeface(null, Typeface.BOLD)
-            setPadding(12, 12, 12, 12)
-            
-            background = GradientDrawable().apply {
-                setColor(Color.parseColor("#1B5E20"))
-                cornerRadius = 12f
-            }
+            maxLines = 1
         }
         
-        // 添加所有视图
-        container.addView(headerLayout)
-        container.addView(divider)
-        container.addView(thinkingLabel)
-        container.addView(thinkingScroll)
-        container.addView(actionLabel)
-        container.addView(actionTextView)
+        container.addView(indicator)
+        container.addView(statusText)
         
         floatingView = container
         
-        // 配置窗口参数
+        // 配置窗口参数 - 小窗口，顶部居中
         layoutParams = WindowManager.LayoutParams().apply {
-            width = windowWidth
+            width = WindowManager.LayoutParams.WRAP_CONTENT
             height = WindowManager.LayoutParams.WRAP_CONTENT
-            x = (screenWidth - windowWidth) / 2
+            x = 0
             y = 100
-            gravity = Gravity.TOP or Gravity.START
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             
             type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -252,6 +132,7 @@ class FloatingWindowService : Service() {
             }
             
             flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
             
             format = PixelFormat.TRANSLUCENT
@@ -288,6 +169,9 @@ class FloatingWindowService : Service() {
             }
         })
         
+        // 添加呼吸动画
+        startBreathingAnimation()
+        
         try {
             windowManager?.addView(floatingView, layoutParams)
             floatingView?.visibility = View.GONE // 初始隐藏
@@ -296,8 +180,19 @@ class FloatingWindowService : Service() {
         }
     }
     
+    private fun startBreathingAnimation() {
+        val animation = AlphaAnimation(1.0f, 0.4f).apply {
+            duration = 800
+            interpolator = LinearInterpolator()
+            repeatMode = Animation.REVERSE
+            repeatCount = Animation.INFINITE
+        }
+        indicator?.startAnimation(animation)
+    }
+    
     private fun removeFloatingWindow() {
         try {
+            indicator?.clearAnimation()
             floatingView?.let {
                 windowManager?.removeView(it)
             }
@@ -307,62 +202,27 @@ class FloatingWindowService : Service() {
         }
     }
     
-    fun updateText(content: String) {
+    fun updateStatus(content: String) {
         floatingView?.post {
-            // 解析内容格式: "步骤 X: ActionName" 或 "正在处理: xxx"
-            if (content.startsWith("步骤")) {
-                val parts = content.split(":", limit = 2)
-                if (parts.size == 2) {
-                    stepTextView?.text = parts[0].trim()
-                    actionTextView?.text = getActionDisplayName(parts[1].trim())
-                } else {
-                    stepTextView?.text = "执行中"
-                    actionTextView?.text = content
-                }
-            } else if (content.startsWith("正在处理")) {
-                stepTextView?.text = "任务"
-                actionTextView?.text = content.replace("正在处理:", "").replace("正在处理：", "").trim()
+            val shortContent = if (content.length > 15) {
+                "${content.take(15)}..."
             } else {
-                stepTextView?.text = "执行中"
-                actionTextView?.text = content
+                content
             }
-        }
-    }
-    
-    fun updateThinkingText(thinking: String) {
-        floatingView?.post {
-            thinkingTextView?.text = thinking.ifEmpty { "正在分析..." }
-        }
-    }
-    
-    /**
-     * 获取动作的友好显示名称
-     */
-    private fun getActionDisplayName(action: String): String {
-        return when (action.lowercase()) {
-            "tap" -> "👆 点击"
-            "swipe" -> "👋 滑动"
-            "type" -> "⌨️ 输入文字"
-            "type_name" -> "⌨️ 输入姓名"
-            "launch" -> "🚀 启动应用"
-            "back" -> "◀️ 返回"
-            "home" -> "🏠 回到主屏"
-            "wait" -> "⏳ 等待"
-            "double tap" -> "👆👆 双击"
-            "long press" -> "👆⏱️ 长按"
-            "finish" -> "✅ 完成"
-            else -> "🎯 $action"
+            statusText?.text = "🤖 $shortContent"
         }
     }
     
     fun showWindow() {
         floatingView?.post {
             floatingView?.visibility = View.VISIBLE
+            startBreathingAnimation()
         }
     }
     
     fun hideWindow() {
         floatingView?.post {
+            indicator?.clearAnimation()
             floatingView?.visibility = View.GONE
         }
     }

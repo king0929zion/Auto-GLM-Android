@@ -186,9 +186,22 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('AutoGLM', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.history),
+          tooltip: '历史记录',
+          onPressed: _showHistoryDrawer,
+        ),
         actions: [
+          // 新建对话按钮
+          IconButton(
+            icon: const Icon(Icons.add_comment_outlined),
+            tooltip: '新建对话',
+            onPressed: _startNewConversation,
+          ),
+          // 设置按钮
           IconButton(
             icon: const Icon(Icons.settings_outlined),
+            tooltip: '设置',
             onPressed: () async {
               await Navigator.pushNamed(context, '/settings');
               // Reload agent with new settings
@@ -200,6 +213,109 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
       body: _errorMessage != null ? _buildErrorView() : _buildBody(),
+    );
+  }
+  
+  /// 新建对话
+  void _startNewConversation() {
+    if (_agent.isRunning) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请等待当前任务完成')),
+      );
+      return;
+    }
+    
+    setState(() {
+      _messages.clear();
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('已开始新对话'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+  }
+  
+  /// 显示历史记录抽屉
+  void _showHistoryDrawer() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => _buildHistorySheet(),
+    );
+  }
+  
+  /// 构建历史记录面板
+  Widget _buildHistorySheet() {
+    final history = SettingsRepository.instance.taskHistory;
+    
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.6,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏
+          Row(
+            children: [
+              const Icon(Icons.history, color: AppTheme.accentOrange),
+              const SizedBox(width: 8),
+              const Text(
+                '历史记录',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              if (history.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    SettingsRepository.instance.clearTaskHistory();
+                    Navigator.pop(context);
+                    setState(() {});
+                  },
+                  child: const Text('清除', style: TextStyle(color: AppTheme.error)),
+                ),
+            ],
+          ),
+          const Divider(),
+          
+          // 历史列表
+          Expanded(
+            child: history.isEmpty
+                ? const Center(
+                    child: Text(
+                      '暂无历史记录',
+                      style: TextStyle(color: AppTheme.textHint),
+                    ),
+                  )
+                : ListView.builder(
+                    itemCount: history.length,
+                    itemBuilder: (context, index) {
+                      final task = history[history.length - 1 - index];
+                      return ListTile(
+                        leading: const Icon(Icons.chat_bubble_outline, size: 20),
+                        title: Text(
+                          task,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                        onTap: () {
+                          Navigator.pop(context);
+                          _taskController.text = task;
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

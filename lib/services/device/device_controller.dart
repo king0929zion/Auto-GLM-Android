@@ -310,12 +310,11 @@ class DeviceController {
     }
   }
   
-  /// 更新悬浮窗内容
-  Future<bool> updateFloatingWindow(String content, {String? thinking}) async {
+  /// 更新运行指示器
+  Future<bool> updateFloatingWindow(String content) async {
     try {
       await _channel.invokeMethod('updateFloatingWindow', {
         'content': content,
-        'thinking': thinking ?? '',
       });
       return true;
     } on PlatformException {

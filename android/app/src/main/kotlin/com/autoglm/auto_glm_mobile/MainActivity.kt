@@ -86,11 +86,9 @@ class MainActivity : FlutterActivity() {
     
     private fun showFloatingWindow(call: MethodCall, result: MethodChannel.Result) {
         val content = call.argument<String>("content") ?: ""
-        val thinking = call.argument<String>("thinking") ?: ""
         val intent = Intent(this, FloatingWindowService::class.java).apply {
             putExtra("action", "show")
             putExtra("content", content)
-            putExtra("thinking", thinking)
         }
         startService(intent)
         result.success(true)
@@ -106,11 +104,9 @@ class MainActivity : FlutterActivity() {
     
     private fun updateFloatingWindow(call: MethodCall, result: MethodChannel.Result) {
         val content = call.argument<String>("content") ?: ""
-        val thinking = call.argument<String>("thinking") ?: ""
         val intent = Intent(this, FloatingWindowService::class.java).apply {
             putExtra("action", "update")
             putExtra("content", content)
-            putExtra("thinking", thinking)
         }
         startService(intent)
         result.success(true)
