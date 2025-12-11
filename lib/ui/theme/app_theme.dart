@@ -13,6 +13,11 @@ class AppTheme {
   static const Color accentOrangeDeep = Color(0xFFFF8C42);
   static const Color accentOrangeLight = Color(0xFFFFD4B8);
   
+  // 别名（兼容性）
+  static const Color primaryColor = accentOrange;
+  static const Color backgroundColor = Color(0xFF121212);
+  static const Color surfaceColor = Color(0xFF1E1E1E);
+  
   // 背景色
   static const Color backgroundLight = Color(0xFFFAFAFA);
   static const Color backgroundGrey = Color(0xFFF0F0F0);
