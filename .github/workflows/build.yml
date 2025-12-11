@@ -34,7 +34,13 @@ jobs:
 
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/my-release-key.keystore
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/my-release-key.keystore
+            echo "Keystore decoded successfully"
+            ls -la android/app/my-release-key.keystore
+          else
+            echo "WARNING: KEYSTORE_BASE64 secret is not set!"
+          fi
 
       - name: Create key.properties
         run: |
@@ -42,8 +48,26 @@ jobs:
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=my-release-key.keystore
+          storeFile=app/my-release-key.keystore
           EOF
+          echo "key.properties created:"
+          cat android/key.properties | sed 's/Password=.*/Password=***/'
+
+      - name: Verify signing configuration
+        run: |
+          echo "Checking key.properties..."
+          if [ -f android/key.properties ]; then
+            echo "key.properties exists"
+          else
+            echo "ERROR: key.properties not found!"
+          fi
+          
+          echo "Checking keystore file..."
+          if [ -f android/app/my-release-key.keystore ]; then
+            echo "Keystore file exists"
+          else
+            echo "ERROR: Keystore file not found!"
+          fi
 
       - name: Build Release APK
         run: flutter build apk --release

@@ -8,11 +8,19 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// 读取签名配置
-val keystorePropertiesFile = rootProject.file("app/key.properties")
+// 读取签名配置 - 检查多个可能的路径
+val keystorePropertiesFile = listOf(
+    rootProject.file("key.properties"),      // android/key.properties (GitHub Actions)
+    rootProject.file("app/key.properties"),   // android/app/key.properties
+    file("key.properties")                    // 当前目录
+).firstOrNull { it.exists() }
+
 val keystoreProperties = Properties()
-if (keystorePropertiesFile.exists()) {
+if (keystorePropertiesFile != null && keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    println("Loaded keystore properties from: ${keystorePropertiesFile.absolutePath}")
+} else {
+    println("No keystore properties file found, will use debug signing")
 }
 
 android {
@@ -40,11 +48,11 @@ android {
     // 签名配置
     signingConfigs {
         create("release") {
-            if (keystorePropertiesFile.exists()) {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = file(keystoreProperties["storeFile"] as String)
-                storePassword = keystoreProperties["storePassword"] as String
+            if (keystorePropertiesFile != null) {
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+                storeFile = keystoreProperties["storeFile"]?.let { file(it as String) }
+                storePassword = keystoreProperties["storePassword"] as String?
             }
         }
     }
@@ -52,7 +60,7 @@ android {
     buildTypes {
         release {
             // 使用release签名配置，如果不存在则使用debug
-            signingConfig = if (keystorePropertiesFile.exists()) {
+            signingConfig = if (keystorePropertiesFile != null) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
