@@ -37,6 +37,12 @@ class _HomePageState extends State<HomePage> {
       verbose: true,
     );
     
+    // Debug print configuration
+    debugPrint('=== Model Config ===');
+    debugPrint('Base URL: ${modelConfig.baseUrl}');
+    debugPrint('API Key: ${modelConfig.apiKey.substring(0, modelConfig.apiKey.length > 10 ? 10 : modelConfig.apiKey.length)}...');
+    debugPrint('Model: ${modelConfig.modelName}');
+    
     _agent = PhoneAgent(
       modelConfig: modelConfig,
       agentConfig: agentConfig,
@@ -170,7 +176,13 @@ class _HomePageState extends State<HomePage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.pushNamed(context, '/settings'),
+            onPressed: () async {
+              await Navigator.pushNamed(context, '/settings');
+              // Reload agent with new settings
+              _agent.removeListener(_onAgentChanged);
+              _agent.dispose();
+              _initializeAgent();
+            },
           ),
         ],
       ),
