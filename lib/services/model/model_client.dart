@@ -140,19 +140,40 @@ class ModelClient {
 
   /// 解析模型响应
   (String, String) _parseResponse(String content) {
-    if (!content.contains('<answer>')) {
-      return ('', content);
+    String thinking = '';
+    String action = '';
+    
+    // 优先使用 <answer> 标签
+    if (content.contains('<answer>')) {
+      final parts = content.split('<answer>');
+      thinking = parts[0]
+          .replaceAll('<think>', '')
+          .replaceAll('</think>', '')
+          .trim();
+      action = parts[1]
+          .replaceAll('</answer>', '')
+          .trim();
+    } else {
+      // 没有 <answer> 标签，尝试提取 do(...) 或 finish(...)
+      final doMatch = RegExp(r'do\s*\([^)]+\)').firstMatch(content);
+      final finishMatch = RegExp(r'finish\s*\([^)]*\)').firstMatch(content);
+      
+      if (doMatch != null) {
+        action = doMatch.group(0)!;
+        thinking = content.substring(0, doMatch.start).trim();
+      } else if (finishMatch != null) {
+        action = finishMatch.group(0)!;
+        thinking = content.substring(0, finishMatch.start).trim();
+      } else {
+        // 无法识别，返回整个内容作为action让后续处理
+        action = content.trim();
+      }
     }
-
-    final parts = content.split('<answer>');
-    final thinking = parts[0]
-        .replaceAll('<think>', '')
-        .replaceAll('</think>', '')
-        .trim();
-    final action = parts[1]
-        .replaceAll('</answer>', '')
-        .trim();
-
+    
+    print('=== Parsed Response ===');
+    print('Thinking: ${thinking.length > 100 ? thinking.substring(0, 100) + "..." : thinking}');
+    print('Action: $action');
+    
     return (thinking, action);
   }
 
