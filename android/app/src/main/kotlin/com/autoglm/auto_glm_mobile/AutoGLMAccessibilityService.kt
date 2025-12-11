@@ -179,25 +179,64 @@ class AutoGLMAccessibilityService : AccessibilityService() {
      */
     fun inputText(text: String): Boolean {
         try {
-            val root = rootInActiveWindow ?: run {
-                android.util.Log.e("Accessibility", "No root window")
+            android.util.Log.d("Accessibility", "inputText called with: $text")
+            
+            val root = rootInActiveWindow
+            if (root == null) {
+                android.util.Log.e("Accessibility", "No root window available")
                 return false
             }
             
-            // 查找当前焦点的节点
-            val focusedNode = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-            if (focusedNode != null && focusedNode.isEditable) {
-                return setTextToNode(focusedNode, text)
+            android.util.Log.d("Accessibility", "Root window package: ${root.packageName}")
+            
+            // 方法1: 查找输入焦点
+            var targetNode = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            android.util.Log.d("Accessibility", "Input focus node: $targetNode, isEditable: ${targetNode?.isEditable}")
+            
+            if (targetNode != null && targetNode.isEditable) {
+                val result = setTextToNode(targetNode, text)
+                if (result) {
+                    android.util.Log.d("Accessibility", "Set text via input focus SUCCESS")
+                    return true
+                }
             }
             
-            // 如果没有焦点节点，尝试查找可编辑的节点
-            val editableNode = findEditableNode(root)
-            if (editableNode != null) {
-                return setTextToNode(editableNode, text)
+            // 方法2: 查找可访问性焦点
+            targetNode = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+            android.util.Log.d("Accessibility", "Accessibility focus node: $targetNode, isEditable: ${targetNode?.isEditable}")
+            
+            if (targetNode != null && targetNode.isEditable) {
+                val result = setTextToNode(targetNode, text)
+                if (result) {
+                    android.util.Log.d("Accessibility", "Set text via accessibility focus SUCCESS")
+                    return true
+                }
             }
             
-            android.util.Log.e("Accessibility", "No editable node found")
+            // 方法3: 遍历查找可编辑节点
+            android.util.Log.d("Accessibility", "Searching for editable nodes...")
+            val editableNodes = findAllEditableNodes(root)
+            android.util.Log.d("Accessibility", "Found ${editableNodes.size} editable nodes")
+            
+            for (node in editableNodes) {
+                android.util.Log.d("Accessibility", "Trying node: ${node.className}, focused: ${node.isFocused}, text: '${node.text}'")
+                
+                // 先尝试聚焦
+                if (!node.isFocused) {
+                    node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                    Thread.sleep(100)
+                }
+                
+                val result = setTextToNode(node, text)
+                if (result) {
+                    android.util.Log.d("Accessibility", "Set text via editable node SUCCESS")
+                    return true
+                }
+            }
+            
+            android.util.Log.e("Accessibility", "No editable node could accept text")
             return false
+            
         } catch (e: Exception) {
             android.util.Log.e("Accessibility", "inputText error: ${e.message}", e)
             return false
@@ -209,17 +248,27 @@ class AutoGLMAccessibilityService : AccessibilityService() {
      */
     private fun setTextToNode(node: AccessibilityNodeInfo, text: String): Boolean {
         return try {
+            android.util.Log.d("Accessibility", "setTextToNode: class=${node.className}, text=$text")
+            
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                // 先清除现有文本
+                val clearArgs = android.os.Bundle()
+                clearArgs.putCharSequence(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    ""
+                )
+                node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, clearArgs)
+                
+                // 设置新文本
                 val arguments = android.os.Bundle()
                 arguments.putCharSequence(
                     AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
                     text
                 )
                 val result = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                android.util.Log.d("Accessibility", "ACTION_SET_TEXT result: $result, text: $text")
+                android.util.Log.d("Accessibility", "ACTION_SET_TEXT result: $result")
                 result
             } else {
-                // 老版本使用剪贴板方式
                 false
             }
         } catch (e: Exception) {
@@ -229,26 +278,27 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     }
     
     /**
+     * 查找所有可编辑节点
+     */
+    private fun findAllEditableNodes(root: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
+        val result = mutableListOf<AccessibilityNodeInfo>()
+        findEditableNodesRecursive(root, result)
+        // 优先返回已聚焦的节点
+        return result.sortedByDescending { it.isFocused }
+    }
+    
+    /**
      * 递归查找可编辑节点
      */
-    private fun findEditableNode(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (node.isEditable && node.isFocused) {
-            return node
-        }
-        
+    private fun findEditableNodesRecursive(node: AccessibilityNodeInfo, result: MutableList<AccessibilityNodeInfo>) {
         if (node.isEditable) {
-            return node
+            result.add(node)
         }
         
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
-            val result = findEditableNode(child)
-            if (result != null) {
-                return result
-            }
+            findEditableNodesRecursive(child, result)
         }
-        
-        return null
     }
     
     /**
@@ -258,3 +308,4 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         return inputText("")
     }
 }
+

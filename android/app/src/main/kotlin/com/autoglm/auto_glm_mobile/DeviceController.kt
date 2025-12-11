@@ -463,27 +463,37 @@ class DeviceController(private val context: Context) {
     fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                android.util.Log.d("DeviceController", "typeText: $text")
+                android.util.Log.d("DeviceController", "typeText: '$text'")
                 
                 // 方法1: 无障碍服务直接设置文本 (最可靠，支持中文)
                 if (AutoGLMAccessibilityService.isAvailable()) {
+                    android.util.Log.d("DeviceController", "Trying Accessibility Service...")
                     val service = AutoGLMAccessibilityService.getInstance()
                     if (service != null) {
+                        // 使用CountDownLatch等待结果
+                        val latch = java.util.concurrent.CountDownLatch(1)
+                        var accessibilityResult = false
+                        
                         handler.post {
-                            val result = service.inputText(text)
-                            android.util.Log.d("DeviceController", "Accessibility input result: $result")
-                            if (result) {
-                                callback(true, null)
-                            } else {
-                                // 回退到ADB Keyboard
-                                tryAdbKeyboardAndCallback(text, callback)
-                            }
+                            accessibilityResult = service.inputText(text)
+                            android.util.Log.d("DeviceController", "Accessibility input result: $accessibilityResult")
+                            latch.countDown()
                         }
-                        return@execute
+                        
+                        // 等待无障碍服务完成
+                        latch.await(3, java.util.concurrent.TimeUnit.SECONDS)
+                        
+                        if (accessibilityResult) {
+                            callback(true, null)
+                            return@execute
+                        }
+                        android.util.Log.w("DeviceController", "Accessibility input failed, trying ADB...")
                     }
+                } else {
+                    android.util.Log.d("DeviceController", "Accessibility Service not available")
                 }
                 
-                // 无障碍服务不可用，使用ADB方式
+                // 无障碍服务失败或不可用，使用ADB方式
                 tryAdbKeyboardAndCallback(text, callback)
                 
             } catch (e: Exception) {
