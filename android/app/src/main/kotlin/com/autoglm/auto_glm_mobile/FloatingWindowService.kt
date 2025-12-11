@@ -16,10 +16,12 @@ import android.view.animation.Animation
 import android.view.animation.LinearInterpolator
 import android.widget.TextView
 import android.widget.LinearLayout
+import android.widget.Button
 
 /**
- * 简单的运行指示器悬浮窗
- * 只显示一个小圆点和简单的状态文字
+ * 悬浮窗服务
+ * 1. 运行指示器 - 小型胶囊状
+ * 2. Takeover弹窗 - 大型提示框
  */
 class FloatingWindowService : Service() {
     
@@ -28,6 +30,11 @@ class FloatingWindowService : Service() {
     private var statusText: TextView? = null
     private var indicator: View? = null
     private var layoutParams: WindowManager.LayoutParams? = null
+    
+    // Takeover弹窗
+    private var takeoverView: View? = null
+    private var takeoverParams: WindowManager.LayoutParams? = null
+    private var takeoverMessageText: TextView? = null
     
     companion object {
         private var instance: FloatingWindowService? = null
@@ -44,6 +51,14 @@ class FloatingWindowService : Service() {
         fun hide() {
             instance?.hideWindow()
         }
+        
+        fun showTakeover(message: String) {
+            instance?.showTakeoverAlert(message)
+        }
+        
+        fun hideTakeover() {
+            instance?.hideTakeoverAlert()
+        }
     }
     
     override fun onCreate() {
@@ -52,12 +67,14 @@ class FloatingWindowService : Service() {
         
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         createFloatingWindow()
+        createTakeoverWindow()
     }
     
     override fun onDestroy() {
         super.onDestroy()
         instance = null
         removeFloatingWindow()
+        removeTakeoverWindow()
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
@@ -73,6 +90,8 @@ class FloatingWindowService : Service() {
             }
             "hide" -> hideWindow()
             "update" -> updateStatus(content)
+            "takeover" -> showTakeoverAlert(content)
+            "hideTakeover" -> hideTakeoverAlert()
         }
         
         return START_STICKY
@@ -180,6 +199,103 @@ class FloatingWindowService : Service() {
         }
     }
     
+    /**
+     * 创建Takeover弹窗
+     */
+    private fun createTakeoverWindow() {
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        
+        // 主容器
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(48, 40, 48, 40)
+            
+            // 橙色警告背景
+            background = GradientDrawable().apply {
+                setColor(Color.parseColor("#F57C00"))
+                cornerRadius = 24f
+            }
+        }
+        
+        // 警告图标
+        val iconText = TextView(this).apply {
+            text = "⚠️"
+            textSize = 48f
+            gravity = Gravity.CENTER
+        }
+        
+        // 标题
+        val titleText = TextView(this).apply {
+            text = "需要用户接管"
+            textSize = 20f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+            setPadding(0, 16, 0, 8)
+        }
+        
+        // 消息内容
+        takeoverMessageText = TextView(this).apply {
+            text = "请完成当前操作后点击继续"
+            textSize = 14f
+            setTextColor(Color.parseColor("#FFFFFF"))
+            gravity = Gravity.CENTER
+            setPadding(0, 8, 0, 24)
+            maxLines = 5
+        }
+        
+        // 继续按钮
+        val continueButton = Button(this).apply {
+            text = "✓ 已完成，继续"
+            textSize = 16f
+            setTextColor(Color.parseColor("#F57C00"))
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = 20f
+            }
+            setPadding(48, 24, 48, 24)
+            
+            setOnClickListener {
+                hideTakeoverAlert()
+            }
+        }
+        
+        container.addView(iconText)
+        container.addView(titleText)
+        container.addView(takeoverMessageText)
+        container.addView(continueButton)
+        
+        takeoverView = container
+        
+        // 配置Takeover窗口参数 - 居中显示
+        takeoverParams = WindowManager.LayoutParams().apply {
+            width = (screenWidth * 0.85).toInt()
+            height = WindowManager.LayoutParams.WRAP_CONTENT
+            gravity = Gravity.CENTER
+            
+            type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+            
+            // 不使用FLAG_NOT_FOCUSABLE，让用户可以点击按钮
+            flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+            
+            format = PixelFormat.TRANSLUCENT
+        }
+        
+        try {
+            windowManager?.addView(takeoverView, takeoverParams)
+            takeoverView?.visibility = View.GONE
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
     private fun startBreathingAnimation() {
         val animation = AlphaAnimation(1.0f, 0.4f).apply {
             duration = 800
@@ -197,6 +313,17 @@ class FloatingWindowService : Service() {
                 windowManager?.removeView(it)
             }
             floatingView = null
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    private fun removeTakeoverWindow() {
+        try {
+            takeoverView?.let {
+                windowManager?.removeView(it)
+            }
+            takeoverView = null
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -224,6 +351,26 @@ class FloatingWindowService : Service() {
         floatingView?.post {
             indicator?.clearAnimation()
             floatingView?.visibility = View.GONE
+        }
+    }
+    
+    fun showTakeoverAlert(message: String) {
+        takeoverView?.post {
+            takeoverMessageText?.text = message
+            takeoverView?.visibility = View.VISIBLE
+            
+            // 同时隐藏运行指示器
+            floatingView?.visibility = View.GONE
+        }
+    }
+    
+    fun hideTakeoverAlert() {
+        takeoverView?.post {
+            takeoverView?.visibility = View.GONE
+            
+            // 恢复运行指示器
+            floatingView?.visibility = View.VISIBLE
+            startBreathingAnimation()
         }
     }
 }

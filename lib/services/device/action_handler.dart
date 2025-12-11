@@ -247,11 +247,22 @@ class ActionHandler {
 
   /// 处理接管请求
   Future<ActionResult> _handleTakeover(ActionData action) async {
-    final message = action.message ?? 'User intervention required';
+    final message = action.message ?? '请完成当前操作后继续';
     
+    // 显示悬浮窗接管弹窗
+    await deviceController.showTakeover(message);
+    
+    // 同时调用原来的回调（如果有的话）
     if (takeoverCallback != null) {
       await takeoverCallback!(message);
     }
+    
+    // 等待用户操作完成后会自动隐藏弹窗
+    // 这里等待一段时间让用户有时间操作
+    await Future.delayed(const Duration(seconds: 30));
+    
+    // 隐藏弹窗
+    await deviceController.hideTakeover();
     
     return const ActionResult(success: true, shouldFinish: false);
   }

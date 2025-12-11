@@ -76,6 +76,8 @@ class MainActivity : FlutterActivity() {
             "showFloatingWindow" -> showFloatingWindow(call, result)
             "hideFloatingWindow" -> hideFloatingWindow(result)
             "updateFloatingWindow" -> updateFloatingWindow(call, result)
+            "showTakeover" -> showTakeover(call, result)
+            "hideTakeover" -> hideTakeover(result)
             "isAccessibilityEnabled" -> isAccessibilityEnabled(result)
             "openAccessibilitySettings" -> openAccessibilitySettings(result)
             "checkOverlayPermission" -> checkOverlayPermission(result)
@@ -107,6 +109,24 @@ class MainActivity : FlutterActivity() {
         val intent = Intent(this, FloatingWindowService::class.java).apply {
             putExtra("action", "update")
             putExtra("content", content)
+        }
+        startService(intent)
+        result.success(true)
+    }
+    
+    private fun showTakeover(call: MethodCall, result: MethodChannel.Result) {
+        val message = call.argument<String>("message") ?: "请完成当前操作"
+        val intent = Intent(this, FloatingWindowService::class.java).apply {
+            putExtra("action", "takeover")
+            putExtra("content", message)
+        }
+        startService(intent)
+        result.success(true)
+    }
+    
+    private fun hideTakeover(result: MethodChannel.Result) {
+        val intent = Intent(this, FloatingWindowService::class.java).apply {
+            putExtra("action", "hideTakeover")
         }
         startService(intent)
         result.success(true)

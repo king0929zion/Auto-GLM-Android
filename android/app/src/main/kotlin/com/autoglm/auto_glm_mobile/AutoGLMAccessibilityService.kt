@@ -306,10 +306,6 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             Thread.sleep(100)
             
-            // 先全选再粘贴
-            node.performAction(AccessibilityNodeInfo.ACTION_SELECT_ALL) 
-            Thread.sleep(50)
-            
             // 执行粘贴
             val result = node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
             android.util.Log.d("Accessibility", "ACTION_PASTE result: $result")

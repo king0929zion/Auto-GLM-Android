@@ -342,6 +342,26 @@ class DeviceController {
     }
   }
   
+  /// 显示Takeover弹窗
+  Future<bool> showTakeover(String message) async {
+    try {
+      await _channel.invokeMethod('showTakeover', {'message': message});
+      return true;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 隐藏Takeover弹窗
+  Future<bool> hideTakeover() async {
+    try {
+      await _channel.invokeMethod('hideTakeover');
+      return true;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 释放资源
   void dispose() {
     // 清理资源
