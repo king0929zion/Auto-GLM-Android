@@ -6,10 +6,10 @@ class AppConfig {
   /// 应用版本
   static const String appVersion = '1.0.0';
   
-  /// 默认API配置 - 魔搭社区
-  static const String defaultBaseUrl = 'https://api-inference.modelscope.cn/v1';
-  static const String defaultApiKey = '';  // 用户必须在设置中配置魔搭社区API Token
-  static const String defaultModelName = 'ZhipuAI/AutoGLM-Phone-9B';
+  /// 默认API配置 - 智谱 BigModel
+  static const String defaultBaseUrl = 'https://open.bigmodel.cn/api/paas/v4';
+  static const String defaultApiKey = '';  // 用户必须在设置中配置API Key
+  static const String defaultModelName = 'autoglm-phone';
   
   /// 模型参数默认值
   static const int defaultMaxTokens = 3000;
