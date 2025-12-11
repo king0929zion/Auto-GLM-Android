@@ -48,7 +48,7 @@ jobs:
           storePassword=${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword=${{ secrets.KEY_PASSWORD }}
           keyAlias=${{ secrets.KEY_ALIAS }}
-          storeFile=app/my-release-key.keystore
+          storeFile=my-release-key.keystore
           EOF
           echo "key.properties created:"
           cat android/key.properties | sed 's/Password=.*/Password=***/'
