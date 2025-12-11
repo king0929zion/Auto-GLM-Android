@@ -501,59 +501,80 @@ class DeviceController(private val context: Context) {
     
     /**
      * 使用ADB Keyboard输入文本
+     * 严格按照原Python实现
      */
     private fun tryAdbKeyboardInput(text: String): Boolean {
         return try {
+            android.util.Log.d("DeviceController", "tryAdbKeyboardInput: $text")
+            
             // 检查ADB Keyboard是否安装
-            val packageCheck = executeShellCommand("pm list packages com.android.adbkeyboard")
+            val packageCheck = executeShizukuShellCommand("pm list packages com.android.adbkeyboard")
+            android.util.Log.d("DeviceController", "Package check: $packageCheck")
+            
             if (!packageCheck.contains("com.android.adbkeyboard")) {
                 android.util.Log.w("DeviceController", "ADB Keyboard not installed")
                 return false
             }
             
             // 获取当前输入法
-            val originalIme = executeShellCommand("settings get secure default_input_method").trim()
+            val originalIme = executeShizukuShellCommand("settings get secure default_input_method").trim()
             android.util.Log.d("DeviceController", "Original IME: $originalIme")
             
-            // 切换到ADB Keyboard
+            // 切换到ADB Keyboard（如果还没有）
             if (!originalIme.contains("com.android.adbkeyboard")) {
-                val setResult = executeShellCommand("ime set com.android.adbkeyboard/.AdbIME")
+                val setResult = executeShizukuShellCommand("ime set com.android.adbkeyboard/.AdbIME")
                 android.util.Log.d("DeviceController", "ime set result: $setResult")
-                Thread.sleep(800)
+                Thread.sleep(500)
             }
             
-            // 清除现有文本
-            executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
-            Thread.sleep(300)
+            // 清除现有文本 - 使用与Python相同的命令格式
+            val clearResult = executeShizukuShellCommand("am broadcast -a ADB_CLEAR_TEXT")
+            android.util.Log.d("DeviceController", "Clear result: $clearResult")
+            Thread.sleep(200)
             
-            // Base64编码并发送
+            // Base64编码 - 与Python实现一致
             val encodedText = android.util.Base64.encodeToString(
                 text.toByteArray(Charsets.UTF_8),
                 android.util.Base64.NO_WRAP
             )
+            android.util.Log.d("DeviceController", "Encoded text: $encodedText")
             
-            val broadcastResult = executeShellCommand("am broadcast -a ADB_INPUT_B64 --es msg '$encodedText'")
-            android.util.Log.d("DeviceController", "broadcast result: $broadcastResult")
-            Thread.sleep(500)
+            // 发送广播 - 不使用引号，与Python实现完全一致
+            // Python: am broadcast -a ADB_INPUT_B64 --es msg <base64>
+            val broadcastResult = executeShizukuShellCommand("am broadcast -a ADB_INPUT_B64 --es msg $encodedText")
+            android.util.Log.d("DeviceController", "Broadcast result: $broadcastResult")
+            Thread.sleep(300)
             
-            // 恢复原输入法
-            if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard") && originalIme != "null") {
-                executeShellCommand("ime set $originalIme")
-                Thread.sleep(300)
-            }
+            // 检查广播是否成功
+            val success = broadcastResult.contains("result=0") || broadcastResult.contains("Broadcast completed")
+            android.util.Log.d("DeviceController", "ADB Keyboard success: $success")
             
-            true
+            // 恢复原输入法（可选，保持ADB Keyboard可能更好）
+            // if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard") && originalIme != "null") {
+            //     executeShizukuShellCommand("ime set $originalIme")
+            // }
+            
+            success
         } catch (e: Exception) {
-            android.util.Log.e("DeviceController", "ADB Keyboard error: ${e.message}")
+            android.util.Log.e("DeviceController", "ADB Keyboard error: ${e.message}", e)
             false
         }
     }
     
     /**
      * 使用input text命令输入
+     * 注意：只支持ASCII字符
      */
     private fun tryInputTextCommand(text: String): Boolean {
         return try {
+            android.util.Log.d("DeviceController", "tryInputTextCommand: $text")
+            
+            // 检查是否包含非ASCII字符
+            if (!text.all { it.code < 128 }) {
+                android.util.Log.w("DeviceController", "Text contains non-ASCII characters, skipping input text")
+                return false
+            }
+            
             // 转义特殊字符
             val escapedText = text
                 .replace("\\", "\\\\")
@@ -568,7 +589,7 @@ class DeviceController(private val context: Context) {
                 .replace(")", "\\)")
                 .replace(";", "\\;")
             
-            val result = executeShellCommand("input text \"$escapedText\"")
+            val result = executeShizukuShellCommand("input text \"$escapedText\"")
             android.util.Log.d("DeviceController", "input text result: $result")
             Thread.sleep(300)
             
@@ -584,18 +605,16 @@ class DeviceController(private val context: Context) {
      */
     private fun tryClipboardPaste(text: String): Boolean {
         return try {
-            // 设置剪贴板内容
-            val encodedText = android.util.Base64.encodeToString(
-                text.toByteArray(Charsets.UTF_8),
-                android.util.Base64.NO_WRAP
-            )
+            android.util.Log.d("DeviceController", "tryClipboardPaste: $text")
             
-            // 使用服务设置剪贴板
-            executeShellCommand("service call clipboard 2 i32 1 s16 '$text'")
+            // 使用am命令设置剪贴板（需要Android 10+）
+            val escaped = text.replace("'", "'\\''")
+            executeShizukuShellCommand("am broadcast -a clipper.set -e text '$escaped'")
             Thread.sleep(200)
             
-            // 模拟Ctrl+V粘贴
-            executeShellCommand("input keyevent 279") // KEYCODE_PASTE
+            // 模拟长按触发粘贴菜单
+            // 或直接使用 input keyevent
+            executeShizukuShellCommand("input keyevent 279") // KEYCODE_PASTE
             Thread.sleep(300)
             
             true
@@ -611,7 +630,7 @@ class DeviceController(private val context: Context) {
     fun clearText(callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
+                executeShizukuShellCommand("am broadcast -a ADB_CLEAR_TEXT")
                 Thread.sleep(300)
                 callback(true, null)
             } catch (e: Exception) {
