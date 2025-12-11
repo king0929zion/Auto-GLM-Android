@@ -70,12 +70,24 @@ class ModelClient {
         rawContent: rawContent,
       );
     } on DioException catch (e) {
+      String errorMsg;
+      if (e.response?.statusCode == 401) {
+        errorMsg = 'API Key无效，请在设置中配置正确的魔搭社区API Key';
+      } else if (e.response?.statusCode == 403) {
+        errorMsg = 'API访问被拒绝，请检查API Key权限';
+      } else if (e.response?.statusCode == 429) {
+        errorMsg = '请求频率过高，请稍后重试';
+      } else if (e.response?.statusCode == 500) {
+        errorMsg = '服务器错误，请稍后重试';
+      } else {
+        errorMsg = '请求失败: ${e.message}';
+      }
       throw ModelClientException(
-        'Request failed: ${e.message}',
+        errorMsg,
         statusCode: e.response?.statusCode,
       );
     } catch (e) {
-      throw ModelClientException('Unknown error: $e');
+      throw ModelClientException('未知错误: $e');
     }
   }
 
