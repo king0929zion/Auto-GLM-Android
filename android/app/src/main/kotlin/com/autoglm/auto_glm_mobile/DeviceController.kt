@@ -370,26 +370,47 @@ class DeviceController(private val context: Context) {
             }
         }
     }
-    
     /**
      * 输入文本
+     * 与原Python项目一致：切换ADB键盘 -> 清除 -> 输入 -> 恢复键盘
      */
     fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                // 使用ADB键盘广播方式输入
+                android.util.Log.d("DeviceController", "typeText: $text")
+                
+                // 1. 获取当前键盘并切换到ADB键盘
+                val originalIme = executeShellCommand("settings get secure default_input_method").trim()
+                android.util.Log.d("DeviceController", "Original IME: $originalIme")
+                
+                if (!originalIme.contains("com.android.adbkeyboard")) {
+                    executeShellCommand("ime set com.android.adbkeyboard/.AdbIME")
+                    Thread.sleep(500)
+                }
+                
+                // 2. 清除现有文本
+                executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
+                Thread.sleep(500)
+                
+                // 3. 使用ADB键盘广播方式输入
                 val encodedText = android.util.Base64.encodeToString(
                     text.toByteArray(Charsets.UTF_8),
                     android.util.Base64.NO_WRAP
                 )
                 
-                executeShellCommand(
-                    "am broadcast -a ADB_INPUT_B64 --es msg $encodedText"
-                )
+                executeShellCommand("am broadcast -a ADB_INPUT_B64 --es msg $encodedText")
                 Thread.sleep(500)
+                
+                // 4. 恢复原键盘
+                if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard")) {
+                    executeShellCommand("ime set $originalIme")
+                    Thread.sleep(300)
+                }
+                
                 callback(true, null)
             } catch (e: Exception) {
-                // 降级：逐字符输入
+                android.util.Log.e("DeviceController", "typeText error: ${e.message}")
+                // 降级方案：直接使用input text命令
                 try {
                     val escapedText = text.replace(" ", "%s")
                         .replace("'", "\\'")
