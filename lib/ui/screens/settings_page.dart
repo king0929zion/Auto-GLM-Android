@@ -460,11 +460,4 @@ class _SettingsPageState extends State<SettingsPage> {
       onTap: onTap,
     );
   }
-
-  void _checkShizukuStatus() {
-    // TODO: 实际检查 Shizuku 状态
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('请确保已安装并授权 Shizuku')),
-    );
-  }
 }
