@@ -93,18 +93,20 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         
-        // 配置服务
+        // 配置服务 - 添加所有必要的flags
         val info = AccessibilityServiceInfo().apply {
             eventTypes = AccessibilityEvent.TYPES_ALL_MASK
             feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC
             flags = AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS or
                     AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or
-                    AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS
+                    AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS or
+                    AccessibilityServiceInfo.FLAG_REQUEST_ENHANCED_WEB_ACCESSIBILITY or
+                    AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR
             notificationTimeout = 100
         }
         serviceInfo = info
         
-        android.util.Log.d("Accessibility", "AutoGLM Accessibility Service connected")
+        android.util.Log.d("Accessibility", "AutoGLM Accessibility Service connected with flags: ${info.flags}")
     }
     
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -175,12 +177,12 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     
     /**
      * 输入文字到当前焦点的输入框
-     * 使用无障碍服务的ACTION_SET_TEXT
+     * 使用多种方法尝试
      */
     fun inputText(text: String): Boolean {
+        android.util.Log.d("Accessibility", "=== inputText START: '$text' ===")
+        
         try {
-            android.util.Log.d("Accessibility", "inputText called with: $text")
-            
             val root = rootInActiveWindow
             if (root == null) {
                 android.util.Log.e("Accessibility", "No root window available")
@@ -189,52 +191,29 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             
             android.util.Log.d("Accessibility", "Root window package: ${root.packageName}")
             
-            // 方法1: 查找输入焦点
-            var targetNode = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-            android.util.Log.d("Accessibility", "Input focus node: $targetNode, isEditable: ${targetNode?.isEditable}")
+            // 尝试通过不同方式找到可编辑节点
+            val editableNode = findBestEditableNode(root)
             
-            if (targetNode != null && targetNode.isEditable) {
-                val result = setTextToNode(targetNode, text)
-                if (result) {
-                    android.util.Log.d("Accessibility", "Set text via input focus SUCCESS")
-                    return true
-                }
+            if (editableNode == null) {
+                android.util.Log.e("Accessibility", "No editable node found")
+                return false
             }
             
-            // 方法2: 查找可访问性焦点
-            targetNode = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
-            android.util.Log.d("Accessibility", "Accessibility focus node: $targetNode, isEditable: ${targetNode?.isEditable}")
+            android.util.Log.d("Accessibility", "Found editable node: ${editableNode.className}, focused: ${editableNode.isFocused}")
             
-            if (targetNode != null && targetNode.isEditable) {
-                val result = setTextToNode(targetNode, text)
-                if (result) {
-                    android.util.Log.d("Accessibility", "Set text via accessibility focus SUCCESS")
-                    return true
-                }
+            // 方法1: 直接使用 ACTION_SET_TEXT
+            if (trySetText(editableNode, text)) {
+                android.util.Log.d("Accessibility", "ACTION_SET_TEXT SUCCESS")
+                return true
             }
             
-            // 方法3: 遍历查找可编辑节点
-            android.util.Log.d("Accessibility", "Searching for editable nodes...")
-            val editableNodes = findAllEditableNodes(root)
-            android.util.Log.d("Accessibility", "Found ${editableNodes.size} editable nodes")
-            
-            for (node in editableNodes) {
-                android.util.Log.d("Accessibility", "Trying node: ${node.className}, focused: ${node.isFocused}, text: '${node.text}'")
-                
-                // 先尝试聚焦
-                if (!node.isFocused) {
-                    node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-                    Thread.sleep(100)
-                }
-                
-                val result = setTextToNode(node, text)
-                if (result) {
-                    android.util.Log.d("Accessibility", "Set text via editable node SUCCESS")
-                    return true
-                }
+            // 方法2: 使用剪贴板粘贴
+            if (tryClipboardPaste(editableNode, text)) {
+                android.util.Log.d("Accessibility", "Clipboard paste SUCCESS")
+                return true
             }
             
-            android.util.Log.e("Accessibility", "No editable node could accept text")
+            android.util.Log.e("Accessibility", "All input methods failed")
             return false
             
         } catch (e: Exception) {
@@ -244,47 +223,101 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     }
     
     /**
-     * 设置文本到节点
+     * 找到最合适的可编辑节点
      */
-    private fun setTextToNode(node: AccessibilityNodeInfo, text: String): Boolean {
+    private fun findBestEditableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        // 1. 查找输入焦点
+        val inputFocus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+        if (inputFocus != null && inputFocus.isEditable) {
+            android.util.Log.d("Accessibility", "Found via FOCUS_INPUT")
+            return inputFocus
+        }
+        
+        // 2. 查找可访问性焦点
+        val a11yFocus = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+        if (a11yFocus != null && a11yFocus.isEditable) {
+            android.util.Log.d("Accessibility", "Found via FOCUS_ACCESSIBILITY")
+            return a11yFocus
+        }
+        
+        // 3. 遍历查找任何可编辑节点
+        val editableNodes = mutableListOf<AccessibilityNodeInfo>()
+        findEditableNodesRecursive(root, editableNodes)
+        android.util.Log.d("Accessibility", "Found ${editableNodes.size} editable nodes by traversal")
+        
+        // 优先返回已聚焦的
+        return editableNodes.sortedByDescending { it.isFocused }.firstOrNull()
+    }
+    
+    /**
+     * 尝试使用 ACTION_SET_TEXT
+     */
+    private fun trySetText(node: AccessibilityNodeInfo, text: String): Boolean {
         return try {
-            android.util.Log.d("Accessibility", "setTextToNode: class=${node.className}, text=$text")
+            android.util.Log.d("Accessibility", "Trying ACTION_SET_TEXT...")
             
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                // 先清除现有文本
-                val clearArgs = android.os.Bundle()
-                clearArgs.putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    ""
-                )
-                node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, clearArgs)
-                
-                // 设置新文本
-                val arguments = android.os.Bundle()
-                arguments.putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    text
-                )
-                val result = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                android.util.Log.d("Accessibility", "ACTION_SET_TEXT result: $result")
-                result
-            } else {
-                false
+            // 确保节点获取焦点
+            if (!node.isFocused) {
+                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                Thread.sleep(100)
             }
+            
+            // 先点击激活
+            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            Thread.sleep(100)
+            
+            // 设置文本
+            val arguments = android.os.Bundle()
+            arguments.putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                text
+            )
+            val result = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+            android.util.Log.d("Accessibility", "ACTION_SET_TEXT result: $result")
+            result
         } catch (e: Exception) {
-            android.util.Log.e("Accessibility", "setTextToNode error: ${e.message}")
+            android.util.Log.e("Accessibility", "trySetText error: ${e.message}")
             false
         }
     }
     
     /**
-     * 查找所有可编辑节点
+     * 尝试使用剪贴板粘贴
      */
-    private fun findAllEditableNodes(root: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
-        val result = mutableListOf<AccessibilityNodeInfo>()
-        findEditableNodesRecursive(root, result)
-        // 优先返回已聚焦的节点
-        return result.sortedByDescending { it.isFocused }
+    private fun tryClipboardPaste(node: AccessibilityNodeInfo, text: String): Boolean {
+        return try {
+            android.util.Log.d("Accessibility", "Trying clipboard paste...")
+            
+            val context = this.applicationContext
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+            if (clipboard == null) {
+                android.util.Log.e("Accessibility", "ClipboardManager not available")
+                return false
+            }
+            
+            // 设置剪贴板内容
+            val clip = android.content.ClipData.newPlainText("text", text)
+            clipboard.setPrimaryClip(clip)
+            android.util.Log.d("Accessibility", "Clipboard set with text")
+            
+            // 确保节点获取焦点并点击
+            node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+            Thread.sleep(50)
+            node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            Thread.sleep(100)
+            
+            // 先全选再粘贴
+            node.performAction(AccessibilityNodeInfo.ACTION_SELECT_ALL) 
+            Thread.sleep(50)
+            
+            // 执行粘贴
+            val result = node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+            android.util.Log.d("Accessibility", "ACTION_PASTE result: $result")
+            result
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "tryClipboardPaste error: ${e.message}")
+            false
+        }
     }
     
     /**
@@ -308,4 +341,3 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         return inputText("")
     }
 }
-
