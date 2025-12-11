@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../config/app_config.dart';
+import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
 
 /// 设置页面
@@ -25,11 +26,13 @@ class _SettingsPageState extends State<SettingsPage> {
   
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _shizukuConnected = false;
 
   @override
   void initState() {
     super.initState();
     _loadSettings();
+    _checkShizukuStatus();
   }
 
   Future<void> _loadSettings() async {
@@ -47,6 +50,14 @@ class _SettingsPageState extends State<SettingsPage> {
           AppConfig.defaultLanguage;
       _isLoading = false;
     });
+  }
+  
+  Future<void> _checkShizukuStatus() async {
+    final controller = DeviceController();
+    final authorized = await controller.isShizukuAuthorized();
+    if (mounted) {
+      setState(() => _shizukuConnected = authorized);
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -208,9 +219,12 @@ class _SettingsPageState extends State<SettingsPage> {
           _buildCard([
             _buildStatusTile(
               title: 'Shizuku 服务',
-              subtitle: '需要安装并授权 Shizuku',
-              isConnected: false, // TODO: 实际检测
-              onTap: () => Navigator.pushNamed(context, '/shizuku'),
+              subtitle: _shizukuConnected ? '已连接' : '需要安装并授权 Shizuku',
+              isConnected: _shizukuConnected,
+              onTap: () async {
+                await Navigator.pushNamed(context, '/shizuku');
+                _checkShizukuStatus();
+              },
             ),
           ]),
           

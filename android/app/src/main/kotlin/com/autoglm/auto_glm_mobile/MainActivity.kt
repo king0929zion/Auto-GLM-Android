@@ -68,7 +68,58 @@ class MainActivity : FlutterActivity() {
             "pressHome" -> pressHome(call, result)
             "launchApp" -> launchApp(call, result)
             "checkShizuku" -> checkShizukuStatus(result)
+            "isShizukuInstalled" -> isShizukuInstalled(result)
+            "isShizukuRunning" -> isShizukuRunning(result)
+            "isShizukuAuthorized" -> isShizukuAuthorized(result)
+            "requestShizukuPermission" -> requestShizukuPermission(result)
             else -> result.notImplemented()
+        }
+    }
+    
+    private fun isShizukuInstalled(result: MethodChannel.Result) {
+        try {
+            packageManager.getPackageInfo("moe.shizuku.privileged.api", 0)
+            result.success(true)
+        } catch (e: PackageManager.NameNotFoundException) {
+            result.success(false)
+        }
+    }
+    
+    private fun isShizukuRunning(result: MethodChannel.Result) {
+        try {
+            result.success(Shizuku.pingBinder())
+        } catch (e: Exception) {
+            result.success(false)
+        }
+    }
+    
+    private fun isShizukuAuthorized(result: MethodChannel.Result) {
+        try {
+            if (!Shizuku.pingBinder()) {
+                result.success(false)
+                return
+            }
+            val granted = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+            result.success(granted)
+        } catch (e: Exception) {
+            result.success(false)
+        }
+    }
+    
+    private fun requestShizukuPermission(result: MethodChannel.Result) {
+        try {
+            if (!Shizuku.pingBinder()) {
+                result.success(false)
+                return
+            }
+            if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                result.success(true)
+                return
+            }
+            Shizuku.requestPermission(REQUEST_CODE_PERMISSION)
+            result.success(true)
+        } catch (e: Exception) {
+            result.success(false)
         }
     }
     

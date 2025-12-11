@@ -40,6 +40,46 @@ class DeviceController {
     }
   }
   
+  /// 检查Shizuku是否已安装
+  Future<bool> isShizukuInstalled() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isShizukuInstalled');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 检查Shizuku服务是否运行
+  Future<bool> isShizukuRunning() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isShizukuRunning');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 检查是否已获得Shizuku授权
+  Future<bool> isShizukuAuthorized() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isShizukuAuthorized');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 请求Shizuku授权
+  Future<bool> requestShizukuPermission() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('requestShizukuPermission');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 获取截图
   Future<ScreenshotData> getScreenshot({int timeoutMs = 10000}) async {
     try {
