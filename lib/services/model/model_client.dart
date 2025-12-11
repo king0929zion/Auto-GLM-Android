@@ -70,8 +70,17 @@ class ModelClient {
       final data = response.data;
       final rawContent = data['choices'][0]['message']['content'] as String;
 
+      print('=== Model Raw Response ===');
+      print(rawContent);
+      print('=' * 50);
+
       // 解析思考和动作
       final (thinking, action) = _parseResponse(rawContent);
+      
+      print('=== Parsed Result ===');
+      print('Thinking: $thinking');
+      print('Action: $action');
+      print('=' * 50);
 
       return ModelResponse(
         thinking: thinking,
