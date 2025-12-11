@@ -455,56 +455,153 @@ class DeviceController(private val context: Context) {
     }
     /**
      * 输入文本
-     * 与原Python项目一致：切换ADB键盘 -> 清除 -> 输入 -> 恢复键盘
+     * 多种输入方式的降级策略：
+     * 1. ADB Keyboard广播 (支持中文)
+     * 2. input text命令 (仅ASCII)
+     * 3. 无障碍服务粘贴 (Android 11+)
      */
     fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
                 android.util.Log.d("DeviceController", "typeText: $text")
                 
-                // 1. 获取当前键盘并切换到ADB键盘
-                val originalIme = executeShellCommand("settings get secure default_input_method").trim()
-                android.util.Log.d("DeviceController", "Original IME: $originalIme")
-                
-                if (!originalIme.contains("com.android.adbkeyboard")) {
-                    executeShellCommand("ime set com.android.adbkeyboard/.AdbIME")
-                    Thread.sleep(500)
-                }
-                
-                // 2. 清除现有文本
-                executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
-                Thread.sleep(500)
-                
-                // 3. 使用ADB键盘广播方式输入
-                val encodedText = android.util.Base64.encodeToString(
-                    text.toByteArray(Charsets.UTF_8),
-                    android.util.Base64.NO_WRAP
-                )
-                
-                executeShellCommand("am broadcast -a ADB_INPUT_B64 --es msg $encodedText")
-                Thread.sleep(500)
-                
-                // 4. 恢复原键盘
-                if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard")) {
-                    executeShellCommand("ime set $originalIme")
-                    Thread.sleep(300)
-                }
-                
-                callback(true, null)
-            } catch (e: Exception) {
-                android.util.Log.e("DeviceController", "typeText error: ${e.message}")
-                // 降级方案：直接使用input text命令
-                try {
-                    val escapedText = text.replace(" ", "%s")
-                        .replace("'", "\\'")
-                        .replace("\"", "\\\"")
-                    executeShellCommand("input text '$escapedText'")
-                    Thread.sleep(500)
+                // 方法1: 尝试使用ADB Keyboard (支持中文)
+                val adbKeyboardResult = tryAdbKeyboardInput(text)
+                if (adbKeyboardResult) {
+                    android.util.Log.d("DeviceController", "ADB Keyboard input success")
                     callback(true, null)
-                } catch (e2: Exception) {
-                    callback(false, e2.message)
+                    return@execute
                 }
+                
+                // 方法2: 使用input text命令 (仅支持ASCII)
+                val inputTextResult = tryInputTextCommand(text)
+                if (inputTextResult) {
+                    android.util.Log.d("DeviceController", "input text command success")
+                    callback(true, null)
+                    return@execute
+                }
+                
+                // 方法3: 使用剪贴板 + 模拟粘贴
+                val clipboardResult = tryClipboardPaste(text)
+                if (clipboardResult) {
+                    android.util.Log.d("DeviceController", "clipboard paste success")
+                    callback(true, null)
+                    return@execute
+                }
+                
+                android.util.Log.e("DeviceController", "All input methods failed")
+                callback(false, "All input methods failed")
+                
+            } catch (e: Exception) {
+                android.util.Log.e("DeviceController", "typeText error: ${e.message}", e)
+                callback(false, e.message)
             }
+        }
+    }
+    
+    /**
+     * 使用ADB Keyboard输入文本
+     */
+    private fun tryAdbKeyboardInput(text: String): Boolean {
+        return try {
+            // 检查ADB Keyboard是否安装
+            val packageCheck = executeShellCommand("pm list packages com.android.adbkeyboard")
+            if (!packageCheck.contains("com.android.adbkeyboard")) {
+                android.util.Log.w("DeviceController", "ADB Keyboard not installed")
+                return false
+            }
+            
+            // 获取当前输入法
+            val originalIme = executeShellCommand("settings get secure default_input_method").trim()
+            android.util.Log.d("DeviceController", "Original IME: $originalIme")
+            
+            // 切换到ADB Keyboard
+            if (!originalIme.contains("com.android.adbkeyboard")) {
+                val setResult = executeShellCommand("ime set com.android.adbkeyboard/.AdbIME")
+                android.util.Log.d("DeviceController", "ime set result: $setResult")
+                Thread.sleep(800)
+            }
+            
+            // 清除现有文本
+            executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
+            Thread.sleep(300)
+            
+            // Base64编码并发送
+            val encodedText = android.util.Base64.encodeToString(
+                text.toByteArray(Charsets.UTF_8),
+                android.util.Base64.NO_WRAP
+            )
+            
+            val broadcastResult = executeShellCommand("am broadcast -a ADB_INPUT_B64 --es msg '$encodedText'")
+            android.util.Log.d("DeviceController", "broadcast result: $broadcastResult")
+            Thread.sleep(500)
+            
+            // 恢复原输入法
+            if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard") && originalIme != "null") {
+                executeShellCommand("ime set $originalIme")
+                Thread.sleep(300)
+            }
+            
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceController", "ADB Keyboard error: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * 使用input text命令输入
+     */
+    private fun tryInputTextCommand(text: String): Boolean {
+        return try {
+            // 转义特殊字符
+            val escapedText = text
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("'", "\\'")
+                .replace(" ", "%s")
+                .replace("&", "\\&")
+                .replace("|", "\\|")
+                .replace("<", "\\<")
+                .replace(">", "\\>")
+                .replace("(", "\\(")
+                .replace(")", "\\)")
+                .replace(";", "\\;")
+            
+            val result = executeShellCommand("input text \"$escapedText\"")
+            android.util.Log.d("DeviceController", "input text result: $result")
+            Thread.sleep(300)
+            
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceController", "input text error: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * 使用剪贴板粘贴
+     */
+    private fun tryClipboardPaste(text: String): Boolean {
+        return try {
+            // 设置剪贴板内容
+            val encodedText = android.util.Base64.encodeToString(
+                text.toByteArray(Charsets.UTF_8),
+                android.util.Base64.NO_WRAP
+            )
+            
+            // 使用服务设置剪贴板
+            executeShellCommand("service call clipboard 2 i32 1 s16 '$text'")
+            Thread.sleep(200)
+            
+            // 模拟Ctrl+V粘贴
+            executeShellCommand("input keyevent 279") // KEYCODE_PASTE
+            Thread.sleep(300)
+            
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceController", "clipboard paste error: ${e.message}")
+            false
         }
     }
     

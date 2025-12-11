@@ -304,6 +304,9 @@ class PhoneAgent extends ChangeNotifier {
       debugPrint('-'.padRight(50, '-'));
       debugPrint('🎯 Action:');
       debugPrint(action.toJsonString());
+      if (action.text != null) {
+        debugPrint('📝 Text to input: "${action.text}"');
+      }
       debugPrint('='.padRight(50, '='));
     }
     

@@ -74,13 +74,32 @@ class ActionData {
   });
   
   /// Helper to extract string param with either quote type
+  /// Supports Chinese characters and handles escaped quotes
   static String? _extractParam(String response, String name) {
-    // Try double quotes
-    var match = RegExp(name + r'="([^"]*)"').firstMatch(response);
-    if (match != null) return match.group(1);
-    // Try single quotes
-    match = RegExp(name + r"='([^']*)'").firstMatch(response);
-    return match?.group(1);
+    // 尝试双引号 (支持转义引号)
+    var match = RegExp(name + r'="((?:[^"\\]|\\.)*)"').firstMatch(response);
+    if (match != null) {
+      var value = match.group(1)!;
+      // 处理转义字符
+      value = value.replaceAll(r'\"', '"');
+      return value;
+    }
+    
+    // 尝试单引号
+    match = RegExp(name + r"='((?:[^'\\]|\\.)*)'").firstMatch(response);
+    if (match != null) {
+      var value = match.group(1)!;
+      value = value.replaceAll(r"\'", "'");
+      return value;
+    }
+    
+    // 尝试不带引号的简单值 (如 text=hello)
+    match = RegExp(name + r'=([^,\)\s]+)').firstMatch(response);
+    if (match != null) {
+      return match.group(1);
+    }
+    
+    return null;
   }
 
   /// 从模型响应解析动作
