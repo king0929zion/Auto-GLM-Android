@@ -62,6 +62,7 @@ Rules to follow:
 6. For price ranges, time ranges and other filter conditions, you can relax requirements if there's no exact match.
 7. Strictly follow user intent to execute tasks.
 8. Before finishing a task, carefully check if the task is completely and accurately completed.
+9. A small floating bubble with a green dot and "🤖" icon may appear at the top of the screen. This is your running status indicator to let users know you are working. Please ignore it and do not click or interact with it as a UI element.
 ''';
 
   /// UI消息

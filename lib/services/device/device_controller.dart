@@ -100,6 +100,26 @@ class DeviceController {
     }
   }
   
+  /// 检查悬浮窗权限
+  Future<bool> checkOverlayPermission() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('checkOverlayPermission');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 打开悬浮窗设置页面
+  Future<bool> openOverlaySettings() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('openOverlaySettings');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 获取截图
   Future<ScreenshotData> getScreenshot({int timeoutMs = 10000}) async {
     try {

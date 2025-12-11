@@ -38,7 +38,7 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> {
       _shizukuRunning = await _deviceController.isShizukuRunning();
       _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
       _accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
-      _overlayPermission = await _checkOverlayPermission();
+      _overlayPermission = await _deviceController.checkOverlayPermission();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
@@ -48,17 +48,6 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> {
     // 如果所有权限都满足，自动进入主页
     if (_allPermissionsGranted) {
       _navigateToHome();
-    }
-  }
-  
-  Future<bool> _checkOverlayPermission() async {
-    try {
-      const channel = MethodChannel('com.autoglm.auto_glm_mobile/device');
-      final result = await channel.invokeMethod<bool>('checkOverlayPermission');
-      return result ?? false;
-    } catch (e) {
-      // 假设有权限（某些设备可能不支持检查）
-      return true;
     }
   }
   
@@ -293,15 +282,16 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> {
   }
   
   Future<void> _handleOverlayPermission() async {
-    try {
-      const channel = MethodChannel('com.autoglm.auto_glm_mobile/device');
-      await channel.invokeMethod('openOverlaySettings');
+    final success = await _deviceController.openOverlaySettings();
+    if (success) {
       await Future.delayed(const Duration(seconds: 2));
       _checkPermissions();
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请在设置中授予悬浮窗权限')),
-      );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请在设置中授予悬浮窗权限')),
+        );
+      }
     }
   }
 }
