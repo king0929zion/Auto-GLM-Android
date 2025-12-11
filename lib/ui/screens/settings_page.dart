@@ -162,8 +162,7 @@ class _SettingsPageState extends State<SettingsPage> {
             _buildTextField(
               controller: _apiKeyController,
               label: 'API 密钥',
-              hint: 'EMPTY',
-              obscure: true,
+              hint: '请输入你的魔搭社区API Key',
             ),
             const Divider(height: 1),
             _buildTextField(
@@ -355,11 +354,13 @@ class _SettingsPageState extends State<SettingsPage> {
         controller: controller,
         obscureText: obscure,
         validator: validator,
+        readOnly: false,
+        enableInteractiveSelection: true,
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
+          filled: true,
+          fillColor: Colors.transparent,
         ),
       ),
     );
