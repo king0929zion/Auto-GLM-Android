@@ -95,14 +95,41 @@ class DeviceController(private val context: Context) {
     
     /**
      * 获取屏幕截图
-     * 使用Shizuku权限通过shell执行screencap
+     * 优先级：1. 无障碍服务 2. Shizuku shell命令
      */
     fun getScreenshot(timeout: Int, callback: (Bitmap?, Boolean) -> Unit) {
         executor.execute {
             try {
                 android.util.Log.d("DeviceController", "Starting screenshot capture...")
                 
-                // 检查Shizuku权限
+                // 方法1: 使用无障碍服务截图 (最可靠，Android 11+)
+                if (AutoGLMAccessibilityService.isAvailable()) {
+                    android.util.Log.d("DeviceController", "Trying Accessibility Service screenshot...")
+                    
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var resultBitmap: Bitmap? = null
+                    
+                    handler.post {
+                        AutoGLMAccessibilityService.takeScreenshot { bitmap ->
+                            resultBitmap = bitmap
+                            latch.countDown()
+                        }
+                    }
+                    
+                    // 等待截图完成，最多5秒
+                    if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS) && resultBitmap != null) {
+                        android.util.Log.d("DeviceController", "Accessibility screenshot success: ${resultBitmap!!.width}x${resultBitmap!!.height}")
+                        callback(resultBitmap, false)
+                        return@execute
+                    }
+                    android.util.Log.w("DeviceController", "Accessibility screenshot failed or timed out")
+                } else {
+                    android.util.Log.d("DeviceController", "Accessibility Service not available")
+                }
+                
+                // 方法2: 使用Shizuku screencap命令
+                android.util.Log.d("DeviceController", "Trying Shizuku screenshot...")
+                
                 if (!Shizuku.pingBinder()) {
                     android.util.Log.e("DeviceController", "Shizuku binder not available")
                     callback(null, false)
@@ -115,33 +142,26 @@ class DeviceController(private val context: Context) {
                     return@execute
                 }
                 
-                // 使用应用私有目录存储截图（有写入权限）
+                // 使用应用私有目录
                 val tempFile = context.cacheDir.absolutePath + "/screenshot.png"
-                android.util.Log.d("DeviceController", "Screenshot temp file: $tempFile")
-                
-                // 方法：通过Shizuku的shell执行screencap
                 val shResult = executeShizukuShellCommand("screencap -p $tempFile")
                 android.util.Log.d("DeviceController", "screencap result: $shResult")
                 
-                // 读取截图文件
                 val file = java.io.File(tempFile)
                 if (file.exists() && file.length() > 0) {
                     val bitmap = android.graphics.BitmapFactory.decodeFile(tempFile)
-                    file.delete() // 清理
+                    file.delete()
                     
                     if (bitmap != null) {
-                        android.util.Log.d("DeviceController", "Screenshot captured: ${bitmap.width}x${bitmap.height}")
+                        android.util.Log.d("DeviceController", "Shizuku screenshot success: ${bitmap.width}x${bitmap.height}")
                         callback(bitmap, false)
                         return@execute
                     }
                 }
                 
-                android.util.Log.e("DeviceController", "Screenshot file not found or empty, trying alternative...")
-                
-                // 尝试使用/sdcard目录
+                // 尝试/sdcard目录
                 val sdcardFile = "/sdcard/autoglm_screenshot.png"
                 val sdResult = executeShizukuShellCommand("screencap -p $sdcardFile")
-                android.util.Log.d("DeviceController", "screencap (sdcard) result: $sdResult")
                 
                 val sdFile = java.io.File(sdcardFile)
                 if (sdFile.exists() && sdFile.length() > 0) {
@@ -149,7 +169,7 @@ class DeviceController(private val context: Context) {
                     sdFile.delete()
                     
                     if (bitmap != null) {
-                        android.util.Log.d("DeviceController", "Screenshot captured (sdcard): ${bitmap.width}x${bitmap.height}")
+                        android.util.Log.d("DeviceController", "Shizuku screenshot (sdcard) success")
                         callback(bitmap, false)
                         return@execute
                     }

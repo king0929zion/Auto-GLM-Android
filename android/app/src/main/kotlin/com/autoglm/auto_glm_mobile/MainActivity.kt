@@ -76,6 +76,8 @@ class MainActivity : FlutterActivity() {
             "showFloatingWindow" -> showFloatingWindow(call, result)
             "hideFloatingWindow" -> hideFloatingWindow(result)
             "updateFloatingWindow" -> updateFloatingWindow(call, result)
+            "isAccessibilityEnabled" -> isAccessibilityEnabled(result)
+            "openAccessibilitySettings" -> openAccessibilitySettings(result)
             else -> result.notImplemented()
         }
     }
@@ -417,6 +419,27 @@ class MainActivity : FlutterActivity() {
                 "status" to "error",
                 "message" to e.message
             ))
+        }
+    }
+    
+    /**
+     * 检查无障碍服务是否启用
+     */
+    private fun isAccessibilityEnabled(result: MethodChannel.Result) {
+        result.success(AutoGLMAccessibilityService.isAvailable())
+    }
+    
+    /**
+     * 打开无障碍设置页面
+     */
+    private fun openAccessibilitySettings(result: MethodChannel.Result) {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            result.success(true)
+        } catch (e: Exception) {
+            result.success(false)
         }
     }
     

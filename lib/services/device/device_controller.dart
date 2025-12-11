@@ -80,6 +80,26 @@ class DeviceController {
     }
   }
   
+  /// 检查无障碍服务是否启用
+  Future<bool> isAccessibilityEnabled() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isAccessibilityEnabled');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 打开无障碍服务设置页面
+  Future<bool> openAccessibilitySettings() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('openAccessibilitySettings');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 获取截图
   Future<ScreenshotData> getScreenshot({int timeoutMs = 10000}) async {
     try {

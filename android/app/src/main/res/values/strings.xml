@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AutoGLM</string>
+    <string name="accessibility_service_description">AutoGLM 需要无障碍权限来自动化操作您的设备。这包括：
+    \n\n• 截取屏幕截图以理解当前界面
+    \n• 模拟点击和滑动操作
+    \n• 读取屏幕内容以执行任务
+    \n\n您的数据仅用于任务执行，不会上传或存储。</string>
+</resources>
