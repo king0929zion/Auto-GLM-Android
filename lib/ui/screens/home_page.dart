@@ -134,15 +134,13 @@ class _HomePageState extends State<HomePage> {
 
   Future<bool> _ensureRequiredPermissions() async {
     final accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
-    final overlayGranted = await _deviceController.checkOverlayPermission();
-
-    if (accessibilityEnabled && overlayGranted) return true;
+    if (accessibilityEnabled) return true;
     if (!mounted) return false;
 
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('需要权限才能开始'),
+        title: const Text('需要无障碍权限才能开始'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -157,19 +155,8 @@ class _HomePageState extends State<HomePage> {
                     },
             ),
             const SizedBox(height: 8),
-            _PermissionRow(
-              title: '悬浮窗权限',
-              granted: overlayGranted,
-              onOpenSettings: overlayGranted
-                  ? null
-                  : () async {
-                      await _deviceController.openOverlaySettings();
-                      if (context.mounted) Navigator.pop(context);
-                    },
-            ),
-            const SizedBox(height: 8),
             const Text(
-              '授予上述权限后才能与 AI 交互并执行任务。',
+              '开启无障碍服务后才能与 AI 交互并执行任务。',
               style: TextStyle(color: AppTheme.textSecondary),
             ),
           ],
@@ -185,7 +172,7 @@ class _HomePageState extends State<HomePage> {
               if (!mounted) return;
               await Navigator.pushNamed(context, '/permission_setup');
             },
-            child: const Text('去授权'),
+            child: const Text('去开启'),
           ),
         ],
       ),

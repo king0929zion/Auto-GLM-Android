@@ -80,6 +80,9 @@ class PhoneAgent extends ChangeNotifier {
   
   /// 是否正在运行
   bool _isRunning = false;
+
+  /// 悬浮窗权限（会话内缓存，可选功能）
+  bool _overlayGrantedForSession = false;
   
   /// 是否需要暂停
   bool _shouldPause = false;
@@ -138,13 +141,10 @@ class PhoneAgent extends ChangeNotifier {
 
   Future<void> _ensureRequiredPermissions() async {
     final accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
-    final overlayGranted = await _deviceController.checkOverlayPermission();
-
-    if (accessibilityEnabled && overlayGranted) return;
+    if (accessibilityEnabled) return;
 
     final missing = <String>[];
     if (!accessibilityEnabled) missing.add('无障碍服务');
-    if (!overlayGranted) missing.add('悬浮窗权限');
 
     throw StateError('缺少必需权限：${missing.join('、')}。请先在系统设置中授予权限后再开始任务。');
   }
@@ -156,7 +156,8 @@ class PhoneAgent extends ChangeNotifier {
     }
 
     await _ensureRequiredPermissions();
-     
+    _overlayGrantedForSession = await _deviceController.checkOverlayPermission();
+      
     _isRunning = true;
     _shouldPause = false;
     _context.clear();
@@ -174,8 +175,10 @@ class PhoneAgent extends ChangeNotifier {
     );
     notifyListeners();
     
-    // 显示悬浮窗
-    await _deviceController.showFloatingWindow('正在处理: $task');
+    // 悬浮窗（可选）：无权限则跳过
+    if (_overlayGrantedForSession) {
+      await _deviceController.showFloatingWindow('正在处理: $task');
+    }
     
     try {
       // 第一步
@@ -242,6 +245,7 @@ class PhoneAgent extends ChangeNotifier {
     _latestScreenshot = null;  // 清除历史截图
     _isRunning = false;
     _shouldPause = false;
+    _overlayGrantedForSession = false;
     _currentTaskLogs.clear();  // 清除任务日志
     notifyListeners();
   }
@@ -351,9 +355,11 @@ class PhoneAgent extends ChangeNotifier {
         MessageBuilder.removeImagesFromMessage(_context.last);
     }
     
-    // 更新运行指示器
-    final actionText = '步骤$_stepCount ${action.actionName}';
-    await _deviceController.updateFloatingWindow(actionText);
+    // 更新运行指示器（可选）
+    if (_overlayGrantedForSession) {
+      final actionText = '步骤$_stepCount ${action.actionName}';
+      await _deviceController.updateFloatingWindow(actionText);
+    }
     
     // 执行动作
     ActionResult actionResult;
@@ -412,9 +418,11 @@ class PhoneAgent extends ChangeNotifier {
       resultMessage: message,
     );
     _isRunning = false;
-    
-    // 隐藏悬浮窗
-    _deviceController.hideFloatingWindow();
+     
+    // 隐藏悬浮窗（可选）
+    if (_overlayGrantedForSession) {
+      _deviceController.hideFloatingWindow();
+    }
     
     // 保存历史记录
     _saveHistory(success, message);

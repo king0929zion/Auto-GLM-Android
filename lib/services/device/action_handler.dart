@@ -267,8 +267,11 @@ class ActionHandler {
   Future<ActionResult> _handleTakeover(ActionData action) async {
     final message = action.message ?? '请完成当前操作后继续';
     
-    // 显示悬浮窗接管弹窗
-    await deviceController.showTakeover(message);
+    // 悬浮窗接管弹窗（可选）：无权限则跳过
+    final overlayGranted = await deviceController.checkOverlayPermission();
+    if (overlayGranted) {
+      await deviceController.showTakeover(message);
+    }
     
     // 同时调用原来的回调（如果有的话）
     if (takeoverCallback != null) {
@@ -280,7 +283,9 @@ class ActionHandler {
     await Future.delayed(const Duration(seconds: 30));
     
     // 隐藏弹窗
-    await deviceController.hideTakeover();
+    if (overlayGranted) {
+      await deviceController.hideTakeover();
+    }
     
     return const ActionResult(success: true, shouldFinish: false);
   }

@@ -5,7 +5,8 @@ import '../theme/app_theme.dart';
 import 'home_page.dart';
 
 /// 权限检查页面
-/// 必需：无障碍服务 + 悬浮窗
+/// 必需：无障碍服务
+/// 可选：悬浮窗（用于显示任务状态）
 /// 可选：Shizuku（用于增强功能和降级方案）
 class PermissionSetupPage extends StatefulWidget {
   const PermissionSetupPage({super.key});
@@ -86,9 +87,9 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
     }
   }
   
-  // 必需权限：无障碍服务 + 悬浮窗
+  // 必需权限：无障碍服务
   bool get _requiredPermissionsGranted {
-    return _accessibilityEnabled && _overlayPermission;
+    return _accessibilityEnabled;
   }
   
   // Shizuku 是否可用（可选）
@@ -182,18 +183,6 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                           isRequired: true,
                           onTap: () => _handleAccessibilitySetup(),
                         ),
-                        const SizedBox(height: 12),
-                        
-                        _buildPermissionCard(
-                          title: '悬浮窗权限',
-                          subtitle: _overlayPermission
-                              ? '已授权 - 用于显示任务状态'
-                              : '点击前往设置授权',
-                          icon: Icons.picture_in_picture,
-                          isGranted: _overlayPermission,
-                          isRequired: true,
-                          onTap: () => _handleOverlayPermission(),
-                        ),
                         
                         const SizedBox(height: 24),
                         
@@ -215,6 +204,19 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                             ],
                           ),
                         ),
+
+                        _buildPermissionCard(
+                          title: '悬浮窗权限（可选）',
+                          subtitle: _overlayPermission
+                              ? '已授权 - 用于显示任务状态'
+                              : '未授权（不影响任务执行）',
+                          icon: Icons.picture_in_picture,
+                          isGranted: _overlayPermission,
+                          isRequired: false,
+                          onTap: () => _handleOverlayPermission(),
+                        ),
+
+                        const SizedBox(height: 12),
                         
                         _buildPermissionCard(
                           title: 'Shizuku',
@@ -306,7 +308,6 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
   Widget _buildProgressIndicator() {
     int grantedCount = 0;
     if (_accessibilityEnabled) grantedCount++;
-    if (_overlayPermission) grantedCount++;
     
     return Container(
       padding: const EdgeInsets.all(16),
@@ -330,7 +331,7 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
               alignment: Alignment.center,
               children: [
                 CircularProgressIndicator(
-                  value: grantedCount / 2,
+                  value: grantedCount / 1,
                   backgroundColor: Colors.grey[800],
                   valueColor: AlwaysStoppedAnimation<Color>(
                     _requiredPermissionsGranted ? AppTheme.success : AppTheme.accentOrange,
@@ -338,7 +339,7 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                   strokeWidth: 4,
                 ),
                 Text(
-                  '$grantedCount/2',
+                  '$grantedCount/1',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,

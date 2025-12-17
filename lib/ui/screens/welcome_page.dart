@@ -97,7 +97,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     }
   }
   
-  bool get _allPermissionsGranted => _accessibilityEnabled && _overlayPermission;
+  bool get _allPermissionsGranted => _accessibilityEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -440,10 +440,10 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
           const SizedBox(height: AppTheme.spacingMD),
           
           _buildPermissionCard(
-            title: '悬浮窗权限',
+            title: '悬浮窗权限（可选）',
             subtitle: _overlayPermission
                 ? '已授权 - 用于显示任务状态'
-                : '点击前往设置授权',
+                : '未授权（不影响任务执行）',
             icon: Icons.picture_in_picture,
             isGranted: _overlayPermission,
             onTap: () => _handleOverlayPermission(),
@@ -471,7 +471,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
                   child: Text(
                     _allPermissionsGranted 
                         ? '权限配置完成，可以开始使用了！'
-                        : '请授予以上权限以正常使用应用',
+                        : '请至少开启无障碍服务以正常使用应用',
                     style: TextStyle(
                       color: _allPermissionsGranted ? AppTheme.success : AppTheme.textSecondary,
                     ),
