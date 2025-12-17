@@ -253,18 +253,34 @@ class AutoGLMAccessibilityService : AccessibilityService() {
      * 找到最合适的可编辑节点
      */
     private fun findBestEditableNode(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        // 刷新节点信息
+        root.refresh()
+        
         // 1. 查找输入焦点
         val inputFocus = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-        if (inputFocus != null && inputFocus.isEditable) {
-            android.util.Log.d("Accessibility", "Found via FOCUS_INPUT")
-            return inputFocus
+        if (inputFocus != null) {
+            inputFocus.refresh()
+            android.util.Log.d("Accessibility", "Input focus: ${inputFocus.className}, editable: ${inputFocus.isEditable}, focused: ${inputFocus.isFocused}")
+            if (inputFocus.isEditable) {
+                android.util.Log.d("Accessibility", "Found via FOCUS_INPUT")
+                return inputFocus
+            }
+            // 即使不是 editable，也可能可以接收文本（某些自定义输入框）
+            if (inputFocus.className?.contains("Edit") == true) {
+                android.util.Log.d("Accessibility", "Found Edit class via FOCUS_INPUT")
+                return inputFocus
+            }
         }
         
         // 2. 查找可访问性焦点
         val a11yFocus = root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
-        if (a11yFocus != null && a11yFocus.isEditable) {
-            android.util.Log.d("Accessibility", "Found via FOCUS_ACCESSIBILITY")
-            return a11yFocus
+        if (a11yFocus != null) {
+            a11yFocus.refresh()
+            android.util.Log.d("Accessibility", "A11y focus: ${a11yFocus.className}, editable: ${a11yFocus.isEditable}")
+            if (a11yFocus.isEditable) {
+                android.util.Log.d("Accessibility", "Found via FOCUS_ACCESSIBILITY")
+                return a11yFocus
+            }
         }
         
         // 3. 遍历查找任何可编辑节点
@@ -272,8 +288,9 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         findEditableNodesRecursive(root, editableNodes)
         android.util.Log.d("Accessibility", "Found ${editableNodes.size} editable nodes by traversal")
         
-        // 优先返回已聚焦的
-        return editableNodes.sortedByDescending { it.isFocused }.firstOrNull()
+        // 优先返回已聚焦的，其次返回可见的
+        val sortedNodes = editableNodes.sortedWith(compareByDescending<AccessibilityNodeInfo> { it.isFocused }.thenByDescending { it.isVisibleToUser })
+        return sortedNodes.firstOrNull()
     }
     
     /**
