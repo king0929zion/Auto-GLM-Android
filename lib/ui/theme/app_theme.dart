@@ -86,7 +86,7 @@ class AppTheme {
       ),
       
       // 卡片主题
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: surfaceWhite,
         elevation: 2,
         shadowColor: textHint.withOpacity(0.2),
@@ -263,7 +263,7 @@ class AppTheme {
       ),
       
       // 对话框主题
-      dialogTheme: const DialogTheme(
+      dialogTheme: const DialogThemeData(
         backgroundColor: surfaceWhite,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(radiusLG)),

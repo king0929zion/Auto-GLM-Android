@@ -231,7 +231,7 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
                         icon: const Icon(Icons.refresh, size: 16),
                         label: const Text('再次执行'),
                         style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.primaryBlue,
+                          foregroundColor: AppTheme.accentOrange,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
@@ -275,7 +275,7 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppTheme.divider)),
+                  border: Border(bottom: BorderSide(color: AppTheme.warmBeige)),
                 ),
                 child: Row(
                   children: [

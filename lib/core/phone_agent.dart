@@ -375,7 +375,7 @@ class PhoneAgent extends ChangeNotifier {
     
     // 记录详细日志
     final logTime = DateTime.now().toIso8601String();
-    final stepLog = '[$logTime] Step $_stepCount:\nAction: ${action.type}\nThinking: ${response.thinking}\nParams: ${action.parameters}\nResult: ${result.message}\n';
+    final stepLog = '[$logTime] Step $_stepCount:\nAction: ${action.type}\nThinking: ${response.thinking}\nParams: ${action.toJsonString()}\nResult: ${result.message}\n';
     _currentTaskLogs.add(stepLog);
     
     onStepCompleted?.call(result);
@@ -407,7 +407,7 @@ class PhoneAgent extends ChangeNotifier {
     
     final record = TaskRecord(
       id: const Uuid().v4(),
-      prompt: _currentTask!.description,
+      prompt: _currentTask!.task,
       startTime: _taskStartTime,
       endTime: DateTime.now().millisecondsSinceEpoch,
       status: success ? 'completed' : 'failed',

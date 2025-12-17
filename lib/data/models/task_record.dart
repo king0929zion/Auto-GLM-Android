@@ -28,5 +28,5 @@ class TaskRecord {
   }
 
   factory TaskRecord.fromJson(Map<String, dynamic> json) => _$TaskRecordFromJson(json);
-  Map<String, dynamic> toJson() => _$TaskRecordToJson(json);
+  Map<String, dynamic> toJson() => _$TaskRecordToJson(this);
 }
