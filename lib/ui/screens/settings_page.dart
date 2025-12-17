@@ -601,7 +601,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   
   /// 构建输入方式说明卡片
   Widget _buildInputMethodInfoCard() {
-    final bool useShizukuInput = _shizukuAuthorized && _adbKeyboardInstalled;
+    final bool useShizukuInput = _shizukuAuthorized;
     
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingMD),
@@ -648,7 +648,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                 if (!useShizukuInput) ...[
                   const SizedBox(height: 4),
                   Text(
-                    '启用Shizuku并安装ADB Keyboard可获得更可靠的输入',
+                    '授权Shizuku可获得更可靠的输入（需安装ADB Keyboard）',
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.grey[600],
