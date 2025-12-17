@@ -175,7 +175,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'AutoGLM 需要无障碍权限来：',
+              'AutoZi 需要无障碍权限来：',
               style: TextStyle(fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
@@ -297,7 +297,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
       appBar: AppBar(
-        title: const Text('AutoGLM', style: TextStyle(fontWeight: FontWeight.w600)),
+        title: const Text('AutoZi', style: TextStyle(fontWeight: FontWeight.w600)),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.history),

@@ -133,7 +133,7 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'AutoGLM 需要以下权限来自动控制您的设备',
+                    'AutoZi 需要以下权限来自动控制您的设备',
                     style: TextStyle(
                       color: Colors.grey[400],
                       fontSize: 14,

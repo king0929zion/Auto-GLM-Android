@@ -25,19 +25,19 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
   
-  runApp(const AutoGLMApp());
+  runApp(const AutoZiApp());
 }
 
-/// AutoGLM Mobile 应用入口
-class AutoGLMApp extends StatelessWidget {
-  const AutoGLMApp({super.key});
+/// AutoZi 应用入口
+class AutoZiApp extends StatelessWidget {
+  const AutoZiApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     final isFirstRun = SettingsRepository.instance.isFirstRun;
     
     return MaterialApp(
-      title: 'AutoGLM Mobile',
+      title: 'AutoZi',
       debugShowCheckedModeBanner: false,
       
       // 应用主题

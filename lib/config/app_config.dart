@@ -1,7 +1,7 @@
 /// 应用配置常量
 class AppConfig {
   /// 应用名称
-  static const String appName = 'AutoGLM Mobile';
+  static const String appName = 'AutoZi';
   
   /// 应用版本
   static const String appVersion = '1.0.0';

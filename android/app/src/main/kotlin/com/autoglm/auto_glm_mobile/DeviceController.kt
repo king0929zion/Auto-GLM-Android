@@ -563,6 +563,33 @@ class DeviceController(private val context: Context) {
                     Thread.sleep(delay.toLong())
                     callback(true, null)
                 } catch (e2: Exception) {
+                            gestureSuccess = success
+                            latch.countDown()
+                        }
+                    }
+                    
+                    if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
+                        Thread.sleep(delay.toLong())
+                        callback(true, null)
+                        return@execute
+                    }
+                }
+                
+                // 方法2: Shizuku InputManager 注入事件
+                injectSwipe(
+                    startX.toFloat(), startY.toFloat(),
+                    endX.toFloat(), endY.toFloat(),
+                    duration.toLong()
+                )
+                Thread.sleep(delay.toLong())
+                callback(true, null)
+            } catch (e: Exception) {
+                // 方法3: Shell 命令降级
+                try {
+                    executeShellCommand("input swipe $startX $startY $endX $endY $duration")
+                    Thread.sleep(delay.toLong())
+                    callback(true, null)
+                } catch (e2: Exception) {
                     callback(false, e2.message)
                 }
             }
@@ -570,13 +597,27 @@ class DeviceController(private val context: Context) {
     }
     /**
      * 输入文本
-     * 仅使用无障碍服务 (支持中文)
+     * 优先：Shizuku 剪贴板+粘贴（更可靠，支持微信等应用）
+     * 回退：无障碍服务
      */
     fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
                 android.util.Log.d("DeviceController", "typeText: '$text'")
                 
+                // 1. 如果 Shizuku 已授权，优先使用 Shizuku 剪贴板+粘贴
+                if (isShizukuAvailable()) {
+                    android.util.Log.d("DeviceController", "Shizuku available, trying clipboard+paste method")
+                    val shizukuResult = tryShizukuClipboardPaste(text)
+                    if (shizukuResult) {
+                        android.util.Log.d("DeviceController", "Shizuku clipboard+paste success")
+                        callback(true, null)
+                        return@execute
+                    }
+                    android.util.Log.w("DeviceController", "Shizuku clipboard+paste failed, falling back to accessibility")
+                }
+                
+                // 2. 回退到无障碍服务
                 if (!AutoGLMAccessibilityService.isEnabled(context)) {
                     android.util.Log.e("DeviceController", "Accessibility Service not enabled")
                     callback(false, "无障碍服务未启用")
@@ -618,7 +659,7 @@ class DeviceController(private val context: Context) {
                     }
                 }
                 
-                android.util.Log.e("DeviceController", "All 3 accessibility attempts failed")
+                android.util.Log.e("DeviceController", "All accessibility attempts failed")
                 val reason = AutoGLMAccessibilityService.getLastInputFailure()
                 val message = if (!reason.isNullOrBlank()) {
                     "文本输入失败：$reason"
@@ -635,8 +676,43 @@ class DeviceController(private val context: Context) {
     }
     
     /**
-     * 使用ADB方式输入文字并回调
+     * 使用 Shizuku 剪贴板+粘贴方式输入文本
+     * 更可靠，支持微信等对无障碍输入有限制的应用
      */
+    private fun tryShizukuClipboardPaste(text: String): Boolean {
+        return try {
+            android.util.Log.d("DeviceController", "tryShizukuClipboardPaste: $text")
+            
+            // 设置剪贴板内容
+            mainHandler.post {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("text", text)
+                clipboard.setPrimaryClip(clip)
+            }
+            Thread.sleep(150)
+            
+            // 使用 Shizuku 模拟 Ctrl+V 粘贴
+            // input keyevent 键值: KEYCODE_V = 50, KEYCODE_CTRL_LEFT = 113
+            val pasteResult = executeShizukuShellCommand("input keyevent --longpress 113 50")
+            android.util.Log.d("DeviceController", "Paste keyevent result: $pasteResult")
+            Thread.sleep(300)
+            
+            // 如果 Ctrl+V 不起作用，尝试使用 ACTION_PASTE 键码
+            // KEYCODE_PASTE = 279
+            if (pasteResult.contains("Error") || pasteResult.contains("error")) {
+                android.util.Log.d("DeviceController", "Ctrl+V failed, trying KEYCODE_PASTE...")
+                val pasteResult2 = executeShizukuShellCommand("input keyevent 279")
+                android.util.Log.d("DeviceController", "KEYCODE_PASTE result: $pasteResult2")
+                Thread.sleep(200)
+            }
+            
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceController", "Shizuku clipboard paste error: ${e.message}", e)
+            false
+        }
+    }
+    
     private fun tryAdbKeyboardAndCallback(text: String, callback: (Boolean, String?) -> Unit) {
         try {
             // 方法2: 尝试使用ADB Keyboard (支持中文)

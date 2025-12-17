@@ -31,7 +31,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   final List<_WelcomePageData> _pages = [
     _WelcomePageData(
       icon: Icons.smart_toy,
-      title: '欢迎使用 AutoGLM',
+      title: '欢迎使用 AutoZi',
       description: 'AI驱动的手机自动化助手\n让您用自然语言控制手机',
       color: AppTheme.accentOrange,
       type: _PageType.intro,
