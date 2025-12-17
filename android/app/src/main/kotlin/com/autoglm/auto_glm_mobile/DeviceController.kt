@@ -558,7 +558,7 @@ class DeviceController(private val context: Context) {
     /**
      * 输入文本
      * 多种输入方式的降级策略：
-     * 1. ADB Keyboard广播 (支持中文)
+     * 1. 无障碍服务直接设置文本 (支持中文)
      * 2. ADB Keyboard广播 (支持中文，需要安装ADB Keyboard)
      * 3. input text命令 (仅ASCII)
      */
@@ -572,24 +572,34 @@ class DeviceController(private val context: Context) {
                     android.util.Log.d("DeviceController", "Trying Accessibility Service...")
                     val service = AutoGLMAccessibilityService.getInstance()
                     if (service != null) {
-                        // 使用CountDownLatch等待结果
-                        val latch = java.util.concurrent.CountDownLatch(1)
-                        var accessibilityResult = false
-                        
-                        handler.post {
-                            accessibilityResult = service.inputText(text)
-                            android.util.Log.d("DeviceController", "Accessibility input result: $accessibilityResult")
-                            latch.countDown()
+                        // 尝试最多3次
+                        for (attempt in 1..3) {
+                            android.util.Log.d("DeviceController", "Accessibility attempt $attempt/3")
+                            
+                            val latch = java.util.concurrent.CountDownLatch(1)
+                            var accessibilityResult = false
+                            
+                            handler.post {
+                                accessibilityResult = service.inputText(text)
+                                android.util.Log.d("DeviceController", "Accessibility input result: $accessibilityResult")
+                                latch.countDown()
+                            }
+                            
+                            // 等待无障碍服务完成
+                            latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                            
+                            if (accessibilityResult) {
+                                callback(true, null)
+                                return@execute
+                            }
+                            
+                            // 失败了，等待一下再重试
+                            if (attempt < 3) {
+                                android.util.Log.w("DeviceController", "Attempt $attempt failed, waiting before retry...")
+                                Thread.sleep(500)
+                            }
                         }
-                        
-                        // 等待无障碍服务完成
-                        latch.await(3, java.util.concurrent.TimeUnit.SECONDS)
-                        
-                        if (accessibilityResult) {
-                            callback(true, null)
-                            return@execute
-                        }
-                        android.util.Log.w("DeviceController", "Accessibility input failed, trying ADB...")
+                        android.util.Log.w("DeviceController", "All 3 accessibility attempts failed, trying ADB...")
                     }
                 } else {
                     android.util.Log.d("DeviceController", "Accessibility Service not available")

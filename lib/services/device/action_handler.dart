@@ -166,8 +166,26 @@ class ActionHandler {
   /// 处理输入
   Future<ActionResult> _handleType(ActionData action) async {
     final text = action.text ?? '';
-    await deviceController.typeText(text);
-    return const ActionResult(success: true, shouldFinish: false);
+    
+    // 如果文本为空，直接返回成功
+    if (text.isEmpty) {
+      return const ActionResult(success: true, shouldFinish: false);
+    }
+    
+    // 等待一下，确保输入框已经获取焦点
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    // 执行输入
+    final success = await deviceController.typeText(text);
+    
+    // 输入后等待一下，让文本稳定显示
+    await Future.delayed(const Duration(milliseconds: 300));
+    
+    return ActionResult(
+      success: success,
+      shouldFinish: false,
+      message: success ? null : 'Failed to type text: $text',
+    );
   }
 
   /// 处理滑动
