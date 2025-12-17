@@ -120,6 +120,46 @@ class DeviceController {
     }
   }
   
+  /// 检查是否已忽略电池优化
+  Future<bool> isIgnoringBatteryOptimizations() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isIgnoringBatteryOptimizations');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 请求忽略电池优化（加入白名单）
+  Future<bool> requestIgnoreBatteryOptimizations() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('requestIgnoreBatteryOptimizations');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 启动保活前台服务
+  Future<bool> startKeepAliveService() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('startKeepAliveService');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 停止保活前台服务
+  Future<bool> stopKeepAliveService() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('stopKeepAliveService');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 获取截图
   Future<ScreenshotData> getScreenshot({int timeoutMs = 10000}) async {
     try {
@@ -253,7 +293,7 @@ class DeviceController {
   /// 输入文本
   Future<bool> typeText(String text) async {
     try {
-      // 输入新文本（原生侧会按“聚焦→清空→输入”的顺序处理，尽量对齐 Python 版）
+      // 输入新文本（原生侧会按"聚焦→清空→输入"的顺序处理，尽量对齐 Python 版）
       await _channel.invokeMethod('typeText', {'text': text});
       await Future.delayed(const Duration(milliseconds: 500));
       

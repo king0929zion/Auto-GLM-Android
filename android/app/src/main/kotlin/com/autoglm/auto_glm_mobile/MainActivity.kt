@@ -82,6 +82,10 @@ class MainActivity : FlutterActivity() {
             "openAccessibilitySettings" -> openAccessibilitySettings(result)
             "checkOverlayPermission" -> checkOverlayPermission(result)
             "openOverlaySettings" -> openOverlaySettings(result)
+            "isIgnoringBatteryOptimizations" -> isIgnoringBatteryOptimizations(result)
+            "requestIgnoreBatteryOptimizations" -> requestIgnoreBatteryOptimizations(result)
+            "startKeepAliveService" -> startKeepAliveService(result)
+            "stopKeepAliveService" -> stopKeepAliveService(result)
             else -> result.notImplemented()
         }
     }
@@ -497,8 +501,79 @@ class MainActivity : FlutterActivity() {
         }
     }
     
+    /**
+     * 检查是否已忽略电池优化
+     */
+    private fun isIgnoringBatteryOptimizations(result: MethodChannel.Result) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val powerManager = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+                result.success(powerManager.isIgnoringBatteryOptimizations(packageName))
+            } else {
+                result.success(true)
+            }
+        } catch (e: Exception) {
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 请求忽略电池优化
+     */
+    private fun requestIgnoreBatteryOptimizations(result: MethodChannel.Result) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val intent = Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.data = android.net.Uri.parse("package:$packageName")
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                startActivity(intent)
+                result.success(true)
+            } else {
+                result.success(true)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Request ignore battery optimizations error: ${e.message}")
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 启动保活服务
+     */
+    private fun startKeepAliveService(result: MethodChannel.Result) {
+        try {
+            val serviceIntent = Intent(this, KeepAliveService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(serviceIntent)
+            } else {
+                startService(serviceIntent)
+            }
+            android.util.Log.d("MainActivity", "KeepAliveService started")
+            result.success(true)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Start KeepAliveService error: ${e.message}")
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 停止保活服务
+     */
+    private fun stopKeepAliveService(result: MethodChannel.Result) {
+        try {
+            val serviceIntent = Intent(this, KeepAliveService::class.java)
+            stopService(serviceIntent)
+            android.util.Log.d("MainActivity", "KeepAliveService stopped")
+            result.success(true)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Stop KeepAliveService error: ${e.message}")
+            result.success(false)
+        }
+    }
+    
     override fun onDestroy() {
         deviceController?.release()
         super.onDestroy()
     }
 }
+

@@ -33,6 +33,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   bool _shizukuInstalled = false;
   bool _shizukuRunning = false;
   bool _shizukuAuthorized = false;
+  bool _batteryOptimizationIgnored = false;
   
   final DeviceController _deviceController = DeviceController();
   Timer? _permissionCheckTimer;
@@ -83,6 +84,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       _shizukuInstalled = await _deviceController.isShizukuInstalled();
       _shizukuRunning = await _deviceController.isShizukuRunning();
       _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
+      _batteryOptimizationIgnored = await _deviceController.isIgnoringBatteryOptimizations();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
@@ -183,7 +185,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               onTap: () => _deviceController.openOverlaySettings(),
             ),
             const Divider(height: 1),
-            // Shizuku
             _buildPermissionTile(
               title: 'Shizuku',
               subtitle: _getShizukuStatusText(),
@@ -191,6 +192,18 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               isGranted: _shizukuAuthorized,
               isRequired: false,
               onTap: _handleShizukuAction,
+            ),
+            const Divider(height: 1),
+            // 电池优化白名单
+            _buildPermissionTile(
+              title: '电池优化白名单',
+              subtitle: _batteryOptimizationIgnored 
+                  ? '已加入 - 防止无障碍服务被关闭' 
+                  : '未加入（强烈推荐）',
+              icon: Icons.battery_saver,
+              isGranted: _batteryOptimizationIgnored,
+              isRequired: false,
+              onTap: () => _deviceController.requestIgnoreBatteryOptimizations(),
             ),
           ]),
           
