@@ -709,12 +709,123 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             findTextInputNodesRecursive(child, result)
         }
     }
+
+    private fun resolveTypingTarget(): AccessibilityNodeInfo? {
+        // 优先：当前真正获得输入焦点的节点
+        val focused = getCurrentFocusedTextTarget()
+        if (focused != null) return focused
+
+        // 否则：遍历所有 window，选最像输入框的候选
+        val roots = getAllWindowRoots()
+        if (roots.isEmpty()) return null
+
+        val candidates = mutableListOf<AccessibilityNodeInfo>()
+        for (root in roots) {
+            findTextInputNodesRecursive(root, candidates)
+        }
+
+        return candidates
+            .asSequence()
+            .filter { it.isVisibleToUser && it.isEnabled }
+            .sortedByDescending { scoreTextInputCandidate(it) }
+            .firstOrNull()
+    }
+
+    private fun clearOnTarget(node: AccessibilityNodeInfo): Boolean {
+        // 清空时严格避免触发剪贴板逻辑（对齐 Python clear_text 语义）
+        return try {
+            val setTextTarget = findNearestSetTextTarget(node) ?: node
+            focusOrClickForInput(setTextTarget)
+            SystemClock.sleep(60)
+
+            if (canSetText(setTextTarget) && performSetText(setTextTarget, "")) {
+                android.util.Log.d("Accessibility", "clearOnTarget SUCCESS target=${nodeSummary(setTextTarget)}")
+                return true
+            }
+
+            val focusedAfter = getCurrentFocusedTextTarget()
+            if (focusedAfter != null) {
+                val focusedTarget = findNearestSetTextTarget(focusedAfter) ?: focusedAfter
+                focusOrClickForInput(focusedTarget)
+                if (canSetText(focusedTarget) && performSetText(focusedTarget, "")) {
+                    android.util.Log.d("Accessibility", "clearOnTarget (focused) SUCCESS target=${nodeSummary(focusedTarget)}")
+                    return true
+                }
+            }
+
+            false
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "clearOnTarget error: ${e.message}")
+            false
+        }
+    }
+
+    fun clearFocusedText(): Boolean {
+        val target = resolveTypingTarget() ?: return false
+        return clearOnTarget(target)
+    }
+
+    /**
+     * 按 Python 版 ADB Keyboard 输入流程对齐（但不依赖 ADB Keyboard）：
+     * 1) 确保输入框获得焦点
+     * 2) 清空已有文本
+     * 3) 输入新文本
+     *
+     * 注意：优先使用 ACTION_SET_TEXT；
+     * 只有在无法 setText 时才会降级到剪贴板粘贴。
+     */
+    fun typeTextLikePython(text: String): Boolean {
+        return try {
+            android.util.Log.d("Accessibility", "=== typeTextLikePython START: '$text' ===")
+            val target = resolveTypingTarget()
+            if (target == null) {
+                android.util.Log.e("Accessibility", "No typing target found")
+                return false
+            }
+
+            // 1) focus/click 预热（类似 Python detect_and_set_adb_keyboard 的“确保可输入状态”）
+            focusOrClickForInput(target)
+            SystemClock.sleep(120)
+
+            // 2) clear（不使用剪贴板）
+            if (!clearOnTarget(target)) {
+                android.util.Log.w("Accessibility", "Clear failed (non-fatal), continue typing: ${nodeSummary(target)}")
+            } else {
+                SystemClock.sleep(80)
+            }
+
+            // 3) set text
+            val setTextTarget = findNearestSetTextTarget(target) ?: target
+            if (canSetText(setTextTarget) && performSetText(setTextTarget, text)) {
+                android.util.Log.d("Accessibility", "typeTextLikePython ACTION_SET_TEXT SUCCESS")
+                return true
+            }
+
+            // focus/click 后再抓一次真正焦点，适配 Compose/WebView/自定义输入框
+            val focusedAfter = getCurrentFocusedTextTarget()
+            if (focusedAfter != null) {
+                val focusedTarget = findNearestSetTextTarget(focusedAfter) ?: focusedAfter
+                if (canSetText(focusedTarget) && performSetText(focusedTarget, text)) {
+                    android.util.Log.d("Accessibility", "typeTextLikePython ACTION_SET_TEXT (focused) SUCCESS")
+                    return true
+                }
+            }
+
+            // 兜底：剪贴板粘贴
+            val pasteOk = tryClipboardPaste(target, text)
+            android.util.Log.d("Accessibility", "typeTextLikePython clipboard fallback result=$pasteOk")
+            pasteOk
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "typeTextLikePython error: ${e.message}", e)
+            false
+        }
+    }
     
     /**
      * 清除当前输入框的文字
      */
     fun clearText(): Boolean {
-        return inputText("")
+        return clearFocusedText()
     }
     
     // ========== 坐标点击和手势操作 (Android 7.0+) ==========

@@ -588,9 +588,9 @@ class DeviceController(private val context: Context) {
                     
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var accessibilityResult = false
-                    
+                     
                     mainHandler.post {
-                        accessibilityResult = service.inputText(text)
+                        accessibilityResult = service.typeTextLikePython(text)
                         android.util.Log.d("DeviceController", "Accessibility input result: $accessibilityResult")
                         latch.countDown()
                     }
