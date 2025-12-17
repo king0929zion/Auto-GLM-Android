@@ -649,63 +649,12 @@ class DeviceController(private val context: Context) {
     }
     
     /**
-     * 使用 Shizuku 剪贴板+粘贴方式输入文本
+     * 使用 Shizuku + ADB Keyboard 输入文本
+     * 这是最可靠的中文输入方式，支持微信等应用
      */
     private fun tryShizukuClipboardPaste(text: String): Boolean {
-        return try {
-            android.util.Log.d("DeviceController", "tryShizukuClipboardPaste: $text")
-            
-            // 在主线程设置剪贴板
-            val clipboardLatch = java.util.concurrent.CountDownLatch(1)
-            mainHandler.post {
-                try {
-                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("text", text)
-                    clipboard.setPrimaryClip(clip)
-                    android.util.Log.d("DeviceController", "Clipboard set success")
-                } catch (e: Exception) {
-                    android.util.Log.e("DeviceController", "Clipboard error: ${e.message}")
-                }
-                clipboardLatch.countDown()
-            }
-            clipboardLatch.await(2, java.util.concurrent.TimeUnit.SECONDS)
-            Thread.sleep(150)
-            
-            // 使用无障碍服务执行粘贴操作
-            val service = AutoGLMAccessibilityService.getInstance()
-            if (service != null) {
-                val pasteLatch = java.util.concurrent.CountDownLatch(1)
-                var pasteSuccess = false
-                
-                mainHandler.post {
-                    try {
-                        // 使用无障碍服务的 PASTE 操作
-                        val focusedNode = service.rootInActiveWindow?.findFocus(android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT)
-                        if (focusedNode != null) {
-                            pasteSuccess = focusedNode.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_PASTE)
-                            android.util.Log.d("DeviceController", "Accessibility PASTE result: $pasteSuccess")
-                            focusedNode.recycle()
-                        } else {
-                            android.util.Log.w("DeviceController", "No focused input node found")
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("DeviceController", "Paste error: ${e.message}")
-                    }
-                    pasteLatch.countDown()
-                }
-                
-                pasteLatch.await(3, java.util.concurrent.TimeUnit.SECONDS)
-                Thread.sleep(200)
-                
-                pasteSuccess
-            } else {
-                android.util.Log.w("DeviceController", "Accessibility service not available for paste")
-                false
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("DeviceController", "Shizuku clipboard paste error: ${e.message}", e)
-            false
-        }
+        // 直接调用 ADB Keyboard 输入方法
+        return tryAdbKeyboardInput(text)
     }
     
     /**
