@@ -98,16 +98,16 @@ class _HomePageState extends State<HomePage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Confirm Action'),
+        title: const Text('确认操作'),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: const Text('取消'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm'),
+            child: const Text('确认'),
           ),
         ],
       ),
@@ -120,18 +120,19 @@ class _HomePageState extends State<HomePage> {
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Manual Operation Required'),
+        title: const Text('需要手动操作'),
         content: Text(message),
         actions: [
           ElevatedButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Continue'),
+            child: const Text('继续'),
           ),
         ],
       ),
     );
   }
 
+  /// 检查并确保必需权限 - 简化版弹窗
   Future<bool> _ensureRequiredPermissions() async {
     final accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
     if (accessibilityEnabled) return true;
@@ -139,40 +140,67 @@ class _HomePageState extends State<HomePage> {
 
     await showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('需要无障碍权限才能开始'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.accessibility_new, color: AppTheme.error),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('需要无障碍权限')),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _PermissionRow(
-              title: '无障碍服务',
-              granted: accessibilityEnabled,
-              onOpenSettings: accessibilityEnabled
-                  ? null
-                  : () async {
-                      await _deviceController.openAccessibilitySettings();
-                      if (context.mounted) Navigator.pop(context);
-                    },
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: AppTheme.error, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      '无障碍服务未启用',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'AutoGLM 需要无障碍权限来：',
+              style: TextStyle(fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
             const Text(
-              '开启无障碍服务后才能与 AI 交互并执行任务。',
-              style: TextStyle(color: AppTheme.textSecondary),
+              '• 读取屏幕内容\n'
+              '• 模拟点击和滑动\n'
+              '• 输入文字',
+              style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
             ),
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              if (!mounted) return;
-              await Navigator.pushNamed(context, '/permission_setup');
-            },
-            child: const Text('去开启'),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.settings),
+              label: const Text('打开无障碍设置'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: () async {
+                await _deviceController.openAccessibilitySettings();
+                if (context.mounted) Navigator.pop(context);
+              },
+            ),
           ),
         ],
       ),
@@ -242,6 +270,7 @@ class _HomePageState extends State<HomePage> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
             child: const Text('停止'),
           ),
         ],
@@ -276,12 +305,6 @@ class _HomePageState extends State<HomePage> {
           onPressed: _showHistoryDrawer,
         ),
         actions: [
-          if (_agent.isRunning)
-            IconButton(
-              icon: const Icon(Icons.stop_circle_outlined),
-              tooltip: '停止任务',
-              onPressed: _stopTask,
-            ),
           // 新建对话按钮
           IconButton(
             icon: const Icon(Icons.add_comment_outlined),
@@ -428,7 +451,7 @@ class _HomePageState extends State<HomePage> {
                 setState(() => _errorMessage = null);
                 _initializeAgent();
               },
-              child: const Text('Retry'),
+              child: const Text('重试'),
             ),
           ],
         ),
@@ -458,7 +481,7 @@ class _HomePageState extends State<HomePage> {
           Icon(Icons.chat_bubble_outline, size: 48, color: AppTheme.textHint),
           const SizedBox(height: 16),
           Text(
-            'Describe what you want to do',
+            '描述您想要执行的任务',
             style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
           ),
         ],
@@ -534,6 +557,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildInputArea() {
+    final isRunning = _agent.isRunning;
+    
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -543,12 +568,12 @@ class _HomePageState extends State<HomePage> {
               child: TextField(
                 controller: _taskController,
                 focusNode: _focusNode,
-                enabled: _isInitialized && !_agent.isRunning,
+                enabled: _isInitialized && !isRunning,
                 maxLines: null,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _startTask(),
                 decoration: InputDecoration(
-                  hintText: 'Enter your task...',
+                  hintText: isRunning ? '任务执行中...' : '输入您的任务...',
                   filled: true,
                   fillColor: AppTheme.surfaceWhite,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -564,65 +589,33 @@ class _HomePageState extends State<HomePage> {
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
                   ),
+                  disabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
+            // 发送/停止按钮 - 任务执行中变为停止按钮
             Container(
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: _agent.isRunning ? AppTheme.textHint : AppTheme.accentOrange,
+                color: isRunning ? AppTheme.error : AppTheme.accentOrange,
                 shape: BoxShape.circle,
               ),
               child: IconButton(
-                onPressed: _agent.isRunning ? null : _startTask,
-                icon: _agent.isRunning
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
+                onPressed: isRunning ? _stopTask : _startTask,
+                tooltip: isRunning ? '停止任务' : '发送',
+                icon: isRunning
+                  ? const Icon(Icons.stop, color: Colors.white, size: 22)
                   : const Icon(Icons.send, color: Colors.white, size: 20),
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _PermissionRow extends StatelessWidget {
-  final String title;
-  final bool granted;
-  final Future<void> Function()? onOpenSettings;
-
-  const _PermissionRow({
-    required this.title,
-    required this.granted,
-    this.onOpenSettings,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(
-          granted ? Icons.check_circle : Icons.error_outline,
-          color: granted ? AppTheme.success : AppTheme.error,
-        ),
-        const SizedBox(width: 8),
-        Expanded(child: Text(title)),
-        if (!granted)
-          TextButton(
-            onPressed: onOpenSettings,
-            child: const Text('打开设置'),
-          ),
-      ],
     );
   }
 }

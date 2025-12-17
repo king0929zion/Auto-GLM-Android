@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
 import 'home_page.dart';
@@ -7,7 +8,7 @@ import 'home_page.dart';
 /// 权限检查页面
 /// 必需：无障碍服务
 /// 可选：悬浮窗（用于显示任务状态）
-/// 可选：Shizuku（用于增强功能和降级方案）
+/// 可选：Shizuku（用于增强功能）
 class PermissionSetupPage extends StatefulWidget {
   const PermissionSetupPage({super.key});
 
@@ -18,12 +19,12 @@ class PermissionSetupPage extends StatefulWidget {
 class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsBindingObserver {
   final DeviceController _deviceController = DeviceController();
   
-  // Shizuku 改为可选
+  // Shizuku 状态（可选）
   bool _shizukuInstalled = false;
   bool _shizukuRunning = false;
   bool _shizukuAuthorized = false;
   
-  // 必需权限
+  // 必需和可选权限
   bool _accessibilityEnabled = false;
   bool _overlayPermission = false;
   
@@ -90,11 +91,6 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
   // 必需权限：无障碍服务
   bool get _requiredPermissionsGranted {
     return _accessibilityEnabled;
-  }
-  
-  // Shizuku 是否可用（可选）
-  bool get _shizukuAvailable {
-    return _shizukuAuthorized;
   }
   
   bool _hasNavigated = false;
@@ -176,8 +172,8 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                         _buildPermissionCard(
                           title: '无障碍服务',
                           subtitle: _accessibilityEnabled
-                              ? '已启用 - 用于模拟点击和输入'
-                              : '点击前往设置开启',
+                              ? '已启用 - 用于模拟点击、滑动和输入'
+                              : '点击前往设置开启（必需）',
                           icon: Icons.accessibility_new,
                           isGranted: _accessibilityEnabled,
                           isRequired: true,
@@ -206,7 +202,7 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                         ),
 
                         _buildPermissionCard(
-                          title: '悬浮窗权限（可选）',
+                          title: '悬浮窗权限',
                           subtitle: _overlayPermission
                               ? '已授权 - 用于显示任务状态'
                               : '未授权（不影响任务执行）',
@@ -219,11 +215,11 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                         const SizedBox(height: 12),
                         
                         _buildPermissionCard(
-                          title: 'Shizuku',
+                          title: 'Shizuku（推荐）',
                           subtitle: _shizukuInstalled
                               ? (_shizukuRunning
                                   ? (_shizukuAuthorized 
-                                      ? '已授权 - 提供增强功能' 
+                                      ? '已授权 - 提供更可靠的输入能力' 
                                       : '点击授权')
                                   : '请先启动 Shizuku 服务')
                               : '未安装（可跳过）',
@@ -233,20 +229,47 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                           onTap: () => _handleShizukuSetup(),
                         ),
                         
-                        if (!_shizukuInstalled) ...[
-                          const SizedBox(height: 8),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
-                            child: Text(
-                              '💡 提示：Android 11+ 仅使用无障碍服务即可获得完整功能',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
+                        const SizedBox(height: 16),
+                        
+                        // Shizuku 优势说明
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppTheme.info.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppTheme.info.withOpacity(0.3)),
                           ),
-                        ],
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(Icons.lightbulb_outline, size: 18, color: AppTheme.info),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Shizuku 的优势',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.info,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                '• 更可靠的文本输入（特别是微信等应用）\n'
+                                '• 支持剪贴板+粘贴的输入方式\n'
+                                '• 不依赖 ADB Keyboard 等额外应用\n'
+                                '• 提供系统级操作的备选方案',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[400],
+                                  height: 1.6,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -434,12 +457,34 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (isRequired && !isGranted) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.error.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '必需',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppTheme.error,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -469,9 +514,10 @@ class _PermissionSetupPageState extends State<PermissionSetupPage> with WidgetsB
   Future<void> _handleShizukuSetup() async {
     if (!_shizukuInstalled) {
       // 打开Shizuku下载页面
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请从Google Play或GitHub下载安装Shizuku')),
-      );
+      final uri = Uri.parse('https://shizuku.rikka.app/');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
       return;
     }
     

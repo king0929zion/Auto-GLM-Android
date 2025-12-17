@@ -23,6 +23,8 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   final DeviceController _deviceController = DeviceController();
   bool _accessibilityEnabled = false;
   bool _overlayPermission = false;
+  bool _shizukuAuthorized = false;
+  bool _shizukuInstalled = false;
   bool _isCheckingPermissions = false;
   Timer? _permissionCheckTimer;
   
@@ -87,6 +89,8 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     try {
       _accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
       _overlayPermission = await _deviceController.checkOverlayPermission();
+      _shizukuInstalled = await _deviceController.isShizukuInstalled();
+      _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
@@ -424,29 +428,96 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
             textAlign: TextAlign.center,
           ),
           
-          const SizedBox(height: AppTheme.spacingXL),
+          const SizedBox(height: AppTheme.spacingLG),
           
-          // 权限卡片
+          // 必需权限标题
+          _buildSectionTitle('必需权限', Icons.check_circle, AppTheme.accentOrange),
+          
+          const SizedBox(height: AppTheme.spacingSM),
+          
+          // 无障碍服务
           _buildPermissionCard(
             title: '无障碍服务',
             subtitle: _accessibilityEnabled
-                ? '已启用 - 用于模拟点击和输入'
-                : '点击前往设置开启',
+                ? '已启用 - 用于模拟点击、滑动和输入'
+                : '点击前往设置开启（必需）',
             icon: Icons.accessibility_new,
             isGranted: _accessibilityEnabled,
+            isRequired: true,
             onTap: () => _handleAccessibilitySetup(),
+          ),
+          
+          const SizedBox(height: AppTheme.spacingLG),
+          
+          // 可选权限标题
+          _buildSectionTitle('可选权限（增强体验）', Icons.star_outline, AppTheme.textHint),
+          
+          const SizedBox(height: AppTheme.spacingSM),
+          
+          _buildPermissionCard(
+            title: '悬浮窗权限',
+            subtitle: _overlayPermission
+                ? '已授权 - 用于显示任务执行状态'
+                : '未授权（不影响核心功能）',
+            icon: Icons.picture_in_picture,
+            isGranted: _overlayPermission,
+            isRequired: false,
+            onTap: () => _handleOverlayPermission(),
           ),
           
           const SizedBox(height: AppTheme.spacingMD),
           
           _buildPermissionCard(
-            title: '悬浮窗权限（可选）',
-            subtitle: _overlayPermission
-                ? '已授权 - 用于显示任务状态'
-                : '未授权（不影响任务执行）',
-            icon: Icons.picture_in_picture,
-            isGranted: _overlayPermission,
-            onTap: () => _handleOverlayPermission(),
+            title: 'Shizuku（推荐）',
+            subtitle: _shizukuAuthorized
+                ? '已授权 - 提供更可靠的输入能力'
+                : (_shizukuInstalled ? '点击授权' : '未安装（可跳过）'),
+            icon: Icons.security,
+            isGranted: _shizukuAuthorized,
+            isRequired: false,
+            onTap: () => _showShizukuGuide(),
+          ),
+          
+          const SizedBox(height: AppTheme.spacingMD),
+          
+          // Shizuku 优势说明
+          Container(
+            padding: const EdgeInsets.all(AppTheme.spacingMD),
+            decoration: BoxDecoration(
+              color: AppTheme.info.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(AppTheme.radiusMD),
+              border: Border.all(color: AppTheme.info.withOpacity(0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline, size: 18, color: AppTheme.info),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Shizuku 的优势',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.info,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '• 更可靠的文本输入（特别是微信等应用）\n'
+                  '• 支持剪贴板+粘贴的输入方式\n'
+                  '• 不依赖 ADB Keyboard 等额外应用\n'
+                  '• 提供系统级截图能力的备选方案',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
           ),
           
           const SizedBox(height: AppTheme.spacingLG),
@@ -485,11 +556,29 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     );
   }
   
+  Widget _buildSectionTitle(String title, IconData icon, Color color) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+  
   Widget _buildPermissionCard({
     required String title,
     required String subtitle,
     required IconData icon,
     required bool isGranted,
+    required bool isRequired,
     required VoidCallback onTap,
   }) {
     return Card(
@@ -531,12 +620,34 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (isRequired) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppTheme.error.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '必需',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppTheme.error,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -557,6 +668,134 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
             ],
           ),
         ),
+      ),
+    );
+  }
+  
+  void _showShizukuGuide() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.security, color: AppTheme.accentOrange),
+                const SizedBox(width: 12),
+                const Text(
+                  'Shizuku 配置指南',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            _buildGuideStep('1', '安装 Shizuku', 
+              '从 Google Play 或 GitHub 下载安装 Shizuku 应用'),
+            _buildGuideStep('2', '启动 Shizuku 服务',
+              '打开 Shizuku 应用，按照提示通过 ADB 或无线调试启动服务'),
+            _buildGuideStep('3', '授权 AutoGLM',
+              '返回本应用，点击 Shizuku 权限卡片进行授权'),
+            
+            const SizedBox(height: 20),
+            
+            // 按钮
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('稍后配置'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      if (_shizukuInstalled) {
+                        await _deviceController.requestShizukuPermission();
+                      } else {
+                        // 打开 Shizuku 下载页面
+                        final uri = Uri.parse('https://shizuku.rikka.app/');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      }
+                      Future.delayed(const Duration(seconds: 1), _checkPermissions);
+                    },
+                    child: Text(_shizukuInstalled ? '立即授权' : '下载 Shizuku'),
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildGuideStep(String number, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: AppTheme.accentOrange.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.accentOrange,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

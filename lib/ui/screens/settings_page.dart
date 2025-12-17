@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -13,7 +14,7 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
+class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   
   // API Key 控制器
@@ -24,14 +25,43 @@ class _SettingsPageState extends State<SettingsPage> {
   
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _shizukuConnected = false;
   bool _obscureApiKey = true;
+  
+  // 权限状态
+  bool _accessibilityEnabled = false;
+  bool _overlayPermission = false;
+  bool _shizukuInstalled = false;
+  bool _shizukuRunning = false;
+  bool _shizukuAuthorized = false;
+  
+  final DeviceController _deviceController = DeviceController();
+  Timer? _permissionCheckTimer;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
-    _checkShizukuStatus();
+    _checkAllPermissions();
+    // 启动定时检查
+    _permissionCheckTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) _checkAllPermissions();
+    });
+  }
+  
+  @override
+  void dispose() {
+    _permissionCheckTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _apiKeyController.dispose();
+    super.dispose();
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkAllPermissions();
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -46,12 +76,18 @@ class _SettingsPageState extends State<SettingsPage> {
     });
   }
   
-  Future<void> _checkShizukuStatus() async {
-    final controller = DeviceController();
-    final authorized = await controller.isShizukuAuthorized();
-    if (mounted) {
-      setState(() => _shizukuConnected = authorized);
+  Future<void> _checkAllPermissions() async {
+    try {
+      _accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
+      _overlayPermission = await _deviceController.checkOverlayPermission();
+      _shizukuInstalled = await _deviceController.isShizukuInstalled();
+      _shizukuRunning = await _deviceController.isShizukuRunning();
+      _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
+    } catch (e) {
+      debugPrint('Check permissions error: $e');
     }
+    
+    if (mounted) setState(() {});
   }
 
   Future<void> _saveSettings() async {
@@ -91,12 +127,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   @override
-  void dispose() {
-    _apiKeyController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundLight,
@@ -127,6 +157,45 @@ class _SettingsPageState extends State<SettingsPage> {
       child: ListView(
         padding: const EdgeInsets.all(AppTheme.spacingMD),
         children: [
+          // 权限状态部分（新增）
+          _buildSectionHeader(
+            icon: Icons.security,
+            title: '权限状态',
+          ),
+          _buildCard([
+            // 无障碍服务
+            _buildPermissionTile(
+              title: '无障碍服务',
+              subtitle: _accessibilityEnabled ? '已启用' : '未启用（必需）',
+              icon: Icons.accessibility_new,
+              isGranted: _accessibilityEnabled,
+              isRequired: true,
+              onTap: () => _deviceController.openAccessibilitySettings(),
+            ),
+            const Divider(height: 1),
+            // 悬浮窗权限
+            _buildPermissionTile(
+              title: '悬浮窗权限',
+              subtitle: _overlayPermission ? '已授权' : '未授权（可选）',
+              icon: Icons.picture_in_picture,
+              isGranted: _overlayPermission,
+              isRequired: false,
+              onTap: () => _deviceController.openOverlaySettings(),
+            ),
+            const Divider(height: 1),
+            // Shizuku
+            _buildPermissionTile(
+              title: 'Shizuku',
+              subtitle: _getShizukuStatusText(),
+              icon: Icons.developer_mode,
+              isGranted: _shizukuAuthorized,
+              isRequired: false,
+              onTap: _handleShizukuAction,
+            ),
+          ]),
+          
+          const SizedBox(height: AppTheme.spacingLG),
+          
           // API Key 配置部分
           _buildSectionHeader(
             icon: Icons.key,
@@ -213,25 +282,6 @@ class _SettingsPageState extends State<SettingsPage> {
           
           const SizedBox(height: AppTheme.spacingLG),
           
-          // Shizuku 状态部分（可选）
-          _buildSectionHeader(
-            icon: Icons.security,
-            title: 'Shizuku 状态（可选）',
-          ),
-          _buildCard([
-            _buildStatusTile(
-              title: 'Shizuku 服务',
-              subtitle: _shizukuConnected ? '已连接 - 提供增强功能' : '未连接（可使用无障碍服务代替）',
-              isConnected: _shizukuConnected,
-              onTap: () async {
-                await Navigator.pushNamed(context, '/shizuku');
-                _checkShizukuStatus();
-              },
-            ),
-          ]),
-          
-          const SizedBox(height: AppTheme.spacingLG),
-          
           // 功能入口
           _buildSectionHeader(
             icon: Icons.apps,
@@ -275,8 +325,11 @@ class _SettingsPageState extends State<SettingsPage> {
               title: const Text('项目主页'),
               subtitle: const Text('Open-AutoGLM'),
               trailing: const Icon(Icons.open_in_new, size: 18),
-              onTap: () {
-                // TODO: 打开项目主页
+              onTap: () async {
+                final uri = Uri.parse('https://github.com/AJinNight/Auto-GLM-Android');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
               },
             ),
             const Divider(height: 1),
@@ -290,6 +343,115 @@ class _SettingsPageState extends State<SettingsPage> {
           const SizedBox(height: AppTheme.spacingXL),
         ],
       ),
+    );
+  }
+  
+  String _getShizukuStatusText() {
+    if (!_shizukuInstalled) return '未安装（可选）';
+    if (!_shizukuRunning) return '服务未启动';
+    if (!_shizukuAuthorized) return '等待授权';
+    return '已授权';
+  }
+  
+  Future<void> _handleShizukuAction() async {
+    if (!_shizukuInstalled) {
+      // 打开 Shizuku 下载页面
+      final uri = Uri.parse('https://shizuku.rikka.app/');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return;
+    }
+    
+    if (!_shizukuRunning) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请先打开 Shizuku 应用并启动服务')),
+      );
+      return;
+    }
+    
+    // 请求授权
+    await _deviceController.requestShizukuPermission();
+    await Future.delayed(const Duration(seconds: 1));
+    _checkAllPermissions();
+  }
+  
+  Widget _buildPermissionTile({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isGranted,
+    required bool isRequired,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: isGranted 
+              ? AppTheme.success.withOpacity(0.1)
+              : (isRequired ? AppTheme.error.withOpacity(0.1) : Colors.grey.withOpacity(0.1)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Icon(
+          icon,
+          color: isGranted 
+              ? AppTheme.success
+              : (isRequired ? AppTheme.error : Colors.grey),
+          size: 20,
+        ),
+      ),
+      title: Row(
+        children: [
+          Text(title),
+          if (isRequired && !isGranted) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.error.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                '必需',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: AppTheme.error,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          fontSize: 12,
+          color: isGranted ? AppTheme.success : AppTheme.textSecondary,
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: isGranted ? AppTheme.success : Colors.grey,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            isGranted ? Icons.check_circle : Icons.arrow_forward_ios,
+            color: isGranted ? AppTheme.success : Colors.grey,
+            size: isGranted ? 20 : 14,
+          ),
+        ],
+      ),
+      onTap: isGranted ? null : onTap,
     );
   }
 
@@ -348,39 +510,6 @@ class _SettingsPageState extends State<SettingsPage> {
       child: Column(
         children: children,
       ),
-    );
-  }
-
-  Widget _buildStatusTile({
-    required String title,
-    required String subtitle,
-    required bool isConnected,
-    VoidCallback? onTap,
-  }) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 13)),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 10,
-            height: 10,
-            decoration: BoxDecoration(
-              color: isConnected ? AppTheme.success : Colors.grey,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            isConnected ? '已连接' : '未连接',
-            style: TextStyle(
-              color: isConnected ? AppTheme.success : Colors.grey,
-            ),
-          ),
-        ],
-      ),
-      onTap: onTap,
     );
   }
 }
