@@ -122,6 +122,78 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun refreshQuietly(node: AccessibilityNodeInfo?) {
+        if (node == null) return
+        try {
+            node.refresh()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun getCurrentFocusedTextTarget(): AccessibilityNodeInfo? {
+        val roots = getAllWindowRoots()
+        if (roots.isEmpty()) return null
+
+        for (root in roots) {
+            refreshQuietly(root)
+            val inputFocus = try {
+                root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            } catch (_: Exception) {
+                null
+            }
+            refreshQuietly(inputFocus)
+            if (inputFocus != null && (inputFocus.isEditable || isProbablyTextInput(inputFocus))) return inputFocus
+        }
+
+        for (root in roots) {
+            val a11yFocus = try {
+                root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+            } catch (_: Exception) {
+                null
+            }
+            refreshQuietly(a11yFocus)
+            if (a11yFocus != null && (a11yFocus.isEditable || isProbablyTextInput(a11yFocus))) return a11yFocus
+        }
+
+        return null
+    }
+
+    private fun performSetText(target: AccessibilityNodeInfo, text: String): Boolean {
+        return try {
+            refreshQuietly(target)
+
+            if (supportsAction(target, AccessibilityNodeInfo.ACTION_FOCUS)) {
+                target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                SystemClock.sleep(20)
+            }
+
+            val arguments = android.os.Bundle().apply {
+                putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+            }
+            val result = target.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+            android.util.Log.d("Accessibility", "performSetText result=$result target=${nodeSummary(target)}")
+            result
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "performSetText error: ${e.message}")
+            false
+        }
+    }
+
+    private fun focusOrClickForInput(node: AccessibilityNodeInfo) {
+        try {
+            refreshQuietly(node)
+            if (supportsAction(node, AccessibilityNodeInfo.ACTION_FOCUS) && !node.isFocused) {
+                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+                SystemClock.sleep(30)
+            }
+            if (!node.isFocused && node.isClickable) {
+                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                SystemClock.sleep(50)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     private fun isProbablyTextInput(node: AccessibilityNodeInfo): Boolean {
         val className = node.className?.toString() ?: ""
         val looksLikeEdit = className.contains("Edit", ignoreCase = true) ||
@@ -374,28 +446,24 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     private fun trySetText(node: AccessibilityNodeInfo, text: String): Boolean {
         return try {
             android.util.Log.d("Accessibility", "Trying ACTION_SET_TEXT...")
-            
-            // 确保节点获取焦点
-            if (!node.isFocused) {
-                node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-                SystemClock.sleep(50)
+
+            focusOrClickForInput(node)
+
+            if (supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+                val result = performSetText(node, text)
+                if (result) return true
             }
-            
-            // 先点击激活（部分控件需要 click 才能真正获得输入焦点）
-            if (!node.isFocused && node.isClickable) {
-                node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                SystemClock.sleep(50)
+
+            // 有些控件 click/focus 后会把真正的输入焦点切到另一个节点（Compose/WebView/自定义输入框）
+            val focusedAfter = getCurrentFocusedTextTarget()
+            if (focusedAfter != null && focusedAfter != node) {
+                val focusedTarget = findNearestSetTextTarget(focusedAfter) ?: focusedAfter
+                if (supportsAction(focusedTarget, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+                    if (performSetText(focusedTarget, text)) return true
+                }
             }
-            
-            // 设置文本
-            val arguments = android.os.Bundle()
-            arguments.putCharSequence(
-                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                text
-            )
-            val result = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-            android.util.Log.d("Accessibility", "ACTION_SET_TEXT result: $result")
-            result
+
+            false
         } catch (e: Exception) {
             android.util.Log.e("Accessibility", "trySetText error: ${e.message}")
             false
@@ -408,42 +476,34 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     private fun trySetTextDirect(node: AccessibilityNodeInfo, text: String): Boolean {
         return try {
             android.util.Log.d("Accessibility", "Trying direct ACTION_SET_TEXT...")
-
+    
             val setTextTarget = findNearestSetTextTarget(node) ?: node
             android.util.Log.d("Accessibility", "SetText target: ${nodeSummary(setTextTarget)}")
-
-            // 尽量先 focus 再 setText
-            if (!setTextTarget.isFocused && supportsAction(setTextTarget, AccessibilityNodeInfo.ACTION_FOCUS)) {
-                setTextTarget.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-                SystemClock.sleep(30)
+    
+            // 先尝试直接 setText（对原目标）
+            if (supportsAction(setTextTarget, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+                val direct = performSetText(setTextTarget, text)
+                if (direct) return true
             }
-            
-            // 设置文本
-            val arguments = android.os.Bundle()
-            arguments.putCharSequence(
-                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                text
-            )
-            var result = setTextTarget.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-            android.util.Log.d("Accessibility", "Direct ACTION_SET_TEXT result: $result")
-
-            // 部分控件需要 click 之后才能成功 setText
-            if (!result && setTextTarget.isClickable) {
-                setTextTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                SystemClock.sleep(50)
-                result = setTextTarget.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                android.util.Log.d("Accessibility", "After click ACTION_SET_TEXT result: $result")
-            }
-            
-            // 如果失败，尝试查找子节点
-            if (!result) {
-                if (trySetText(setTextTarget, text)) {
-                    android.util.Log.d("Accessibility", "Fallback ACTION_SET_TEXT SUCCESS")
-                    return true
+    
+            // 部分控件需要 click/focus 后，真正的输入节点才会出现/获得焦点
+            focusOrClickForInput(setTextTarget)
+            val focusedAfter = getCurrentFocusedTextTarget()
+            if (focusedAfter != null) {
+                val focusedTarget = findNearestSetTextTarget(focusedAfter) ?: focusedAfter
+                android.util.Log.d("Accessibility", "Focused-after target: ${nodeSummary(focusedTarget)}")
+                if (supportsAction(focusedTarget, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+                    if (performSetText(focusedTarget, text)) return true
                 }
             }
+             
+            // 仍失败则走旧逻辑兜底（包含更激进的 focus/click + 再次抓焦点）
+            if (trySetText(setTextTarget, text)) {
+                android.util.Log.d("Accessibility", "Fallback ACTION_SET_TEXT SUCCESS")
+                return true
+            }
 
-            result
+            false
         } catch (e: Exception) {
             android.util.Log.e("Accessibility", "trySetTextDirect error: ${e.message}")
             false
@@ -509,25 +569,38 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             clipboard.setPrimaryClip(clip)
             android.util.Log.d("Accessibility", "Clipboard set with text")
             
-            // 确保节点获取焦点并点击
-            if (supportsAction(pasteTarget, AccessibilityNodeInfo.ACTION_FOCUS)) {
-                pasteTarget.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-                SystemClock.sleep(30)
-            }
-            if (pasteTarget.isClickable) {
-                pasteTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                SystemClock.sleep(50)
-            }
-            
-            // 执行粘贴
-            if (!supportsAction(pasteTarget, AccessibilityNodeInfo.ACTION_PASTE)) {
-                android.util.Log.w("Accessibility", "ACTION_PASTE not supported: ${nodeSummary(pasteTarget)}")
-                return false
+            // 确保节点获取焦点并点击（有些控件需要 click 才会把真正焦点切到内部输入框）
+            focusOrClickForInput(pasteTarget)
+
+            // 1) 先在当前 pasteTarget 上尝试
+            refreshQuietly(pasteTarget)
+            if (supportsAction(pasteTarget, AccessibilityNodeInfo.ACTION_PASTE)) {
+                val direct = pasteTarget.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+                android.util.Log.d("Accessibility", "ACTION_PASTE (direct) result: $direct")
+                if (direct) return true
+            } else {
+                android.util.Log.w("Accessibility", "ACTION_PASTE not supported (direct): ${nodeSummary(pasteTarget)}")
             }
 
-            val result = pasteTarget.performAction(AccessibilityNodeInfo.ACTION_PASTE)
-            android.util.Log.d("Accessibility", "ACTION_PASTE result: $result")
-            result
+            // 2) 若 click/focus 后焦点切换，改在真正获得输入焦点的节点上粘贴
+            val focusedAfter = getCurrentFocusedTextTarget()
+            if (focusedAfter != null) {
+                val focusedPasteTarget = if (supportsAction(focusedAfter, AccessibilityNodeInfo.ACTION_PASTE)) {
+                    focusedAfter
+                } else {
+                    findNearestPasteTarget(focusedAfter) ?: focusedAfter
+                }
+                refreshQuietly(focusedPasteTarget)
+                if (supportsAction(focusedPasteTarget, AccessibilityNodeInfo.ACTION_PASTE)) {
+                    val focusedResult = focusedPasteTarget.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+                    android.util.Log.d("Accessibility", "ACTION_PASTE (focused) result: $focusedResult")
+                    return focusedResult
+                } else {
+                    android.util.Log.w("Accessibility", "ACTION_PASTE not supported (focused): ${nodeSummary(focusedPasteTarget)}")
+                }
+            }
+
+            false
         } catch (e: Exception) {
             android.util.Log.e("Accessibility", "tryClipboardPaste error: ${e.message}")
             false
