@@ -171,6 +171,14 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun canSetText(node: AccessibilityNodeInfo): Boolean {
+        return try {
+            node.isEditable || supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT)
+        } catch (_: Exception) {
+            supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT)
+        }
+    }
+
     private fun getCurrentFocusedTextTarget(): AccessibilityNodeInfo? {
         val roots = getAllWindowRoots()
         if (roots.isEmpty()) return null
@@ -183,7 +191,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
                 null
             }
             refreshQuietly(inputFocus)
-            if (inputFocus != null && (inputFocus.isEditable || isProbablyTextInput(inputFocus))) return inputFocus
+            if (inputFocus != null && (canSetText(inputFocus) || isProbablyTextInput(inputFocus))) return inputFocus
         }
 
         for (root in roots) {
@@ -193,7 +201,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
                 null
             }
             refreshQuietly(a11yFocus)
-            if (a11yFocus != null && (a11yFocus.isEditable || isProbablyTextInput(a11yFocus))) return a11yFocus
+            if (a11yFocus != null && (canSetText(a11yFocus) || isProbablyTextInput(a11yFocus))) return a11yFocus
         }
 
         return null
@@ -490,7 +498,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
 
             focusOrClickForInput(node)
 
-            if (supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+            if (canSetText(node)) {
                 val result = performSetText(node, text)
                 if (result) return true
             }
@@ -499,7 +507,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             val focusedAfter = getCurrentFocusedTextTarget()
             if (focusedAfter != null && focusedAfter != node) {
                 val focusedTarget = findNearestSetTextTarget(focusedAfter) ?: focusedAfter
-                if (supportsAction(focusedTarget, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+                if (canSetText(focusedTarget)) {
                     if (performSetText(focusedTarget, text)) return true
                 }
             }
@@ -522,7 +530,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             android.util.Log.d("Accessibility", "SetText target: ${nodeSummary(setTextTarget)}")
     
             // 先尝试直接 setText（对原目标）
-            if (supportsAction(setTextTarget, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+            if (canSetText(setTextTarget)) {
                 val direct = performSetText(setTextTarget, text)
                 if (direct) return true
             }
@@ -533,7 +541,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             if (focusedAfter != null) {
                 val focusedTarget = findNearestSetTextTarget(focusedAfter) ?: focusedAfter
                 android.util.Log.d("Accessibility", "Focused-after target: ${nodeSummary(focusedTarget)}")
-                if (supportsAction(focusedTarget, AccessibilityNodeInfo.ACTION_SET_TEXT)) {
+                if (canSetText(focusedTarget)) {
                     if (performSetText(focusedTarget, text)) return true
                 }
             }
@@ -552,7 +560,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     }
 
     private fun findNearestSetTextTarget(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
-        if (supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT)) return node
+        if (canSetText(node)) return node
 
         // 向下找（优先）
         val queue: java.util.ArrayDeque<AccessibilityNodeInfo> = java.util.ArrayDeque()
@@ -563,7 +571,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             val size = queue.size
             repeat(size) {
                 val cur = queue.removeFirst()
-                if (cur != node && supportsAction(cur, AccessibilityNodeInfo.ACTION_SET_TEXT)) return cur
+                if (cur != node && canSetText(cur)) return cur
                 for (i in 0 until cur.childCount) {
                     val child = cur.getChild(i) ?: continue
                     queue.add(child)
@@ -576,7 +584,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         var parent = node.parent
         var up = 0
         while (parent != null && up < 3) {
-            if (supportsAction(parent, AccessibilityNodeInfo.ACTION_SET_TEXT)) return parent
+            if (canSetText(parent)) return parent
             parent = parent.parent
             up++
         }
@@ -591,57 +599,65 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         return try {
             android.util.Log.d("Accessibility", "Trying clipboard paste...")
 
-            val pasteTarget = if (supportsAction(node, AccessibilityNodeInfo.ACTION_PASTE)) {
-                node
-            } else {
-                // 某些自定义输入框 paste 在父/子节点上
-                findNearestPasteTarget(node) ?: node
-            }
-            
             val context = this.applicationContext
             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
             if (clipboard == null) {
                 android.util.Log.e("Accessibility", "ClipboardManager not available")
                 return false
             }
-            
-            // 设置剪贴板内容
+
+            // 先点击/聚焦，让真正的输入节点出现并获得焦点（否则 pasteTarget 往往是容器）
+            focusOrClickForInput(node)
+
+            // 优先对“焦点后的真正输入节点”粘贴，其次再回退到传入 node 附近
+            val focusedAfter = getCurrentFocusedTextTarget()
+            val candidates = listOfNotNull(
+                focusedAfter?.let { findNearestPasteTarget(it) ?: it },
+                findNearestPasteTarget(node),
+                node
+            )
+
+            val pasteTarget = candidates.firstOrNull { supportsAction(it, AccessibilityNodeInfo.ACTION_PASTE) }
+            if (pasteTarget == null) {
+                android.util.Log.w("Accessibility", "No ACTION_PASTE target found, skip touching clipboard")
+                return false
+            }
+
+            // 尽量保存并恢复用户剪贴板，避免每次输入都污染剪贴板
+            val previousClip = try {
+                clipboard.primaryClip
+            } catch (_: Exception) {
+                null
+            }
+
             val clip = android.content.ClipData.newPlainText("text", text)
             clipboard.setPrimaryClip(clip)
-            android.util.Log.d("Accessibility", "Clipboard set with text")
-            
-            // 确保节点获取焦点并点击（有些控件需要 click 才会把真正焦点切到内部输入框）
+            android.util.Log.d("Accessibility", "Clipboard set with text, pasteTarget=${nodeSummary(pasteTarget)}")
+
             focusOrClickForInput(pasteTarget)
-
-            // 1) 先在当前 pasteTarget 上尝试
             refreshQuietly(pasteTarget)
-            if (supportsAction(pasteTarget, AccessibilityNodeInfo.ACTION_PASTE)) {
-                val direct = pasteTarget.performAction(AccessibilityNodeInfo.ACTION_PASTE)
-                android.util.Log.d("Accessibility", "ACTION_PASTE (direct) result: $direct")
-                if (direct) return true
-            } else {
-                android.util.Log.w("Accessibility", "ACTION_PASTE not supported (direct): ${nodeSummary(pasteTarget)}")
+
+            var pasted = pasteTarget.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+            android.util.Log.d("Accessibility", "ACTION_PASTE result: $pasted")
+
+            if (!pasted && pasteTarget.isClickable) {
+                pasteTarget.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+                SystemClock.sleep(50)
+                pasted = pasteTarget.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+                android.util.Log.d("Accessibility", "ACTION_PASTE after click result: $pasted")
             }
 
-            // 2) 若 click/focus 后焦点切换，改在真正获得输入焦点的节点上粘贴
-            val focusedAfter = getCurrentFocusedTextTarget()
-            if (focusedAfter != null) {
-                val focusedPasteTarget = if (supportsAction(focusedAfter, AccessibilityNodeInfo.ACTION_PASTE)) {
-                    focusedAfter
-                } else {
-                    findNearestPasteTarget(focusedAfter) ?: focusedAfter
-                }
-                refreshQuietly(focusedPasteTarget)
-                if (supportsAction(focusedPasteTarget, AccessibilityNodeInfo.ACTION_PASTE)) {
-                    val focusedResult = focusedPasteTarget.performAction(AccessibilityNodeInfo.ACTION_PASTE)
-                    android.util.Log.d("Accessibility", "ACTION_PASTE (focused) result: $focusedResult")
-                    return focusedResult
-                } else {
-                    android.util.Log.w("Accessibility", "ACTION_PASTE not supported (focused): ${nodeSummary(focusedPasteTarget)}")
+            // 稍微延迟再恢复，避免极端情况下粘贴读取剪贴板的时序问题
+            if (previousClip != null) {
+                SystemClock.sleep(80)
+                try {
+                    clipboard.setPrimaryClip(previousClip)
+                    android.util.Log.d("Accessibility", "Clipboard restored")
+                } catch (_: Exception) {
                 }
             }
 
-            false
+            pasted
         } catch (e: Exception) {
             android.util.Log.e("Accessibility", "tryClipboardPaste error: ${e.message}")
             false
@@ -651,16 +667,31 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     private fun findNearestPasteTarget(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
         if (supportsAction(node, AccessibilityNodeInfo.ACTION_PASTE)) return node
 
-        // 向下找
-        for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            val found = findNearestPasteTarget(child)
-            if (found != null) return found
+        // 向下找（限制深度，避免递归过深）
+        val queue: java.util.ArrayDeque<AccessibilityNodeInfo> = java.util.ArrayDeque()
+        queue.add(node)
+        var depth = 0
+        while (queue.isNotEmpty() && depth < 4) {
+            val size = queue.size
+            repeat(size) {
+                val cur = queue.removeFirst()
+                if (cur != node && supportsAction(cur, AccessibilityNodeInfo.ACTION_PASTE)) return cur
+                for (i in 0 until cur.childCount) {
+                    val child = cur.getChild(i) ?: continue
+                    queue.add(child)
+                }
+            }
+            depth++
         }
 
-        // 向上找一层
-        val parent = node.parent
-        if (parent != null && supportsAction(parent, AccessibilityNodeInfo.ACTION_PASTE)) return parent
+        // 向上找（最多 3 层）
+        var parent = node.parent
+        var up = 0
+        while (parent != null && up < 3) {
+            if (supportsAction(parent, AccessibilityNodeInfo.ACTION_PASTE)) return parent
+            parent = parent.parent
+            up++
+        }
 
         return null
     }
