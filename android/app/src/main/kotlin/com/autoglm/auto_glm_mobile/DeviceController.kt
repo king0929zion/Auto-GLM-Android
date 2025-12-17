@@ -579,7 +579,7 @@ class DeviceController(private val context: Context) {
                 android.util.Log.d("DeviceController", "typeText: '$text'")
                 
                 // 1. 如果 Shizuku 已授权，优先使用剪贴板+粘贴
-                if (isShizukuAvailable()) {
+                if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                     android.util.Log.d("DeviceController", "Shizuku available, trying clipboard+paste")
                     val shizukuResult = tryShizukuClipboardPaste(text)
                     if (shizukuResult) {
