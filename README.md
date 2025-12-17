@@ -1,13 +1,40 @@
 # AutoGLM Mobile (Auto-GLM-Android)
 
-基于 Open-AutoGLM 的移动端智能自动化助手，使用 Flutter + Shizuku 实现完全移动端的手机自动控制。
+基于 Open-AutoGLM 的移动端智能自动化助手，采用 **无障碍服务 + Shizuku** 双权限方案，实现完全移动端的手机自动控制。
 
 ## 🎯 项目概述
 
 将 Python 版 AutoGLM 手机自动化框架完整移植为原生移动端应用：
 - **保持AI接口兼容**：继续使用OpenAI兼容API，无需修改模型服务端
-- **替换设备控制层**：使用Shizuku替代ADB，实现移动端原生设备控制
+- **双权限互补方案**：无障碍服务为主力，Shizuku提供增强功能和低版本兼容
 - **100%复用业务逻辑**：完全复刻原有的Agent逻辑、动作处理和系统提示词
+
+## 🔐 权限方案说明
+
+### 为什么需要双权限？
+
+本项目采用 **无障碍服务（主） + Shizuku（辅）** 的双权限互补方案：
+
+| 权限方案 | 用途 | 优势 | 限制 |
+|---------|------|------|------|
+| **无障碍服务** | 主力方案 | ✅ 一次授权永久有效<br>✅ 完美支持中文输入<br>✅ 截图速度快（50-100ms）<br>✅ 无需重启后重新激活 | ❌ 截图需要 Android 11+ |
+| **Shizuku** | 增强 & 降级方案 | ✅ 支持 Android 9+<br>✅ 提供更底层的系统控制<br>✅ 任意坐标精确触摸 | ❌ 重启后需重新激活<br>❌ 中文输入需安装 ADB Keyboard |
+
+**功能降级策略**：
+- **截图**：无障碍服务（Android 11+）→ Shizuku screencap（Android 9+）
+- **文本输入**：无障碍 ACTION_SET_TEXT → Shizuku + ADB Keyboard → input text
+- **触摸操作**：Shizuku InputManager 注入事件 → Shell 命令降级
+
+**推荐配置**：
+- ✅ **Android 11+**：仅需**无障碍服务 + 悬浮窗**，功能完整度 100%
+- ✅ **Android 7-10**：仅需**无障碍服务 + 悬浮窗**，功能完整度 95%（可选择安装 Shizuku 用于截图降级）
+
+**关键特性**：
+- ✨ 实时权限检测：权限状态自动更新，无需手动刷新
+- 🚀 极简配置：2个必需权限（无障碍+悬浮窗），Android 11+ 即可获得完整体验
+- 🎯 智能引导：优化的欢迎页面和权限设置流程
+
+> 📖 详细技术分析请查看：[架构文档](docs/ARCHITECTURE.md)
 
 ## 📊 功能复刻对照表
 
@@ -36,7 +63,7 @@
 │                    Flutter UI层                      │
 │  ┌─────────────┐ ┌──────────────┐ ┌──────────────┐  │
 │  │  HomePage   │ │ SettingsPage │ │  AppsListPage│  │
-│  │  WelcomePage│ │ ShizukuSetup │ │TaskHistoryPg │  │
+│  │  WelcomePage│ │PermissionPg  │ │TaskHistoryPg │  │
 │  └─────────────┘ └──────────────┘ └──────────────┘  │
 ├─────────────────────────────────────────────────────┤
 │                    业务逻辑层                        │
@@ -52,10 +79,16 @@
 │  └─────────────┘ └──────────────┘ └──────────────┘  │
 ├─────────────────────────────────────────────────────┤
 │              Android原生层 (Kotlin)                  │
-│  ┌─────────────┐ ┌──────────────┐ ┌──────────────┐  │
-│  │MainActivity │ │DeviceControl │ │  Shizuku     │  │
-│  └─────────────┘ └──────────────┘ └──────────────┘  │
+│  ┌──────────────┐ ┌──────────────┐ ┌─────────────┐  │
+│  │ Accessibility│ │DeviceControl │ │Shizuku(可选)│  │
+│  │   Service    │ │  (降级策略)  │ │             │  │
+│  └──────────────┘ └──────────────┘ └─────────────┘  │
 └─────────────────────────────────────────────────────┘
+
+降级策略：
+  截图：AccessibilityService (Android 11+) → Shizuku
+  触摸：AccessibilityService GestureAPI → Shizuku InputManager
+  文本：AccessibilityService ACTION_SET_TEXT → Shizuku ADB Keyboard
 ```
 
 ## 📁 项目结构
@@ -178,34 +211,97 @@ Auto-GLM-Android/
 ## 🚀 快速开始
 
 ### 1. 环境要求
-- Android 9.0+ (API 28+)
-- Shizuku 13.0+
-- Flutter 3.10+
 
-### 2. 安装依赖
+| 环境 | 最低要求 | 推荐版本 |
+|-----|---------|---------|
+| **Android** | 9.0+ (API 28) | 11.0+ (API 30) |
+| **Flutter** | 3.10+ | 最新稳定版 |
+| **Shizuku** | 13.0+ | 最新版（可选） |
+
+### 2. 安装应用
+
+#### 方式一：从源码构建
 ```bash
+# 克隆仓库
+git clone https://github.com/your-repo/Auto-GLM-Android.git
 cd Auto-GLM-Android
+
+# 安装依赖
 flutter pub get
-```
 
-### 3. 安装并配置Shizuku
-```bash
-# 通过ADB启动Shizuku服务
-adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
-```
-
-### 4. 配置模型API
-在应用设置中配置：
-- API URL: `https://api-inference.modelscope.cn/v1`（魔搭社区推理API）
-- API Key: 在[魔搭社区](https://www.modelscope.cn)获取你的API Token
-- 模型名称: `ZhipuAI/AutoGLM-Phone-9B`
-
-> ⚠️ **重要**：必须在魔搭社区获取有效的API Token，否则会报错。默认配置不含 API Key，需要用户自行填写。
-
-### 5. 运行
-```bash
+# 构建并运行
 flutter run
 ```
+
+#### 方式二：安装 APK
+从 [Releases](https://github.com/your-repo/Auto-GLM-Android/releases) 下载最新 APK 安装。
+
+### 3. 权限配置（自动实时检测）
+
+应用会实时检测权限状态，配置完成后自动进入主页。
+
+#### 必需权限
+
+**1. 无障碍服务**（必需）
+- 用途：模拟点击、滑动、文本输入
+- 配置：应用内点击跳转到系统设置开启
+- 说明：一次开启永久有效
+
+**2. 悬浮窗权限**（必需）
+- 用途：显示任务执行状态
+- 配置：应用内点击跳转到系统设置授权
+
+#### 可选权限
+
+**3. Shizuku**（可选，Android 7-10 推荐用于截图降级）
+
+**通过无线调试启动（推荐）**：
+1. 安装 [Shizuku 应用](https://shizuku.rikka.app/)
+2. 在手机"开发者选项"中开启"无线调试"
+3. 在 Shizuku 应用中按提示配对并启动服务
+4. 在 AutoGLM 中授权 Shizuku
+
+**通过 ADB 启动（需要电脑）**：
+```bash
+# 连接手机到电脑
+adb devices
+
+# 启动 Shizuku 服务
+adb shell sh /storage/emulated/0/Android/data/moe.shizuku.privileged.api/start.sh
+
+# 返回手机在 AutoGLM 中授权
+```
+
+> 💡 **提示**：Shizuku 重启后需要重新激活，建议使用无线调试方式，手机端可自行激活。
+
+### 4. 配置模型API
+
+在应用"设置"页面配置：
+
+| 配置项 | 值 | 说明 |
+|-------|---|------|
+| **API URL** | `https://api-inference.modelscope.cn/v1` | 魔搭社区推理API |
+| **API Key** | 在[魔搭社区](https://www.modelscope.cn)获取 | 必须填写，否则无法使用 |
+| **模型名称** | `ZhipuAI/AutoGLM-Phone-9B` | 默认值，可选其他兼容模型 |
+
+**获取 API Key**：
+1. 访问 [魔搭社区](https://www.modelscope.cn)
+2. 注册/登录账号
+3. 进入"个人中心" → "访问令牌"
+4. 复制 Token 粘贴到应用设置中
+
+> ⚠️ **重要**：默认配置不含 API Key，必须自行填写才能使用 AI 功能。
+
+### 5. 开始使用
+
+1. 在主页输入任务描述，例如：
+   - "打开微信给张三发消息说明天见"
+   - "打开淘宝搜索机械键盘"
+   - "打开抖音刷10分钟视频"
+
+2. 点击"开始执行"，AI 会自动控制手机完成任务
+
+3. 在"任务历史"中查看执行记录
 
 ## 📝 API兼容性
 
@@ -222,10 +318,11 @@ flutter run
 |-----|------|
 | **WelcomePage** | 首次运行引导页 |
 | **HomePage** | 主任务执行界面 |
-| **SettingsPage** | 模型配置、Agent配置、Shizuku状态 |
+| **SettingsPage** | 模型配置、Agent配置、权限状态 |
 | **AppsListPage** | 查看100+支持的应用（分类筛选） |
 | **TaskHistoryPage** | 任务历史记录和复用 |
-| **ShizukuSetupPage** | Shizuku安装和配置引导 |
+| **PermissionSetupPage** | 统一的权限配置引导页 |
+| **ShizukuSetupPage** | Shizuku 安装和配置引导（可选） |
 
 ## 📄 许可证
 

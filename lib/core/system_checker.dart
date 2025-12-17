@@ -1,6 +1,4 @@
 import 'package:dio/dio.dart';
-import '../services/model/model_client.dart';
-import '../data/models/models.dart';
 
 /// 系统检查结果
 class SystemCheckResult {
@@ -22,28 +20,67 @@ class SystemCheckResult {
 class SystemChecker {
   
   /// 检查所有系统要求
-  /// 移动端版本检查：Shizuku状态、模型API连接
+  /// 移动端版本检查：无障碍服务（必需）、Shizuku（可选）、模型API连接
   static Future<List<SystemCheckResult>> checkAll({
     required String baseUrl,
     required String modelName,
     required String apiKey,
-    required Future<bool> Function() checkShizuku,
+    required Future<bool> Function() checkAccessibility,
+    Future<bool> Function()? checkShizuku,
   }) async {
     final results = <SystemCheckResult>[];
     
-    // 1. 检查Shizuku
-    results.add(await _checkShizukuService(checkShizuku));
+    // 1. 检查无障碍服务（必需）
+    results.add(await _checkAccessibilityService(checkAccessibility));
     
-    // 2. 检查API连接
+    // 2. 检查Shizuku（可选，用于增强功能）
+    if (checkShizuku != null) {
+      results.add(await _checkShizukuService(checkShizuku));
+    }
+    
+    // 3. 检查API连接
     results.add(await _checkApiConnectivity(baseUrl, apiKey));
     
-    // 3. 检查模型可用性 (可选)
+    // 4. 检查模型可用性 (可选)
     // results.add(await _checkModelAvailability(baseUrl, modelName, apiKey));
     
     return results;
   }
   
-  /// 检查Shizuku服务状态
+  /// 检查无障碍服务状态（必需）
+  static Future<SystemCheckResult> _checkAccessibilityService(
+    Future<bool> Function() checkAccessibility,
+  ) async {
+    try {
+      final isEnabled = await checkAccessibility();
+      
+      if (isEnabled) {
+        return const SystemCheckResult(
+          passed: true,
+          name: '无障碍服务',
+          message: '已启用 - Android 7+ 支持全部功能',
+        );
+      } else {
+        return const SystemCheckResult(
+          passed: false,
+          name: '无障碍服务',
+          message: '未启用',
+          solution: '''1. 打开系统设置
+2. 进入"无障碍"或"辅助功能"
+3. 找到"AutoGLM"并开启''',
+        );
+      }
+    } catch (e) {
+      return SystemCheckResult(
+        passed: false,
+        name: '无障碍服务',
+        message: '检查失败: $e',
+        solution: '请确保系统支持无障碍服务',
+      );
+    }
+  }
+  
+  /// 检查Shizuku服务状态（可选，用于增强功能）
   static Future<SystemCheckResult> _checkShizukuService(
     Future<bool> Function() checkShizuku,
   ) async {
@@ -53,25 +90,30 @@ class SystemChecker {
       if (isAvailable) {
         return const SystemCheckResult(
           passed: true,
-          name: 'Shizuku 服务',
-          message: '已连接并授权',
+          name: 'Shizuku 服务（可选）',
+          message: '已连接 - 提供增强功能和降级支持',
         );
       } else {
         return const SystemCheckResult(
-          passed: false,
-          name: 'Shizuku 服务',
-          message: 'Shizuku 未就绪',
-          solution: '''1. 安装 Shizuku 应用
-2. 通过 ADB 或无线调试启动 Shizuku 服务
-3. 在 Shizuku 中授权本应用''',
+          passed: true,  // 改为 true，因为是可选的
+          name: 'Shizuku 服务（可选）',
+          message: '未安装或未启动',
+          solution: '''💡 提示：Shizuku 是可选的
+• Android 11+：仅无障碍服务即可获得完整功能
+• Android 7-10：无障碍服务提供主要功能，Shizuku 仅用于截图降级
+
+如需安装：
+1. 从 GitHub 或 Google Play 安装 Shizuku
+2. 通过无线调试或 ADB 启动服务
+3. 授权 AutoGLM''',
         );
       }
     } catch (e) {
-      return SystemCheckResult(
-        passed: false,
-        name: 'Shizuku 服务',
-        message: '检查失败: $e',
-        solution: '请确保已安装 Shizuku 应用',
+      return const SystemCheckResult(
+        passed: true,  // 改为 true，因为是可选的
+        name: 'Shizuku 服务（可选）',
+        message: '未安装（可跳过）',
+        solution: 'Shizuku 用于提供增强功能，但不是必需的',
       );
     }
   }

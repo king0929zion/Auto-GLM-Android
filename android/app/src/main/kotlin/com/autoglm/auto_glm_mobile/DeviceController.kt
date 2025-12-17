@@ -364,15 +364,39 @@ class DeviceController(private val context: Context) {
     
     /**
      * 点击操作
+     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun tap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
+                // 方法1: 无障碍服务手势 (Android 7.0+, 最可靠)
+                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    android.util.Log.d("DeviceController", "Trying Accessibility gesture tap...")
+                    
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var gestureSuccess = false
+                    
+                    handler.post {
+                        AutoGLMAccessibilityService.getInstance()?.performTap(x.toFloat(), y.toFloat()) { success ->
+                            gestureSuccess = success
+                            latch.countDown()
+                        }
+                    }
+                    
+                    if (latch.await(3, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
+                        Thread.sleep(delay.toLong())
+                        callback(true, null)
+                        return@execute
+                    }
+                    android.util.Log.w("DeviceController", "Accessibility gesture failed, trying Shizuku...")
+                }
+                
+                // 方法2: Shizuku InputManager 注入事件
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
-                // 降级方案：使用shell命令
+                // 方法3: Shell 命令降级
                 try {
                     executeShellCommand("input tap $x $y")
                     Thread.sleep(delay.toLong())
@@ -386,16 +410,40 @@ class DeviceController(private val context: Context) {
     
     /**
      * 双击操作
+     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun doubleTap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
+                // 方法1: 无障碍服务手势
+                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    android.util.Log.d("DeviceController", "Trying Accessibility gesture double tap...")
+                    
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var gestureSuccess = false
+                    
+                    handler.post {
+                        AutoGLMAccessibilityService.getInstance()?.performDoubleTap(x.toFloat(), y.toFloat()) { success ->
+                            gestureSuccess = success
+                            latch.countDown()
+                        }
+                    }
+                    
+                    if (latch.await(3, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
+                        Thread.sleep(delay.toLong())
+                        callback(true, null)
+                        return@execute
+                    }
+                }
+                
+                // 方法2: Shizuku InputManager 注入事件
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(100)
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
+                // 方法3: Shell 命令降级
                 try {
                     executeShellCommand("input tap $x $y && sleep 0.1 && input tap $x $y")
                     Thread.sleep(delay.toLong())
@@ -409,14 +457,40 @@ class DeviceController(private val context: Context) {
     
     /**
      * 长按操作
+     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun longPress(x: Int, y: Int, duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
+                // 方法1: 无障碍服务手势
+                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    android.util.Log.d("DeviceController", "Trying Accessibility gesture long press...")
+                    
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var gestureSuccess = false
+                    
+                    handler.post {
+                        AutoGLMAccessibilityService.getInstance()?.performLongPress(
+                            x.toFloat(), y.toFloat(), duration.toLong()
+                        ) { success ->
+                            gestureSuccess = success
+                            latch.countDown()
+                        }
+                    }
+                    
+                    if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
+                        Thread.sleep(delay.toLong())
+                        callback(true, null)
+                        return@execute
+                    }
+                }
+                
+                // 方法2: Shizuku InputManager 注入事件
                 injectSwipe(x.toFloat(), y.toFloat(), x.toFloat(), y.toFloat(), duration.toLong())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
+                // 方法3: Shell 命令降级
                 try {
                     executeShellCommand("input swipe $x $y $x $y $duration")
                     Thread.sleep(delay.toLong())
@@ -430,11 +504,38 @@ class DeviceController(private val context: Context) {
     
     /**
      * 滑动操作
+     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, 
               duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
+                // 方法1: 无障碍服务手势
+                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    android.util.Log.d("DeviceController", "Trying Accessibility gesture swipe...")
+                    
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var gestureSuccess = false
+                    
+                    handler.post {
+                        AutoGLMAccessibilityService.getInstance()?.performSwipe(
+                            startX.toFloat(), startY.toFloat(),
+                            endX.toFloat(), endY.toFloat(),
+                            duration.toLong()
+                        ) { success ->
+                            gestureSuccess = success
+                            latch.countDown()
+                        }
+                    }
+                    
+                    if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
+                        Thread.sleep(delay.toLong())
+                        callback(true, null)
+                        return@execute
+                    }
+                }
+                
+                // 方法2: Shizuku InputManager 注入事件
                 injectSwipe(
                     startX.toFloat(), startY.toFloat(),
                     endX.toFloat(), endY.toFloat(),
@@ -443,6 +544,7 @@ class DeviceController(private val context: Context) {
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
+                // 方法3: Shell 命令降级
                 try {
                     executeShellCommand("input swipe $startX $startY $endX $endY $duration")
                     Thread.sleep(delay.toLong())

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import '../data/models/models.dart';
 
 /// 动作解析器
@@ -103,8 +102,8 @@ class ActionParser {
   
   /// 解析 do 动作
   static ActionData _parseDo(String response) {
-    // 提取 action 参数
-    final actionMatch = RegExp(r'action\s*=\s*["\']([^"\']+)["\']')
+    // 提取 action 参数 - 支持双引号或单引号
+    final actionMatch = RegExp(r'''action\s*=\s*["']([^"']+)["']''')
         .firstMatch(response);
     
     if (actionMatch == null) {
@@ -150,16 +149,18 @@ class ActionParser {
   /// 提取字符串参数
   static String? _extractStringParam(String response, String paramName) {
     // 支持双引号和单引号
-    final patterns = [
-      RegExp('$paramName\\s*=\\s*"([^"]*)"'),
-      RegExp("$paramName\\s*=\\s*'([^']*)'"),
-    ];
+    // 使用动态构建正则表达式，因为paramName是变量
+    final doubleQuotePattern = RegExp('$paramName\\s*=\\s*"([^"]*)"');
+    final singleQuotePattern = RegExp("$paramName\\s*=\\s*'([^']*)'");
     
-    for (final pattern in patterns) {
-      final match = pattern.firstMatch(response);
-      if (match != null) {
-        return match.group(1);
-      }
+    final doubleMatch = doubleQuotePattern.firstMatch(response);
+    if (doubleMatch != null) {
+      return doubleMatch.group(1);
+    }
+    
+    final singleMatch = singleQuotePattern.firstMatch(response);
+    if (singleMatch != null) {
+      return singleMatch.group(1);
     }
     
     return null;
@@ -168,14 +169,16 @@ class ActionParser {
   /// 提取坐标参数
   static List<int>? _extractCoordinate(String response, String paramName) {
     // 支持多种格式: element=[x,y], element=[x, y], element = [x,y]
-    final pattern = RegExp('$paramName\\s*=\\s*\\[\\s*(\\d+)\\s*,\\s*(\\d+)\\s*\\]');
-    final match = pattern.firstMatch(response);
+    final pattern = RegExp(r'(\w+)\s*=\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]');
+    final matches = pattern.allMatches(response);
     
-    if (match != null) {
-      return [
-        int.parse(match.group(1)!),
-        int.parse(match.group(2)!),
-      ];
+    for (final match in matches) {
+      if (match.group(1) == paramName) {
+        return [
+          int.parse(match.group(2)!),
+          int.parse(match.group(3)!),
+        ];
+      }
     }
     
     return null;

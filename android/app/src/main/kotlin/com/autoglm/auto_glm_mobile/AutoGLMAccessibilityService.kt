@@ -2,8 +2,10 @@ package com.autoglm.auto_glm_mobile
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Path
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -335,5 +337,208 @@ class AutoGLMAccessibilityService : AccessibilityService() {
      */
     fun clearText(): Boolean {
         return inputText("")
+    }
+    
+    // ========== 坐标点击和手势操作 (Android 7.0+) ==========
+    
+    /**
+     * 在指定坐标点击
+     * @param x 屏幕X坐标
+     * @param y 屏幕Y坐标
+     * @param callback 回调函数，返回是否成功
+     */
+    fun performTap(x: Float, y: Float, callback: (Boolean) -> Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            android.util.Log.e("Accessibility", "Gesture API requires Android 7.0+")
+            callback(false)
+            return
+        }
+        
+        try {
+            val path = Path()
+            path.moveTo(x, y)
+            
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
+                .build()
+            
+            val result = dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    android.util.Log.d("Accessibility", "Tap completed at ($x, $y)")
+                    callback(true)
+                }
+                
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    android.util.Log.e("Accessibility", "Tap cancelled at ($x, $y)")
+                    callback(false)
+                }
+            }, null)
+            
+            if (!result) {
+                android.util.Log.e("Accessibility", "dispatchGesture returned false")
+                callback(false)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "Tap error: ${e.message}", e)
+            callback(false)
+        }
+    }
+    
+    /**
+     * 双击
+     */
+    fun performDoubleTap(x: Float, y: Float, callback: (Boolean) -> Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            callback(false)
+            return
+        }
+        
+        performTap(x, y) { success1 ->
+            if (!success1) {
+                callback(false)
+                return@performTap
+            }
+            
+            Handler(Looper.getMainLooper()).postDelayed({
+                performTap(x, y) { success2 ->
+                    callback(success2)
+                }
+            }, 100)
+        }
+    }
+    
+    /**
+     * 长按
+     * @param duration 按压时长（毫秒）
+     */
+    fun performLongPress(x: Float, y: Float, duration: Long, callback: (Boolean) -> Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            callback(false)
+            return
+        }
+        
+        try {
+            val path = Path()
+            path.moveTo(x, y)
+            
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+                .build()
+            
+            val result = dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    android.util.Log.d("Accessibility", "Long press completed at ($x, $y)")
+                    callback(true)
+                }
+                
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    android.util.Log.e("Accessibility", "Long press cancelled")
+                    callback(false)
+                }
+            }, null)
+            
+            if (!result) {
+                callback(false)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "Long press error: ${e.message}", e)
+            callback(false)
+        }
+    }
+    
+    /**
+     * 滑动
+     * @param duration 滑动时长（毫秒）
+     */
+    fun performSwipe(
+        startX: Float, startY: Float,
+        endX: Float, endY: Float,
+        duration: Long,
+        callback: (Boolean) -> Unit
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            callback(false)
+            return
+        }
+        
+        try {
+            val path = Path()
+            path.moveTo(startX, startY)
+            path.lineTo(endX, endY)
+            
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, duration))
+                .build()
+            
+            val result = dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    android.util.Log.d("Accessibility", "Swipe completed")
+                    callback(true)
+                }
+                
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    android.util.Log.e("Accessibility", "Swipe cancelled")
+                    callback(false)
+                }
+            }, null)
+            
+            if (!result) {
+                callback(false)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "Swipe error: ${e.message}", e)
+            callback(false)
+        }
+    }
+    
+    /**
+     * 执行多点触控手势（例如缩放、旋转）
+     * @param paths 多个手指的路径
+     * @param durations 每个路径的持续时间
+     */
+    fun performMultiTouch(
+        paths: List<Path>,
+        durations: List<Long>,
+        callback: (Boolean) -> Unit
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+            callback(false)
+            return
+        }
+        
+        if (paths.size != durations.size) {
+            android.util.Log.e("Accessibility", "Paths and durations size mismatch")
+            callback(false)
+            return
+        }
+        
+        try {
+            val builder = GestureDescription.Builder()
+            
+            for (i in paths.indices) {
+                builder.addStroke(GestureDescription.StrokeDescription(paths[i], 0, durations[i]))
+            }
+            
+            val gesture = builder.build()
+            
+            val result = dispatchGesture(gesture, object : GestureResultCallback() {
+                override fun onCompleted(gestureDescription: GestureDescription?) {
+                    android.util.Log.d("Accessibility", "Multi-touch completed")
+                    callback(true)
+                }
+                
+                override fun onCancelled(gestureDescription: GestureDescription?) {
+                    android.util.Log.e("Accessibility", "Multi-touch cancelled")
+                    callback(false)
+                }
+            }, null)
+            
+            if (!result) {
+                callback(false)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Accessibility", "Multi-touch error: ${e.message}", e)
+            callback(false)
+        }
     }
 }

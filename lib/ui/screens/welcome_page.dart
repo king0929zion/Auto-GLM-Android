@@ -19,25 +19,25 @@ class _WelcomePageState extends State<WelcomePage> {
     _WelcomePageData(
       icon: Icons.smart_toy,
       title: '欢迎使用 AutoGLM',
-      description: 'AI驱动的手机自动化助手，让您用自然语言控制手机。',
+      description: 'AI驱动的手机自动化助手\n让您用自然语言控制手机',
       color: AppTheme.accentOrange,
     ),
     _WelcomePageData(
-      icon: Icons.text_fields,
-      title: '自然语言操作',
-      description: '只需描述您想要完成的任务，AI会自动分析屏幕内容并执行相应操作。',
+      icon: Icons.auto_awesome,
+      title: '智能理解，自动执行',
+      description: '只需描述您想要完成的任务\nAI会自动分析屏幕并执行操作',
       color: AppTheme.accentOrangeDeep,
     ),
     _WelcomePageData(
-      icon: Icons.security,
-      title: '需要 Shizuku',
-      description: '本应用需要 Shizuku 来模拟触摸和输入操作。请确保已安装并授权 Shizuku。',
+      icon: Icons.accessibility_new,
+      title: '简单易用',
+      description: '仅需开启无障碍服务和悬浮窗权限\n无需Root，无需复杂配置',
       color: AppTheme.info,
     ),
     _WelcomePageData(
       icon: Icons.cloud,
       title: '配置 AI 模型',
-      description: '您需要配置一个支持视觉理解的AI模型API，如 AutoGLM 模型服务。',
+      description: '支持 OpenAI 兼容的 API\n推荐使用魔搭社区的 AutoGLM 模型',
       color: AppTheme.success,
     ),
   ];
