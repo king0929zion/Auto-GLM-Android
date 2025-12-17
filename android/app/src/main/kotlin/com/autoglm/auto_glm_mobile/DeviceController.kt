@@ -375,14 +375,16 @@ class DeviceController(private val context: Context) {
         executor.execute {
             try {
                 // 方法1: 无障碍服务手势 (Android 7.0+, 最可靠)
-                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val a11yServiceForGesture =
+                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
+                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     android.util.Log.d("DeviceController", "Trying Accessibility gesture tap...")
-                    
+                     
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
-                    
+                     
                     mainHandler.post {
-                        AutoGLMAccessibilityService.getInstance()?.performTap(x.toFloat(), y.toFloat()) { success ->
+                        a11yServiceForGesture.performTap(x.toFloat(), y.toFloat()) { success ->
                             gestureSuccess = success
                             latch.countDown()
                         }
@@ -421,14 +423,16 @@ class DeviceController(private val context: Context) {
         executor.execute {
             try {
                 // 方法1: 无障碍服务手势
-                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val a11yServiceForGesture =
+                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
+                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     android.util.Log.d("DeviceController", "Trying Accessibility gesture double tap...")
-                    
+                     
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
-                    
+                     
                     mainHandler.post {
-                        AutoGLMAccessibilityService.getInstance()?.performDoubleTap(x.toFloat(), y.toFloat()) { success ->
+                        a11yServiceForGesture.performDoubleTap(x.toFloat(), y.toFloat()) { success ->
                             gestureSuccess = success
                             latch.countDown()
                         }
@@ -468,14 +472,16 @@ class DeviceController(private val context: Context) {
         executor.execute {
             try {
                 // 方法1: 无障碍服务手势
-                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val a11yServiceForGesture =
+                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
+                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     android.util.Log.d("DeviceController", "Trying Accessibility gesture long press...")
-                    
+                     
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
-                    
+                     
                     mainHandler.post {
-                        AutoGLMAccessibilityService.getInstance()?.performLongPress(
+                        a11yServiceForGesture.performLongPress(
                             x.toFloat(), y.toFloat(), duration.toLong()
                         ) { success ->
                             gestureSuccess = success
@@ -516,14 +522,16 @@ class DeviceController(private val context: Context) {
         executor.execute {
             try {
                 // 方法1: 无障碍服务手势
-                if (AutoGLMAccessibilityService.isAvailable() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                val a11yServiceForGesture =
+                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
+                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     android.util.Log.d("DeviceController", "Trying Accessibility gesture swipe...")
-                    
+                     
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
-                    
+                     
                     mainHandler.post {
-                        AutoGLMAccessibilityService.getInstance()?.performSwipe(
+                        a11yServiceForGesture.performSwipe(
                             startX.toFloat(), startY.toFloat(),
                             endX.toFloat(), endY.toFloat(),
                             duration.toLong()
@@ -788,17 +796,16 @@ class DeviceController(private val context: Context) {
         executor.execute {
             try {
                 // 优先使用无障碍服务
-                if (AutoGLMAccessibilityService.isAvailable()) {
-                    val service = AutoGLMAccessibilityService.getInstance()
-                    if (service != null) {
-                        mainHandler.post {
-                            val result = service.clearText()
-                            callback(result, if (result) null else "Failed to clear text")
-                        }
-                        return@execute
+                val a11yService =
+                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
+                if (a11yService != null) {
+                    mainHandler.post {
+                        val result = a11yService.clearText()
+                        callback(result, if (result) null else "Failed to clear text")
                     }
+                    return@execute
                 }
-                
+                 
                 // 回退到ADB广播
                 executeShizukuShellCommand("am broadcast -a ADB_CLEAR_TEXT")
                 Thread.sleep(300)

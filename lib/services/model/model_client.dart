@@ -27,6 +27,7 @@ class ModelClient {
   
   /// HTTP客户端
   late final Dio _dio;
+  CancelToken? _activeCancelToken;
 
   ModelClient({required this.config}) {
     _dio = Dio(BaseOptions(
@@ -41,7 +42,12 @@ class ModelClient {
   }
 
   /// 发送请求到模型
-  Future<ModelResponse> request(List<Map<String, dynamic>> messages) async {
+  Future<ModelResponse> request(
+    List<Map<String, dynamic>> messages, {
+    CancelToken? cancelToken,
+  }) async {
+    final token = cancelToken ?? CancelToken();
+    _activeCancelToken = token;
     final body = {
       'model': config.modelName,
       'messages': messages,
@@ -62,6 +68,7 @@ class ModelClient {
       final response = await _dio.post(
         '/chat/completions',
         data: body,
+        cancelToken: token,
       );
 
       print('=== API Response ===');
@@ -88,6 +95,9 @@ class ModelClient {
         rawContent: rawContent,
       );
     } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) {
+        throw const ModelClientCancelledException('请求已取消');
+      }
       print('=== API Error ===');
       print('Type: ${e.type}');
       print('Message: ${e.message}');
@@ -135,6 +145,10 @@ class ModelClient {
       print('=== Unknown Error ===');
       print('$e');
       throw ModelClientException('未知错误: $e');
+    } finally {
+      if (identical(_activeCancelToken, token)) {
+        _activeCancelToken = null;
+      }
     }
   }
 
@@ -246,6 +260,16 @@ class ModelClient {
   void dispose() {
     _dio.close();
   }
+
+  /// 取消当前请求（用于停止任务）
+  void cancelActiveRequest([String reason = '用户停止']) {
+    try {
+      _activeCancelToken?.cancel(reason);
+    } catch (_) {
+    } finally {
+      _activeCancelToken = null;
+    }
+  }
 }
 
 /// 消息构建器
@@ -308,4 +332,8 @@ class ModelClientException implements Exception {
 
   @override
   String toString() => 'ModelClientException: $message';
+}
+
+class ModelClientCancelledException extends ModelClientException {
+  const ModelClientCancelledException(super.message);
 }

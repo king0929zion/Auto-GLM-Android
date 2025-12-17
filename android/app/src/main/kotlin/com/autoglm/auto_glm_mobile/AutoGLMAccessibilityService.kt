@@ -251,9 +251,17 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     private fun focusOrClickForInput(node: AccessibilityNodeInfo) {
         try {
             refreshQuietly(node)
-            if (supportsAction(node, AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN)) {
-                node.performAction(AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN)
-                SystemClock.sleep(20)
+            // 部分 Android 版本的 ACTION_SHOW_ON_SCREEN 不是 int 常量，而是 AccessibilityAction（避免编译期引用缺失）
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val showOnScreenId = try {
+                    AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id
+                } catch (_: Exception) {
+                    null
+                }
+                if (showOnScreenId != null && supportsAction(node, showOnScreenId)) {
+                    node.performAction(showOnScreenId)
+                    SystemClock.sleep(20)
+                }
             }
             if (supportsAction(node, AccessibilityNodeInfo.ACTION_FOCUS) && !node.isFocused) {
                 node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)

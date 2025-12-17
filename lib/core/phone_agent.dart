@@ -80,9 +80,13 @@ class PhoneAgent extends ChangeNotifier {
   
   /// 是否正在运行
   bool _isRunning = false;
-
+  
   /// 悬浮窗权限（会话内缓存，可选功能）
   bool _overlayGrantedForSession = false;
+
+  bool _stopRequested = false;
+  String? _stopReason;
+  bool _hasFinishedTask = false;
   
   /// 是否需要暂停
   bool _shouldPause = false;
@@ -116,6 +120,7 @@ class PhoneAgent extends ChangeNotifier {
           await onTakeoverRequired!(msg);
         }
       },
+      isCancelled: () => _stopRequested,
     );
   }
 
@@ -157,9 +162,12 @@ class PhoneAgent extends ChangeNotifier {
 
     await _ensureRequiredPermissions();
     _overlayGrantedForSession = await _deviceController.checkOverlayPermission();
-      
+     
     _isRunning = true;
     _shouldPause = false;
+    _stopRequested = false;
+    _stopReason = null;
+    _hasFinishedTask = false;
     _context.clear();
     _currentTaskLogs.clear();
     _taskStartTime = DateTime.now().millisecondsSinceEpoch;
@@ -179,37 +187,52 @@ class PhoneAgent extends ChangeNotifier {
     if (_overlayGrantedForSession) {
       await _deviceController.showFloatingWindow('正在处理: $task');
     }
-    
+     
     try {
       // 第一步
       var result = await _executeStep(userPrompt: task, isFirst: true);
-      
+       
       if (result.finished) {
-        _finishTask(true, result.message);
+        _finishTask(
+          result.success ? TaskStatus.completed : TaskStatus.failed,
+          result.message,
+        );
         return result.message ?? 'Task completed';
       }
-      
+       
       // 继续执行直到完成或达到最大步骤
       while (_stepCount < agentConfig.maxSteps && !_shouldPause) {
         result = await _executeStep(userPrompt: null, isFirst: false);
-        
+         
         if (result.finished) {
-          _finishTask(true, result.message);
+          _finishTask(
+            result.success ? TaskStatus.completed : TaskStatus.failed,
+            result.message,
+          );
           return result.message ?? 'Task completed';
         }
       }
-      
+       
+      if (_stopRequested) {
+        _finishTask(TaskStatus.cancelled, _stopReason ?? '任务已停止');
+        return _stopReason ?? 'Task stopped';
+      }
+
       if (_shouldPause) {
         _currentTask = _currentTask?.copyWith(status: TaskStatus.paused);
         notifyListeners();
         return 'Task paused';
       }
-      
-      _finishTask(false, 'Max steps reached');
+       
+      _finishTask(TaskStatus.failed, 'Max steps reached');
       return 'Max steps reached';
-      
+       
     } catch (e) {
-      _finishTask(false, 'Error: $e');
+      if (_stopRequested || e is ModelClientCancelledException) {
+        _finishTask(TaskStatus.cancelled, _stopReason ?? '任务已停止');
+        return _stopReason ?? 'Task stopped';
+      }
+      _finishTask(TaskStatus.failed, 'Error: $e');
       rethrow;
     } finally {
       _isRunning = false;
@@ -237,6 +260,17 @@ class PhoneAgent extends ChangeNotifier {
     _shouldPause = true;
   }
 
+  /// 停止任务（立即取消模型请求，并尽快结束当前流程）
+  void stop([String reason = '用户停止']) {
+    if (!_isRunning) return;
+    _stopRequested = true;
+    _stopReason = reason;
+    _shouldPause = true;
+    _currentTask = _currentTask?.copyWith(status: TaskStatus.cancelled);
+    _modelClient.cancelActiveRequest(reason);
+    notifyListeners();
+  }
+
   /// 重置Agent
   void reset() {
     _context.clear();
@@ -246,6 +280,9 @@ class PhoneAgent extends ChangeNotifier {
     _isRunning = false;
     _shouldPause = false;
     _overlayGrantedForSession = false;
+    _stopRequested = false;
+    _stopReason = null;
+    _hasFinishedTask = false;
     _currentTaskLogs.clear();  // 清除任务日志
     notifyListeners();
   }
@@ -411,9 +448,12 @@ class PhoneAgent extends ChangeNotifier {
   }
 
   /// 完成任务
-  void _finishTask(bool success, String? message) {
+  void _finishTask(TaskStatus status, String? message) {
+    if (_hasFinishedTask) return;
+    _hasFinishedTask = true;
+
     _currentTask = _currentTask?.copyWith(
-      status: success ? TaskStatus.completed : TaskStatus.failed,
+      status: status,
       endTime: DateTime.now(),
       resultMessage: message,
     );
@@ -423,27 +463,36 @@ class PhoneAgent extends ChangeNotifier {
     if (_overlayGrantedForSession) {
       _deviceController.hideFloatingWindow();
     }
-    
+     
     // 保存历史记录
-    _saveHistory(success, message);
-    
+    _saveHistory(status, message);
+     
     notifyListeners();
   }
-  
+   
   /// 保存历史记录
-  Future<void> _saveHistory(bool success, String? message) async {
+  Future<void> _saveHistory(TaskStatus status, String? message) async {
     if (_currentTask == null) return;
-    
+     
+    String recordStatus;
+    if (status == TaskStatus.completed) {
+      recordStatus = 'completed';
+    } else if (status == TaskStatus.cancelled) {
+      recordStatus = 'stopped';
+    } else {
+      recordStatus = 'failed';
+    }
+
     final record = TaskRecord(
       id: const Uuid().v4(),
       prompt: _currentTask!.task,
       startTime: _taskStartTime,
       endTime: DateTime.now().millisecondsSinceEpoch,
-      status: success ? 'completed' : 'failed',
+      status: recordStatus,
       logs: List.from(_currentTaskLogs),
-      errorMessage: success ? null : message,
+      errorMessage: status == TaskStatus.completed ? null : message,
     );
-    
+     
     try {
       await _historyService.saveRecord(record);
     } catch (e) {

@@ -30,6 +30,9 @@ class ActionResult {
 class ActionHandler {
   /// 设备控制器
   final DeviceController deviceController;
+
+  /// 是否已取消（用于停止任务）
+  final bool Function()? isCancelled;
   
   /// 敏感操作确认回调
   final Future<bool> Function(String message)? confirmationCallback;
@@ -41,6 +44,7 @@ class ActionHandler {
     required this.deviceController,
     this.confirmationCallback,
     this.takeoverCallback,
+    this.isCancelled,
   });
 
   /// 执行动作
@@ -259,13 +263,29 @@ class ActionHandler {
     final match = RegExp(r'(\d+)').firstMatch(durationStr);
     final seconds = match != null ? int.parse(match.group(1)!) : 1;
     
-    await Future.delayed(Duration(seconds: seconds));
+    final totalMs = seconds * 1000;
+    const tickMs = 100;
+    var elapsed = 0;
+    while (elapsed < totalMs) {
+      if (isCancelled?.call() == true) {
+        return const ActionResult(
+          success: false,
+          shouldFinish: true,
+          message: '任务已停止',
+        );
+      }
+      await Future.delayed(const Duration(milliseconds: tickMs));
+      elapsed += tickMs;
+    }
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理接管请求
   Future<ActionResult> _handleTakeover(ActionData action) async {
     final message = action.message ?? '请完成当前操作后继续';
+    if (isCancelled?.call() == true) {
+      return const ActionResult(success: false, shouldFinish: true, message: '任务已停止');
+    }
     
     // 悬浮窗接管弹窗（可选）：无权限则跳过
     final overlayGranted = await deviceController.checkOverlayPermission();
@@ -278,9 +298,20 @@ class ActionHandler {
       await takeoverCallback!(message);
     }
     
-    // 等待用户操作完成后会自动隐藏弹窗
-    // 这里等待一段时间让用户有时间操作
-    await Future.delayed(const Duration(seconds: 30));
+    // 等待用户操作完成（可被停止打断）
+    const totalMs = 30000;
+    const tickMs = 200;
+    var elapsed = 0;
+    while (elapsed < totalMs) {
+      if (isCancelled?.call() == true) {
+        if (overlayGranted) {
+          await deviceController.hideTakeover();
+        }
+        return const ActionResult(success: false, shouldFinish: true, message: '任务已停止');
+      }
+      await Future.delayed(const Duration(milliseconds: tickMs));
+      elapsed += tickMs;
+    }
     
     // 隐藏弹窗
     if (overlayGranted) {

@@ -227,6 +227,42 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  Future<void> _stopTask() async {
+    if (!_agent.isRunning) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('停止任务'),
+        content: const Text('确定要停止当前任务吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('停止'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    _agent.stop('用户停止');
+    if (!mounted) return;
+
+    setState(() {
+      _messages.add(_ChatMessage(
+        isUser: false,
+        message: '已停止当前任务',
+        isSuccess: false,
+      ));
+    });
+    _scrollToBottom();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -240,6 +276,12 @@ class _HomePageState extends State<HomePage> {
           onPressed: _showHistoryDrawer,
         ),
         actions: [
+          if (_agent.isRunning)
+            IconButton(
+              icon: const Icon(Icons.stop_circle_outlined),
+              tooltip: '停止任务',
+              onPressed: _stopTask,
+            ),
           // 新建对话按钮
           IconButton(
             icon: const Icon(Icons.add_comment_outlined),
