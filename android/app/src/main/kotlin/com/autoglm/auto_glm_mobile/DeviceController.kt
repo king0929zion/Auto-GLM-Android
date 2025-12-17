@@ -656,26 +656,52 @@ class DeviceController(private val context: Context) {
             android.util.Log.d("DeviceController", "tryShizukuClipboardPaste: $text")
             
             // 在主线程设置剪贴板
-            val latch = java.util.concurrent.CountDownLatch(1)
+            val clipboardLatch = java.util.concurrent.CountDownLatch(1)
             mainHandler.post {
                 try {
                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     val clip = android.content.ClipData.newPlainText("text", text)
                     clipboard.setPrimaryClip(clip)
+                    android.util.Log.d("DeviceController", "Clipboard set success")
                 } catch (e: Exception) {
                     android.util.Log.e("DeviceController", "Clipboard error: ${e.message}")
                 }
-                latch.countDown()
+                clipboardLatch.countDown()
             }
-            latch.await(2, java.util.concurrent.TimeUnit.SECONDS)
-            Thread.sleep(100)
+            clipboardLatch.await(2, java.util.concurrent.TimeUnit.SECONDS)
+            Thread.sleep(150)
             
-            // 使用 Shizuku 模拟粘贴 (Ctrl+V)
-            val pasteResult = executeShizukuShellCommand("input keyevent --longpress 113 50")
-            android.util.Log.d("DeviceController", "Paste keyevent result: $pasteResult")
-            Thread.sleep(300)
-            
-            true
+            // 使用无障碍服务执行粘贴操作
+            val service = AutoGLMAccessibilityService.getInstance()
+            if (service != null) {
+                val pasteLatch = java.util.concurrent.CountDownLatch(1)
+                var pasteSuccess = false
+                
+                mainHandler.post {
+                    try {
+                        // 使用无障碍服务的 PASTE 操作
+                        val focusedNode = service.rootInActiveWindow?.findFocus(android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT)
+                        if (focusedNode != null) {
+                            pasteSuccess = focusedNode.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_PASTE)
+                            android.util.Log.d("DeviceController", "Accessibility PASTE result: $pasteSuccess")
+                            focusedNode.recycle()
+                        } else {
+                            android.util.Log.w("DeviceController", "No focused input node found")
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("DeviceController", "Paste error: ${e.message}")
+                    }
+                    pasteLatch.countDown()
+                }
+                
+                pasteLatch.await(3, java.util.concurrent.TimeUnit.SECONDS)
+                Thread.sleep(200)
+                
+                pasteSuccess
+            } else {
+                android.util.Log.w("DeviceController", "Accessibility service not available for paste")
+                false
+            }
         } catch (e: Exception) {
             android.util.Log.e("DeviceController", "Shizuku clipboard paste error: ${e.message}", e)
             false
