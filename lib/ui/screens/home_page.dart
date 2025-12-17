@@ -140,69 +140,67 @@ class _HomePageState extends State<HomePage> {
 
     await showDialog<void>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.accessibility_new, color: AppTheme.error),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('需要无障碍权限')),
-          ],
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 图标
             Container(
-              padding: const EdgeInsets.all(12),
+              width: 64,
+              height: 64,
               decoration: BoxDecoration(
-                color: AppTheme.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
+                color: AppTheme.accentOrange.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.error_outline, color: AppTheme.error, size: 20),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      '无障碍服务未启用',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
+              child: Icon(
+                Icons.accessibility_new,
+                size: 32,
+                color: AppTheme.accentOrange,
               ),
             ),
             const SizedBox(height: 16),
+            // 标题
             const Text(
-              'AutoZi 需要无障碍权限来：',
-              style: TextStyle(fontWeight: FontWeight.w500),
+              '需要开启无障碍服务',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              '• 读取屏幕内容\n'
-              '• 模拟点击和滑动\n'
-              '• 输入文字',
-              style: TextStyle(color: AppTheme.textSecondary, height: 1.5),
+            // 描述
+            Text(
+              '点击下方按钮跳转设置页面\n找到 AutoZi 并开启',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: AppTheme.textSecondary,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 20),
+            // 按钮
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _deviceController.openAccessibilitySettings();
+                },
+                style: ElevatedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('前往设置', style: TextStyle(fontSize: 16)),
+              ),
             ),
           ],
         ),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.settings),
-              label: const Text('打开无障碍设置'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              onPressed: () async {
-                await _deviceController.openAccessibilitySettings();
-                if (context.mounted) Navigator.pop(context);
-              },
-            ),
-          ),
-        ],
       ),
     );
 
