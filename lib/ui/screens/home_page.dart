@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/phone_agent.dart';
 import '../../data/models/models.dart';
 import '../../config/settings_repository.dart';
+import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
 
 /// 主页面 - 简洁的任务执行界面
@@ -14,6 +15,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late PhoneAgent _agent;
+  final DeviceController _deviceController = DeviceController();
   final TextEditingController _taskController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
@@ -130,9 +132,81 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Future<bool> _ensureRequiredPermissions() async {
+    final accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
+    final overlayGranted = await _deviceController.checkOverlayPermission();
+
+    if (accessibilityEnabled && overlayGranted) return true;
+    if (!mounted) return false;
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('需要权限才能开始'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _PermissionRow(
+              title: '无障碍服务',
+              granted: accessibilityEnabled,
+              onOpenSettings: accessibilityEnabled
+                  ? null
+                  : () async {
+                      await _deviceController.openAccessibilitySettings();
+                      if (context.mounted) Navigator.pop(context);
+                    },
+            ),
+            const SizedBox(height: 8),
+            _PermissionRow(
+              title: '悬浮窗权限',
+              granted: overlayGranted,
+              onOpenSettings: overlayGranted
+                  ? null
+                  : () async {
+                      await _deviceController.openOverlaySettings();
+                      if (context.mounted) Navigator.pop(context);
+                    },
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '授予上述权限后才能与 AI 交互并执行任务。',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              if (!mounted) return;
+              await Navigator.pushNamed(context, '/permission_setup');
+            },
+            child: const Text('去授权'),
+          ),
+        ],
+      ),
+    );
+
+    return false;
+  }
+
   void _startTask() async {
     final task = _taskController.text.trim();
     if (task.isEmpty) return;
+
+    if (_agent.isRunning) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('请等待当前任务完成')),
+      );
+      return;
+    }
+
+    final permissionsOk = await _ensureRequiredPermissions();
+    if (!permissionsOk) return;
     
     await SettingsRepository.instance.addTaskToHistory(task);
     
@@ -489,6 +563,37 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PermissionRow extends StatelessWidget {
+  final String title;
+  final bool granted;
+  final Future<void> Function()? onOpenSettings;
+
+  const _PermissionRow({
+    required this.title,
+    required this.granted,
+    this.onOpenSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(
+          granted ? Icons.check_circle : Icons.error_outline,
+          color: granted ? AppTheme.success : AppTheme.error,
+        ),
+        const SizedBox(width: 8),
+        Expanded(child: Text(title)),
+        if (!granted)
+          TextButton(
+            onPressed: onOpenSettings,
+            child: const Text('打开设置'),
+          ),
+      ],
     );
   }
 }

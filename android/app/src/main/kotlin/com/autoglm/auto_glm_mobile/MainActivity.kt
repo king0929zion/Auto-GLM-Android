@@ -448,7 +448,7 @@ class MainActivity : FlutterActivity() {
      * 检查无障碍服务是否启用
      */
     private fun isAccessibilityEnabled(result: MethodChannel.Result) {
-        result.success(AutoGLMAccessibilityService.isAvailable())
+        result.success(AutoGLMAccessibilityService.isEnabled(this))
     }
     
     /**

@@ -3,6 +3,8 @@ package com.autoglm.auto_glm_mobile
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.GestureDescription
+import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Path
@@ -10,6 +12,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.Display
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
@@ -36,6 +39,44 @@ class AutoGLMAccessibilityService : AccessibilityService() {
          * 服务是否可用
          */
         fun isAvailable(): Boolean = instance != null
+
+        /**
+         * 无障碍服务是否已在系统设置中启用（权限状态）。
+         * 注意：启用 != 已连接（instance 可能在应用进程启动后尚未建立）。
+         */
+        fun isEnabled(context: Context): Boolean {
+            return try {
+                val enabled = Settings.Secure.getInt(
+                    context.contentResolver,
+                    Settings.Secure.ACCESSIBILITY_ENABLED,
+                    0
+                ) == 1
+                if (!enabled) return false
+
+                val enabledServices = Settings.Secure.getString(
+                    context.contentResolver,
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                ) ?: return false
+
+                val expected = ComponentName(context, AutoGLMAccessibilityService::class.java).flattenToString()
+                enabledServices.split(':').any { it.equals(expected, ignoreCase = true) }
+            } catch (_: Exception) {
+                false
+            }
+        }
+
+        /**
+         * 等待无障碍服务建立连接（instance 非空）。
+         * 用于解决“启用后/重启应用后短时间内 instance 仍为 null”的竞态。
+         */
+        fun waitForInstance(timeoutMs: Long = 1500L): AutoGLMAccessibilityService? {
+            val deadline = SystemClock.uptimeMillis() + timeoutMs
+            while (SystemClock.uptimeMillis() < deadline) {
+                instance?.let { return it }
+                SystemClock.sleep(50)
+            }
+            return instance
+        }
         
         /**
          * 通过无障碍服务截图

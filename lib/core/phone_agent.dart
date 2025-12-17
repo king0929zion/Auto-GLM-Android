@@ -136,12 +136,27 @@ class PhoneAgent extends ChangeNotifier {
     await _deviceController.initialize();
   }
 
+  Future<void> _ensureRequiredPermissions() async {
+    final accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
+    final overlayGranted = await _deviceController.checkOverlayPermission();
+
+    if (accessibilityEnabled && overlayGranted) return;
+
+    final missing = <String>[];
+    if (!accessibilityEnabled) missing.add('无障碍服务');
+    if (!overlayGranted) missing.add('悬浮窗权限');
+
+    throw StateError('缺少必需权限：${missing.join('、')}。请先在系统设置中授予权限后再开始任务。');
+  }
+
   /// 执行任务
   Future<String> run(String task) async {
     if (_isRunning) {
       return 'Agent is already running';
     }
-    
+
+    await _ensureRequiredPermissions();
+     
     _isRunning = true;
     _shouldPause = false;
     _context.clear();
@@ -205,6 +220,10 @@ class PhoneAgent extends ChangeNotifier {
     
     if (isFirst && task == null) {
       throw ArgumentError('Task is required for the first step');
+    }
+
+    if (isFirst) {
+      await _ensureRequiredPermissions();
     }
     
     return await _executeStep(userPrompt: task, isFirst: isFirst);

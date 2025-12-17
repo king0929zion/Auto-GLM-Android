@@ -3,7 +3,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../services/device/device_controller.dart';
-import '../../services/history_service.dart';
 import '../theme/app_theme.dart';
 
 /// 设置页面
@@ -214,30 +213,6 @@ class _SettingsPageState extends State<SettingsPage> {
           
           const SizedBox(height: AppTheme.spacingLG),
           
-          // 语言配置部分
-          _buildSectionHeader(
-            icon: Icons.language,
-            title: '语言设置',
-          ),
-          _buildCard([
-            _buildDropdownTile(
-              title: '语言',
-              subtitle: '系统提示词语言',
-              value: _language,
-              items: const {
-                'cn': '中文',
-                'en': 'English',
-              },
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _language = value);
-                }
-              },
-            ),
-          ]),
-          
-          const SizedBox(height: AppTheme.spacingLG),
-          
           // Shizuku 状态部分（可选）
           _buildSectionHeader(
             icon: Icons.security,
@@ -277,13 +252,6 @@ class _SettingsPageState extends State<SettingsPage> {
               subtitle: const Text('查看和复用历史任务'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.pushNamed(context, '/history'),
-            ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: AppTheme.error),
-              title: const Text('清除历史记录'),
-              subtitle: const Text('删除所有任务历史'),
-              onTap: _clearHistory,
             ),
           ]),
           
@@ -329,38 +297,6 @@ class _SettingsPageState extends State<SettingsPage> {
     final uri = Uri.parse('https://bigmodel.cn/usercenter/proj-mgmt/apikeys');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  Future<void> _clearHistory() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('确认清除'),
-        content: const Text('确定要删除所有任务历史记录吗？此操作不可撤销。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.error,
-            ),
-            child: const Text('清除'),
-          ),
-        ],
-      ),
-    );
-    
-    if (confirmed == true) {
-      await HistoryService().clearHistory();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('历史记录已清除')),
-        );
-      }
     }
   }
 
@@ -411,30 +347,6 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
       child: Column(
         children: children,
-      ),
-    );
-  }
-
-  Widget _buildDropdownTile<T>({
-    required String title,
-    required String subtitle,
-    required T value,
-    required Map<T, String> items,
-    required ValueChanged<T?> onChanged,
-  }) {
-    return ListTile(
-      title: Text(title),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 13)),
-      trailing: DropdownButton<T>(
-        value: value,
-        underline: const SizedBox(),
-        items: items.entries.map((e) {
-          return DropdownMenuItem<T>(
-            value: e.key,
-            child: Text(e.value),
-          );
-        }).toList(),
-        onChanged: onChanged,
       ),
     );
   }

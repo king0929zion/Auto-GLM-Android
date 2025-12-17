@@ -105,6 +105,9 @@ class DeviceController(private val context: Context) {
                 android.util.Log.d("DeviceController", "Starting screenshot capture...")
                 
                 // 方法1: 使用无障碍服务截图 (最可靠，Android 11+)
+                if (AutoGLMAccessibilityService.isEnabled(context)) {
+                    AutoGLMAccessibilityService.waitForInstance(1200)
+                }
                 if (AutoGLMAccessibilityService.isAvailable()) {
                     android.util.Log.d("DeviceController", "Trying Accessibility Service screenshot...")
                     
@@ -566,16 +569,16 @@ class DeviceController(private val context: Context) {
             try {
                 android.util.Log.d("DeviceController", "typeText: '$text'")
                 
-                if (!AutoGLMAccessibilityService.isAvailable()) {
-                    android.util.Log.e("DeviceController", "Accessibility Service not available")
+                if (!AutoGLMAccessibilityService.isEnabled(context)) {
+                    android.util.Log.e("DeviceController", "Accessibility Service not enabled")
                     callback(false, "无障碍服务未启用")
                     return@execute
                 }
                 
-                val service = AutoGLMAccessibilityService.getInstance()
+                val service = AutoGLMAccessibilityService.waitForInstance(2000)
                 if (service == null) {
                     android.util.Log.e("DeviceController", "Accessibility Service instance is null")
-                    callback(false, "无障碍服务实例为空")
+                    callback(false, "无障碍服务正在连接，请稍后重试")
                     return@execute
                 }
                 
