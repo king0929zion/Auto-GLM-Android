@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../services/device/device_controller.dart';
+import '../../services/history_service.dart';
 import '../theme/app_theme.dart';
 
 /// 设置页面
@@ -15,18 +17,16 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final _formKey = GlobalKey<FormState>();
   
-  // 模型配置控制器
-  final _baseUrlController = TextEditingController();
+  // API Key 控制器
   final _apiKeyController = TextEditingController();
-  final _modelNameController = TextEditingController();
   
-  // Agent配置
-  int _maxSteps = AppConfig.maxSteps;
+  // 语言配置
   String _language = AppConfig.defaultLanguage;
   
   bool _isLoading = true;
   bool _isSaving = false;
   bool _shizukuConnected = false;
+  bool _obscureApiKey = true;
 
   @override
   void initState() {
@@ -39,13 +39,8 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     
     setState(() {
-      _baseUrlController.text = prefs.getString(AppConfig.keyBaseUrl) ?? 
-          AppConfig.defaultBaseUrl;
       _apiKeyController.text = prefs.getString(AppConfig.keyApiKey) ?? 
           AppConfig.defaultApiKey;
-      _modelNameController.text = prefs.getString(AppConfig.keyModelName) ?? 
-          AppConfig.defaultModelName;
-      _maxSteps = prefs.getInt(AppConfig.keyMaxSteps) ?? AppConfig.maxSteps;
       _language = prefs.getString(AppConfig.keyLanguage) ?? 
           AppConfig.defaultLanguage;
       _isLoading = false;
@@ -68,10 +63,7 @@ class _SettingsPageState extends State<SettingsPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       
-      await prefs.setString(AppConfig.keyBaseUrl, _baseUrlController.text);
       await prefs.setString(AppConfig.keyApiKey, _apiKeyController.text);
-      await prefs.setString(AppConfig.keyModelName, _modelNameController.text);
-      await prefs.setInt(AppConfig.keyMaxSteps, _maxSteps);
       await prefs.setString(AppConfig.keyLanguage, _language);
       
       if (mounted) {
@@ -101,9 +93,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   void dispose() {
-    _baseUrlController.dispose();
     _apiKeyController.dispose();
-    _modelNameController.dispose();
     super.dispose();
   }
 
@@ -138,60 +128,98 @@ class _SettingsPageState extends State<SettingsPage> {
       child: ListView(
         padding: const EdgeInsets.all(AppTheme.spacingMD),
         children: [
-          // 模型配置部分
+          // API Key 配置部分
           _buildSectionHeader(
-            icon: Icons.memory,
-            title: '模型配置',
+            icon: Icons.key,
+            title: '智谱 API 配置',
           ),
           _buildCard([
-            _buildTextField(
-              controller: _baseUrlController,
-              label: 'API 基础URL',
-              hint: 'http://localhost:8000/v1',
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return '请输入API URL';
-                }
-                if (!value.startsWith('http')) {
-                  return '请输入有效的URL';
-                }
-                return null;
-              },
-            ),
-            const Divider(height: 1),
-            _buildTextField(
-              controller: _apiKeyController,
-              label: 'API 密钥',
-              hint: '请输入你的魔搭社区API Key',
-            ),
-            const Divider(height: 1),
-            _buildTextField(
-              controller: _modelNameController,
-              label: '模型名称',
-              hint: 'autoglm-phone-9b',
+            Padding(
+              padding: const EdgeInsets.all(AppTheme.spacingMD),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: _apiKeyController,
+                    obscureText: _obscureApiKey,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return '请输入 API Key';
+                      }
+                      return null;
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'API Key',
+                      hintText: '请输入您的智谱 API Key',
+                      prefixIcon: const Icon(Icons.vpn_key),
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureApiKey ? Icons.visibility_off : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() => _obscureApiKey = !_obscureApiKey);
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingMD),
+                  
+                  // 获取 API Key 按钮
+                  InkWell(
+                    onTap: _openApiKeyPage,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppTheme.spacingMD,
+                        vertical: AppTheme.spacingSM,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentOrange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSM),
+                        border: Border.all(
+                          color: AppTheme.accentOrange.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.open_in_new, size: 16, color: AppTheme.accentOrange),
+                          const SizedBox(width: 8),
+                          Text(
+                            '获取 API Key',
+                            style: TextStyle(
+                              color: AppTheme.accentOrange,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  
+                  const SizedBox(height: AppTheme.spacingSM),
+                  
+                  Text(
+                    '提示：使用智谱开放平台的 autoglm-phone 模型',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textHint,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ]),
           
           const SizedBox(height: AppTheme.spacingLG),
           
-          // Agent 配置部分
+          // 语言配置部分
           _buildSectionHeader(
-            icon: Icons.tune,
-            title: 'Agent 配置',
+            icon: Icons.language,
+            title: '语言设置',
           ),
           _buildCard([
-            _buildSliderTile(
-              title: '最大步骤数',
-              subtitle: '单次任务最多执行 $_maxSteps 步',
-              value: _maxSteps.toDouble(),
-              min: 10,
-              max: 200,
-              divisions: 19,
-              onChanged: (value) {
-                setState(() => _maxSteps = value.round());
-              },
-            ),
-            const Divider(height: 1),
             _buildDropdownTile(
               title: '语言',
               subtitle: '系统提示词语言',
@@ -210,15 +238,15 @@ class _SettingsPageState extends State<SettingsPage> {
           
           const SizedBox(height: AppTheme.spacingLG),
           
-          // Shizuku 状态部分
+          // Shizuku 状态部分（可选）
           _buildSectionHeader(
             icon: Icons.security,
-            title: 'Shizuku 状态',
+            title: 'Shizuku 状态（可选）',
           ),
           _buildCard([
             _buildStatusTile(
               title: 'Shizuku 服务',
-              subtitle: _shizukuConnected ? '已连接' : '需要安装并授权 Shizuku',
+              subtitle: _shizukuConnected ? '已连接 - 提供增强功能' : '未连接（可使用无障碍服务代替）',
               isConnected: _shizukuConnected,
               onTap: () async {
                 await Navigator.pushNamed(context, '/shizuku');
@@ -249,6 +277,13 @@ class _SettingsPageState extends State<SettingsPage> {
               subtitle: const Text('查看和复用历史任务'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.pushNamed(context, '/history'),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: AppTheme.error),
+              title: const Text('清除历史记录'),
+              subtitle: const Text('删除所有任务历史'),
+              onTap: _clearHistory,
             ),
           ]),
           
@@ -288,6 +323,45 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _openApiKeyPage() async {
+    final uri = Uri.parse('https://bigmodel.cn/usercenter/proj-mgmt/apikeys');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _clearHistory() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('确认清除'),
+        content: const Text('确定要删除所有任务历史记录吗？此操作不可撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.error,
+            ),
+            child: const Text('清除'),
+          ),
+        ],
+      ),
+    );
+    
+    if (confirmed == true) {
+      await HistoryService().clearHistory();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('历史记录已清除')),
+        );
+      }
+    }
   }
 
   void _resetOnboarding() async {
@@ -341,70 +415,6 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    String? hint,
-    bool obscure = false,
-    String? Function(String?)? validator,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.all(AppTheme.spacingMD),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscure,
-        validator: validator,
-        readOnly: false,
-        enableInteractiveSelection: true,
-        decoration: InputDecoration(
-          labelText: label,
-          hintText: hint,
-          filled: true,
-          fillColor: Colors.transparent,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSliderTile({
-    required String title,
-    required String subtitle,
-    required double value,
-    required double min,
-    required double max,
-    int? divisions,
-    required ValueChanged<double> onChanged,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.all(AppTheme.spacingMD),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            subtitle,
-            style: const TextStyle(
-              fontSize: 13,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: divisions,
-            activeColor: AppTheme.accentOrange,
-            onChanged: onChanged,
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDropdownTile<T>({
     required String title,
     required String subtitle,
@@ -445,7 +455,7 @@ class _SettingsPageState extends State<SettingsPage> {
             width: 10,
             height: 10,
             decoration: BoxDecoration(
-              color: isConnected ? AppTheme.success : AppTheme.error,
+              color: isConnected ? AppTheme.success : Colors.grey,
               shape: BoxShape.circle,
             ),
           ),
@@ -453,7 +463,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Text(
             isConnected ? '已连接' : '未连接',
             style: TextStyle(
-              color: isConnected ? AppTheme.success : AppTheme.error,
+              color: isConnected ? AppTheme.success : Colors.grey,
             ),
           ),
         ],

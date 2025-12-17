@@ -45,6 +45,8 @@ android/app/*.keystore
 android/app/*.jks
 *.keystore
 *.jks
+keystore_base64.txt
+SIGNING_SETUP.md
 
 # 本地环境配置
 .env

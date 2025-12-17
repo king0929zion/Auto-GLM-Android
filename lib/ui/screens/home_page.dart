@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../core/phone_agent.dart';
 import '../../data/models/models.dart';
 import '../../config/settings_repository.dart';
-import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
 
 /// 主页面 - 简洁的任务执行界面
@@ -26,19 +25,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _requestShizukuPermission();
     _initializeAgent();
-  }
-  
-  Future<void> _requestShizukuPermission() async {
-    final controller = DeviceController();
-    final isRunning = await controller.isShizukuRunning();
-    if (isRunning) {
-      final isAuthorized = await controller.isShizukuAuthorized();
-      if (!isAuthorized) {
-        await controller.requestShizukuPermission();
-      }
-    }
   }
 
   Future<void> _initializeAgent() async {
@@ -224,6 +211,9 @@ class _HomePageState extends State<HomePage> {
       );
       return;
     }
+    
+    // 重置 Agent 上下文，清除历史截图和对话记录
+    _agent.reset();
     
     setState(() {
       _messages.clear();

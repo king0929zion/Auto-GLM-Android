@@ -220,8 +220,10 @@ class PhoneAgent extends ChangeNotifier {
     _context.clear();
     _stepCount = 0;
     _currentTask = null;
+    _latestScreenshot = null;  // 清除历史截图
     _isRunning = false;
     _shouldPause = false;
+    _currentTaskLogs.clear();  // 清除任务日志
     notifyListeners();
   }
 

@@ -43,8 +43,8 @@ class AutoGLMApp extends StatelessWidget {
       // 应用主题
       theme: AppTheme.lightTheme,
       
-      // 初始路由 - 首次运行显示欢迎页，否则显示权限检查页
-      initialRoute: isFirstRun ? '/welcome' : '/permission_setup',
+      // 初始路由 - 首次运行显示欢迎页（包含权限配置），否则直接进入主页
+      initialRoute: isFirstRun ? '/welcome' : '/',
       
       // 路由配置
       routes: {

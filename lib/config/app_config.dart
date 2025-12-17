@@ -18,7 +18,7 @@ class AppConfig {
   static const double defaultFrequencyPenalty = 0.2;
   
   /// Agent 配置
-  static const int maxSteps = 100;
+  static const int maxSteps = 200;
   static const int httpTimeoutSeconds = 30;
   static const int screenshotTimeoutMs = 10000;
   
