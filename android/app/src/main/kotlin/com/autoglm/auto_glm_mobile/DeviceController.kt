@@ -611,7 +611,13 @@ class DeviceController(private val context: Context) {
                 }
                 
                 android.util.Log.e("DeviceController", "All 3 accessibility attempts failed")
-                callback(false, "文本输入失败，请确保输入框已获取焦点")
+                val reason = AutoGLMAccessibilityService.getLastInputFailure()
+                val message = if (!reason.isNullOrBlank()) {
+                    "文本输入失败：$reason"
+                } else {
+                    "文本输入失败，请确保输入框已获取焦点"
+                }
+                callback(false, message)
                 
             } catch (e: Exception) {
                 android.util.Log.e("DeviceController", "typeText error: ${e.message}", e)

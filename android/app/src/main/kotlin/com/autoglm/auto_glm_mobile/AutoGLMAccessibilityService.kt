@@ -29,6 +29,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         private var instance: AutoGLMAccessibilityService? = null
         private var latestScreenshot: Bitmap? = null
         private var screenshotLatch: CountDownLatch? = null
+        @Volatile private var lastInputFailure: String? = null
         
         /**
          * 获取服务实例
@@ -76,6 +77,12 @@ class AutoGLMAccessibilityService : AccessibilityService() {
                 SystemClock.sleep(50)
             }
             return instance
+        }
+
+        fun getLastInputFailure(): String? = lastInputFailure
+
+        fun setLastInputFailure(message: String?) {
+            lastInputFailure = message
         }
         
         /**
@@ -179,6 +186,19 @@ class AutoGLMAccessibilityService : AccessibilityService() {
         }
     }
 
+    private fun canPaste(node: AccessibilityNodeInfo): Boolean {
+        return supportsAction(node, AccessibilityNodeInfo.ACTION_PASTE)
+    }
+
+    private fun isProbablyTextReceiver(node: AccessibilityNodeInfo): Boolean {
+        val className = node.className?.toString() ?: ""
+        val looksLikeEdit = className.contains("Edit", ignoreCase = true) ||
+                className.contains("TextField", ignoreCase = true) ||
+                className.contains("Input", ignoreCase = true)
+
+        return node.isEditable || looksLikeEdit || canSetText(node) || canPaste(node)
+    }
+
     private fun getCurrentFocusedTextTarget(): AccessibilityNodeInfo? {
         val roots = getAllWindowRoots()
         if (roots.isEmpty()) return null
@@ -191,7 +211,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
                 null
             }
             refreshQuietly(inputFocus)
-            if (inputFocus != null && (canSetText(inputFocus) || isProbablyTextInput(inputFocus))) return inputFocus
+            if (inputFocus != null && isProbablyTextReceiver(inputFocus)) return inputFocus
         }
 
         for (root in roots) {
@@ -201,7 +221,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
                 null
             }
             refreshQuietly(a11yFocus)
-            if (a11yFocus != null && (canSetText(a11yFocus) || isProbablyTextInput(a11yFocus))) return a11yFocus
+            if (a11yFocus != null && isProbablyTextReceiver(a11yFocus)) return a11yFocus
         }
 
         return null
@@ -231,11 +251,20 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     private fun focusOrClickForInput(node: AccessibilityNodeInfo) {
         try {
             refreshQuietly(node)
+            if (supportsAction(node, AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN)) {
+                node.performAction(AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN)
+                SystemClock.sleep(20)
+            }
             if (supportsAction(node, AccessibilityNodeInfo.ACTION_FOCUS) && !node.isFocused) {
                 node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
                 SystemClock.sleep(30)
             }
-            if (!node.isFocused && node.isClickable) {
+            if (!node.isAccessibilityFocused && supportsAction(node, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS)) {
+                node.performAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS)
+                SystemClock.sleep(20)
+            }
+            // 有些控件 isClickable=false 但仍支持 ACTION_CLICK（自定义/Compose）
+            if (!node.isFocused && (node.isClickable || supportsAction(node, AccessibilityNodeInfo.ACTION_CLICK))) {
                 node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
                 SystemClock.sleep(50)
             }
@@ -427,6 +456,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     private fun scoreTextInputCandidate(node: AccessibilityNodeInfo): Int {
         var score = 0
         if (supportsAction(node, AccessibilityNodeInfo.ACTION_SET_TEXT)) score += 120
+        if (supportsAction(node, AccessibilityNodeInfo.ACTION_PASTE)) score += 60
         if (node.isEditable) score += 90
         if (node.isFocused) score += 80
         if (node.isAccessibilityFocused) score += 60
@@ -700,7 +730,7 @@ class AutoGLMAccessibilityService : AccessibilityService() {
      * 递归查找可输入节点（包含自定义输入框）
      */
     private fun findTextInputNodesRecursive(node: AccessibilityNodeInfo, result: MutableList<AccessibilityNodeInfo>) {
-        if (node.isVisibleToUser && node.isEnabled && isProbablyTextInput(node)) {
+        if (node.isVisibleToUser && node.isEnabled && isProbablyTextReceiver(node)) {
             result.add(node)
         }
         
@@ -708,6 +738,16 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             val child = node.getChild(i) ?: continue
             findTextInputNodesRecursive(child, result)
         }
+    }
+
+    private fun waitForFocusedTextTarget(timeoutMs: Long): AccessibilityNodeInfo? {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            val t = getCurrentFocusedTextTarget()
+            if (t != null) return t
+            SystemClock.sleep(50)
+        }
+        return getCurrentFocusedTextTarget()
     }
 
     private fun resolveTypingTarget(): AccessibilityNodeInfo? {
@@ -777,15 +817,18 @@ class AutoGLMAccessibilityService : AccessibilityService() {
     fun typeTextLikePython(text: String): Boolean {
         return try {
             android.util.Log.d("Accessibility", "=== typeTextLikePython START: '$text' ===")
+            setLastInputFailure(null)
             val target = resolveTypingTarget()
             if (target == null) {
                 android.util.Log.e("Accessibility", "No typing target found")
+                setLastInputFailure("未找到可输入控件（无焦点/无候选节点）")
                 return false
             }
 
             // 1) focus/click 预热（类似 Python detect_and_set_adb_keyboard 的“确保可输入状态”）
             focusOrClickForInput(target)
-            SystemClock.sleep(120)
+            waitForFocusedTextTarget(800)
+            SystemClock.sleep(80)
 
             // 2) clear（不使用剪贴板）
             if (!clearOnTarget(target)) {
@@ -795,7 +838,8 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             }
 
             // 3) set text
-            val setTextTarget = findNearestSetTextTarget(target) ?: target
+            val focusedAfterWarmup = getCurrentFocusedTextTarget() ?: target
+            val setTextTarget = findNearestSetTextTarget(focusedAfterWarmup) ?: focusedAfterWarmup
             if (canSetText(setTextTarget) && performSetText(setTextTarget, text)) {
                 android.util.Log.d("Accessibility", "typeTextLikePython ACTION_SET_TEXT SUCCESS")
                 return true
@@ -814,9 +858,13 @@ class AutoGLMAccessibilityService : AccessibilityService() {
             // 兜底：剪贴板粘贴
             val pasteOk = tryClipboardPaste(target, text)
             android.util.Log.d("Accessibility", "typeTextLikePython clipboard fallback result=$pasteOk")
+            if (!pasteOk) {
+                setLastInputFailure("ACTION_SET_TEXT/ACTION_PASTE 均失败，可能控件不暴露无障碍输入能力")
+            }
             pasteOk
         } catch (e: Exception) {
             android.util.Log.e("Accessibility", "typeTextLikePython error: ${e.message}", e)
+            setLastInputFailure("异常: ${e.message}")
             false
         }
     }
