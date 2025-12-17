@@ -4,6 +4,16 @@
 
 ## 🔧 配置步骤
 
+### 0.（Windows / PowerShell）中文不乱码（推荐）
+
+如果你在 PowerShell 中看到中文输出乱码，建议在执行命令前先设置 UTF-8：
+
+```powershell
+chcp 65001 | Out-Null
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+```
+
 ### 1. 准备签名密钥
 
 你已经有了签名密钥 `my-release-key.keystore`，信息如下：

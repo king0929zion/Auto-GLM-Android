@@ -253,10 +253,14 @@ class DeviceController {
   /// 输入文本
   Future<bool> typeText(String text) async {
     try {
-      // 先清除现有文本
-      await _channel.invokeMethod('clearText');
-      await Future.delayed(const Duration(milliseconds: 500));
-      
+      // 先尝试清除现有文本（部分应用/控件可能不支持 clearText，失败时继续走 setText 覆盖）
+      try {
+        await _channel.invokeMethod('clearText');
+        await Future.delayed(const Duration(milliseconds: 300));
+      } on PlatformException {
+        // ignore
+      }
+
       // 输入新文本
       await _channel.invokeMethod('typeText', {'text': text});
       await Future.delayed(const Duration(milliseconds: 500));

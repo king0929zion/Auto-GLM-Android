@@ -13,6 +13,7 @@ import android.media.projection.MediaProjection
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.view.InputDevice
@@ -36,6 +37,7 @@ class DeviceController(private val context: Context) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val handlerThread = HandlerThread("DeviceControllerThread")
     private val handler: Handler
+    private val mainHandler = Handler(Looper.getMainLooper())
     
     private var screenWidth: Int = 1080
     private var screenHeight: Int = 2400
@@ -109,7 +111,7 @@ class DeviceController(private val context: Context) {
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var resultBitmap: Bitmap? = null
                     
-                    handler.post {
+                    mainHandler.post {
                         AutoGLMAccessibilityService.takeScreenshot { bitmap ->
                             resultBitmap = bitmap
                             latch.countDown()
@@ -376,7 +378,7 @@ class DeviceController(private val context: Context) {
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
                     
-                    handler.post {
+                    mainHandler.post {
                         AutoGLMAccessibilityService.getInstance()?.performTap(x.toFloat(), y.toFloat()) { success ->
                             gestureSuccess = success
                             latch.countDown()
@@ -422,7 +424,7 @@ class DeviceController(private val context: Context) {
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
                     
-                    handler.post {
+                    mainHandler.post {
                         AutoGLMAccessibilityService.getInstance()?.performDoubleTap(x.toFloat(), y.toFloat()) { success ->
                             gestureSuccess = success
                             latch.countDown()
@@ -469,7 +471,7 @@ class DeviceController(private val context: Context) {
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
                     
-                    handler.post {
+                    mainHandler.post {
                         AutoGLMAccessibilityService.getInstance()?.performLongPress(
                             x.toFloat(), y.toFloat(), duration.toLong()
                         ) { success ->
@@ -517,7 +519,7 @@ class DeviceController(private val context: Context) {
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var gestureSuccess = false
                     
-                    handler.post {
+                    mainHandler.post {
                         AutoGLMAccessibilityService.getInstance()?.performSwipe(
                             startX.toFloat(), startY.toFloat(),
                             endX.toFloat(), endY.toFloat(),
@@ -584,7 +586,7 @@ class DeviceController(private val context: Context) {
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var accessibilityResult = false
                     
-                    handler.post {
+                    mainHandler.post {
                         accessibilityResult = service.inputText(text)
                         android.util.Log.d("DeviceController", "Accessibility input result: $accessibilityResult")
                         latch.countDown()
@@ -780,7 +782,7 @@ class DeviceController(private val context: Context) {
                 if (AutoGLMAccessibilityService.isAvailable()) {
                     val service = AutoGLMAccessibilityService.getInstance()
                     if (service != null) {
-                        handler.post {
+                        mainHandler.post {
                             val result = service.clearText()
                             callback(result, if (result) null else "Failed to clear text")
                         }
