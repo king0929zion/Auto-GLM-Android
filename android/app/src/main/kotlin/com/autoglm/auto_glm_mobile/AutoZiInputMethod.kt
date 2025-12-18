@@ -33,6 +33,31 @@ class AutoZiInputMethod : InputMethodService() {
         
         // 输入法 ID
         const val IME_ID = "com.autoglm.auto_glm_mobile/.AutoZiInputMethod"
+        
+        // 静态实例引用（用于从 DeviceController 直接调用）
+        @Volatile
+        private var instance: AutoZiInputMethod? = null
+        
+        fun getInstance(): AutoZiInputMethod? = instance
+        
+        /**
+         * 直接输入文本（如果输入法实例可用）
+         */
+        fun inputTextDirect(text: String): Boolean {
+            val ime = instance
+            if (ime != null) {
+                val ic = ime.currentInputConnection
+                if (ic != null) {
+                    ic.commitText(text, 1)
+                    Log.d(TAG, "Direct input success: $text")
+                    return true
+                }
+                Log.e(TAG, "No input connection for direct input")
+            } else {
+                Log.w(TAG, "InputMethod instance not available")
+            }
+            return false
+        }
     }
     
     private var statusView: TextView? = null
@@ -66,13 +91,15 @@ class AutoZiInputMethod : InputMethodService() {
     
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "AutoZiInputMethod created")
+        instance = this
+        Log.d(TAG, "AutoZiInputMethod created, instance set")
         registerReceiver()
     }
     
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "AutoZiInputMethod destroyed")
+        instance = null
+        Log.d(TAG, "AutoZiInputMethod destroyed, instance cleared")
         unregisterReceiver()
     }
     

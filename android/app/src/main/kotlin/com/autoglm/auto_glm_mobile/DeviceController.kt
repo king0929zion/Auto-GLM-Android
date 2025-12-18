@@ -561,43 +561,71 @@ class DeviceController(private val context: Context) {
      */
     private fun tryAdbKeyboardInput(text: String): Boolean {
         return try {
-            android.util.Log.d("DeviceController", "tryAutoZiInputMethod: $text")
+            android.util.Log.d("DeviceController", "=== tryAutoZiInputMethod START ===")
+            android.util.Log.d("DeviceController", "Text to input: $text")
+            
+            // 检查 AutoZi 输入法是否已启用
+            val enabledImes = executeShellCommand("ime list -s").trim()
+            android.util.Log.d("DeviceController", "Enabled IMEs: $enabledImes")
+            
+            val autoZiIme = AutoZiInputMethod.IME_ID
+            if (!enabledImes.contains("com.autoglm.auto_glm_mobile")) {
+                android.util.Log.e("DeviceController", "AutoZi InputMethod NOT ENABLED! User needs to enable it in system settings.")
+                // 尝试启用它（可能需要 WRITE_SECURE_SETTINGS 权限）
+                val enableResult = executeShellCommand("ime enable $autoZiIme")
+                android.util.Log.d("DeviceController", "ime enable result: $enableResult")
+                Thread.sleep(300)
+            }
             
             // 获取当前输入法
             val originalIme = executeShellCommand("settings get secure default_input_method").trim()
             android.util.Log.d("DeviceController", "Original IME: $originalIme")
             
             // 切换到 AutoZi 输入法
-            val autoZiIme = AutoZiInputMethod.IME_ID
             if (!originalIme.contains("com.autoglm.auto_glm_mobile")) {
+                android.util.Log.d("DeviceController", "Switching to AutoZi InputMethod: $autoZiIme")
                 val setResult = executeShellCommand("ime set $autoZiIme")
                 android.util.Log.d("DeviceController", "ime set result: $setResult")
-                Thread.sleep(500)
+                Thread.sleep(800) // 增加等待时间
+            }
+            
+            // 验证切换是否成功
+            val currentIme = executeShellCommand("settings get secure default_input_method").trim()
+            android.util.Log.d("DeviceController", "Current IME after switch: $currentIme")
+            
+            if (!currentIme.contains("com.autoglm.auto_glm_mobile")) {
+                android.util.Log.e("DeviceController", "Failed to switch to AutoZi InputMethod!")
+                return false
             }
             
             // 清除现有文本
-            executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_CLEAR_TEXT}")
-            Thread.sleep(200)
+            val clearResult = executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_CLEAR_TEXT}")
+            android.util.Log.d("DeviceController", "Clear broadcast result: $clearResult")
+            Thread.sleep(300)
             
             // Base64编码并发送
             val encodedText = android.util.Base64.encodeToString(
                 text.toByteArray(Charsets.UTF_8),
                 android.util.Base64.NO_WRAP
             )
+            android.util.Log.d("DeviceController", "Encoded text: $encodedText")
             
-            val broadcastResult = executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_INPUT_B64} --es msg '$encodedText'")
-            android.util.Log.d("DeviceController", "broadcast result: $broadcastResult")
-            Thread.sleep(300)
+            val broadcastResult = executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_INPUT_B64} --es msg $encodedText")
+            android.util.Log.d("DeviceController", "Input broadcast result: $broadcastResult")
+            Thread.sleep(500)
             
             // 恢复原输入法
             if (originalIme.isNotEmpty() && !originalIme.contains("com.autoglm.auto_glm_mobile") && originalIme != "null") {
+                android.util.Log.d("DeviceController", "Restoring original IME: $originalIme")
                 executeShellCommand("ime set $originalIme")
-                Thread.sleep(200)
+                Thread.sleep(300)
             }
             
-            broadcastResult.contains("result=0") || broadcastResult.contains("Broadcast completed")
+            val success = broadcastResult.contains("result=0") || broadcastResult.contains("Broadcast completed")
+            android.util.Log.d("DeviceController", "=== tryAutoZiInputMethod END, success=$success ===")
+            success
         } catch (e: Exception) {
-            android.util.Log.e("DeviceController", "AutoZi InputMethod error: ${e.message}")
+            android.util.Log.e("DeviceController", "AutoZi InputMethod error: ${e.message}", e)
             false
         }
     }
