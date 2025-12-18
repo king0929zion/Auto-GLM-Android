@@ -113,6 +113,11 @@ class FloatingWindowService : Service() {
             "update" -> updateStatus(content)
             "takeover" -> showTakeoverAlert(content)
             "hideTakeover" -> hideTakeoverAlert()
+            "feedback" -> {
+                val x = intent.getIntExtra("x", 0)
+                val y = intent.getIntExtra("y", 0)
+                showFeedback(x, y)
+            }
         }
         
         return START_STICKY
@@ -582,6 +587,63 @@ class FloatingWindowService : Service() {
             takeoverView?.visibility = View.GONE
             floatingView?.visibility = View.VISIBLE
             startBlinking()
+        }
+    }
+
+    /**
+     * Show a visual feedback at coordinates (x, y)
+     * "Not too deep" - Subtle ripple effect
+     */
+    fun showFeedback(x: Int, y: Int) {
+        val size = dp2px(40f) // 40dp circle
+        
+        val feedbackView = View(this).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#40000000")) // 25% Black - Subtle
+                setStroke(dp2px(2f), Color.parseColor("#80FFFFFF")) // 50% White rim
+            }
+        }
+        
+        val params = WindowManager.LayoutParams().apply {
+            width = size
+            height = size
+            this.x = x - size / 2
+            this.y = y - size / 2
+            gravity = Gravity.TOP or Gravity.START
+            
+            type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            } else {
+                @Suppress("DEPRECATION")
+                WindowManager.LayoutParams.TYPE_PHONE
+            }
+            
+            flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+            
+            format = PixelFormat.TRANSLUCENT
+        }
+        
+        try {
+            windowManager?.addView(feedbackView, params)
+            
+            // Animation: Scale Up & Fade Out
+            feedbackView.animate()
+                .scaleX(1.5f)
+                .scaleY(1.5f)
+                .alpha(0f)
+                .setDuration(400)
+                .withEndAction {
+                    try {
+                        windowManager?.removeView(feedbackView)
+                    } catch (e: Exception) {}
+                }
+                .start()
+                
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

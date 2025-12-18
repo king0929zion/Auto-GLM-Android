@@ -367,6 +367,11 @@ class DeviceController(private val context: Context) {
      * 点击操作
      */
     fun tap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
+        // Show visual feedback
+        mainHandler.post {
+            FloatingWindowService.showTouchFeedback(x, y)
+        }
+
         executor.execute {
             try {
                 injectTap(x.toFloat(), y.toFloat())
@@ -389,6 +394,11 @@ class DeviceController(private val context: Context) {
      * 双击操作
      */
     fun doubleTap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
+        // Show visual feedback
+        mainHandler.post {
+            FloatingWindowService.showTouchFeedback(x, y)
+        }
+
         executor.execute {
             try {
                 injectTap(x.toFloat(), y.toFloat())
@@ -412,6 +422,11 @@ class DeviceController(private val context: Context) {
      * 长按操作
      */
     fun longPress(x: Int, y: Int, duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
+        // Show visual feedback
+        mainHandler.post {
+            FloatingWindowService.showTouchFeedback(x, y)
+        }
+
         executor.execute {
             try {
                 injectSwipe(x.toFloat(), y.toFloat(), x.toFloat(), y.toFloat(), duration.toLong())
@@ -434,6 +449,11 @@ class DeviceController(private val context: Context) {
      */
     fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, 
               duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
+        // Show visual feedback at start position
+        mainHandler.post {
+            FloatingWindowService.showTouchFeedback(startX, startY)
+        }
+
         executor.execute {
             try {
                 injectSwipe(
