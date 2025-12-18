@@ -36,6 +36,7 @@ class DeviceController(private val context: Context) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val handlerThread = HandlerThread("DeviceControllerThread")
     private val handler: Handler
+    private val mainHandler = Handler(android.os.Looper.getMainLooper())
     
     private var screenWidth: Int = 1080
     private var screenHeight: Int = 2400
