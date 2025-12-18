@@ -31,16 +31,23 @@ class FloatingWindowService : Service() {
     
     private var windowManager: WindowManager? = null
     private var floatingView: View? = null
+    private var rootLayout: LinearLayout? = null
+    private var ballContainer: FrameLayout? = null
     private var statusText: TextView? = null
     private var layoutParams: WindowManager.LayoutParams? = null
     
     // Eyes
     private var leftEye: View? = null
     private var rightEye: View? = null
-    private var blinkHandler: android.os.Handler? = null
+    private var blinkHandler: Handler? = null
     private var blinkRunnable: Runnable? = null
     
-    // Takeover弹窗
+    // Screen Info
+    private var screenWidth = 0
+    private var screenHeight = 0
+    private var isOnRightSide = false
+    
+    // Takeover
     private var takeoverView: View? = null
     private var takeoverParams: WindowManager.LayoutParams? = null
     private var takeoverMessageText: TextView? = null
@@ -75,6 +82,10 @@ class FloatingWindowService : Service() {
         instance = this
         
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
+        val metrics = resources.displayMetrics
+        screenWidth = metrics.widthPixels
+        screenHeight = metrics.heightPixels
+        
         createFloatingWindow()
         createTakeoverWindow()
     }
@@ -108,43 +119,49 @@ class FloatingWindowService : Service() {
     }
     
     private fun dp2px(dp: Float): Int {
-        return android.util.TypedValue.applyDimension(
-            android.util.TypedValue.COMPLEX_UNIT_DIP,
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
             dp,
             resources.displayMetrics
         ).toInt()
     }
     
     private fun createFloatingWindow() {
-        // 主容器
-        val rootLayout = LinearLayout(this).apply {
+        // Root Container
+        rootLayout = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            // 不设置背景，保持透明
+            // Allows children to overlap if needed, but linear is fine
         }
         
-        // 1. 黑球容器
-        val ballSize = dp2px(50f)
-        val ballContainer = android.widget.FrameLayout(this).apply {
+        // 1. The Soot Sprite (Black Ball)
+        val ballSize = dp2px(54f)
+        ballContainer = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(ballSize, ballSize)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.BLACK)
             }
-            elevation = dp2px(4f).toFloat()
+            elevation = dp2px(6f).toFloat() // Shadow
+            // Add a subtle border
+            foreground = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setStroke(dp2px(1f), Color.parseColor("#33FFFFFF"))
+                setColor(Color.TRANSPARENT)
+            }
         }
         
-        // 眼睛参数
-        val eyeWidth = dp2px(10f)
-        val eyeHeight = dp2px(14f)
-        val eyeTopMargin = dp2px(15f)
+        // Eyes Layout
+        val eyeWidth = dp2px(12f)
+        val eyeHeight = dp2px(16f)
+        val eyeTopMargin = dp2px(16f)
+        val eyeHorizontalMargin = dp2px(10f)
         
-        // 左眼
         leftEye = View(this).apply {
-            layoutParams = android.widget.FrameLayout.LayoutParams(eyeWidth, eyeHeight).apply {
+            layoutParams = FrameLayout.LayoutParams(eyeWidth, eyeHeight).apply {
                 gravity = Gravity.TOP or Gravity.START
                 topMargin = eyeTopMargin
-                marginStart = dp2px(12f)
+                marginStart = eyeHorizontalMargin
             }
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -152,12 +169,11 @@ class FloatingWindowService : Service() {
             }
         }
         
-        // 右眼
         rightEye = View(this).apply {
-            layoutParams = android.widget.FrameLayout.LayoutParams(eyeWidth, eyeHeight).apply {
+            layoutParams = FrameLayout.LayoutParams(eyeWidth, eyeHeight).apply {
                 gravity = Gravity.TOP or Gravity.END
                 topMargin = eyeTopMargin
-                marginEnd = dp2px(12f)
+                marginEnd = eyeHorizontalMargin
             }
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -165,38 +181,44 @@ class FloatingWindowService : Service() {
             }
         }
         
-        ballContainer.addView(leftEye)
-        ballContainer.addView(rightEye)
+        ballContainer?.addView(leftEye)
+        ballContainer?.addView(rightEye)
         
-        // 2. 思考气泡 (状态文字)
+        // 2. Thinking Bubble
         statusText = TextView(this).apply {
-            text = "Ready"
+            text = ""
             textSize = 13f
             setTextColor(Color.BLACK)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp2px(12f).toFloat()
+                cornerRadius = dp2px(16f).toFloat()
                 setStroke(dp2px(1f), Color.parseColor("#E0E0E0"))
             }
-            setPadding(dp2px(12f), dp2px(8f), dp2px(12f), dp2px(8f))
-            visibility = View.GONE // 初始隐藏，有内容时显示
+            setPadding(dp2px(16f), dp2px(10f), dp2px(16f), dp2px(10f))
+            elevation = dp2px(4f).toFloat()
+            visibility = View.GONE
             
+            // Layout params
             val params = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
-            params.marginStart = dp2px(12f)
+            // Margins will be set dynamically based on side
+            params.marginStart = dp2px(8f)
+            params.marginEnd = dp2px(8f)
             layoutParams = params
-            maxWidth = dp2px(220f) // 限制最大宽度
+            maxWidth = dp2px(240f) // Max width for bubble
         }
         
-        rootLayout.addView(ballContainer)
-        rootLayout.addView(statusText)
+        // Initial assembly: Ball -> Bubble (Left side default)
+        rootLayout?.addView(ballContainer)
+        rootLayout?.addView(statusText)
         
         floatingView = rootLayout
         
-        // 点击返回 App
-        ballContainer.setOnClickListener {
+        // Interaction: Tap to open app
+        val openApp = View.OnClickListener {
              try {
                 val intent = packageManager.getLaunchIntentForPackage(packageName)
                 if (intent != null) {
@@ -207,14 +229,15 @@ class FloatingWindowService : Service() {
                  e.printStackTrace()
              }
         }
+        ballContainer?.setOnClickListener(openApp)
         
-        // 配置窗口参数
+        // Window Parameters
         layoutParams = WindowManager.LayoutParams().apply {
             width = WindowManager.LayoutParams.WRAP_CONTENT
             height = WindowManager.LayoutParams.WRAP_CONTENT
             x = 0
-            y = 100
-            gravity = Gravity.TOP or Gravity.START // 改为左上角开始，方便拖拽
+            y = screenHeight / 4
+            gravity = Gravity.TOP or Gravity.START
             
             type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -230,14 +253,14 @@ class FloatingWindowService : Service() {
             format = PixelFormat.TRANSLUCENT
         }
         
-        // 添加拖动功能 (只在黑球上响应拖动，避免气泡遮挡操作？或者整体拖动)
-        // 这里设置为整体拖动
-        rootLayout.setOnTouchListener(object : View.OnTouchListener {
+        // Drag Handling
+        rootLayout?.setOnTouchListener(object : View.OnTouchListener {
             private var initialX = 0
             private var initialY = 0
             private var initialTouchX = 0f
             private var initialTouchY = 0f
             private var isMoving = false
+            private val touchSlop = 10 // Px threshold
             
             override fun onTouch(v: View, event: MotionEvent): Boolean {
                 when (event.action) {
@@ -247,32 +270,41 @@ class FloatingWindowService : Service() {
                         initialTouchX = event.rawX
                         initialTouchY = event.rawY
                         isMoving = false
-                        return true // 消费事件
+                        // Stop any ongoing specific animations if needed
+                        return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - initialTouchX).toInt()
                         val dy = (event.rawY - initialTouchY).toInt()
                         
-                        // 判定为移动
-                        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+                        // Check drag threshold
+                        if (!isMoving && (Math.abs(dx) > touchSlop || Math.abs(dy) > touchSlop)) {
                             isMoving = true
+                        }
+                        
+                        if (isMoving) {
                             layoutParams?.x = initialX + dx
                             layoutParams?.y = initialY + dy
+                            
+                            // Check which side we are on to update visuals immediately? 
+                            // Or wait until snap. Let's wait until snap for smoother performance.
+                            
                             try {
                                 windowManager?.updateViewLayout(floatingView, layoutParams)
-                            } catch (e: Exception) {
-                                // Ignore
-                            }
+                            } catch (e: Exception) { }
                         }
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
                         if (!isMoving) {
-                            // 如果不是移动，由于我们拦截了Touch，需要手动触发Click
-                            // 检测是否点击在球上? 简单起见，如果点击了就触发App跳转
+                            // Tap event
                             v.performClick()
-                            ballContainer.performClick()
+                            ballContainer?.performClick()
+                        } else {
+                            // Snap to nearest edge
+                            snapToEdge()
                         }
+                        isMoving = false
                         return true
                     }
                 }
@@ -284,18 +316,78 @@ class FloatingWindowService : Service() {
         
         try {
             windowManager?.addView(floatingView, layoutParams)
-            floatingView?.visibility = View.GONE
+            // Initial snap to left
+            snapToEdge()
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
     
+    /**
+     * Snap to Left or Right edge based on current position
+     */
+    private fun snapToEdge() {
+        val currentX = layoutParams?.x ?: 0
+        val viewWidth = floatingView?.width ?: 0
+        val centerX = currentX + viewWidth / 2
+        
+        val targetX: Int
+        val isRight: Boolean
+        
+        if (centerX > screenWidth / 2) {
+            // Snap to Right
+            targetX = screenWidth - viewWidth
+            isRight = true
+        } else {
+            // Snap to Left
+            targetX = 0
+            isRight = false
+        }
+        
+        isOnRightSide = isRight
+        updateLayoutOrientation(isRight)
+        
+        // Animate movement
+        val animator = android.animation.ValueAnimator.ofInt(currentX, targetX)
+        animator.duration = 300
+        animator.interpolator = android.view.animation.DecelerateInterpolator()
+        animator.addUpdateListener { animation ->
+            layoutParams?.x = animation.animatedValue as Int
+            try {
+                windowManager?.updateViewLayout(floatingView, layoutParams)
+            } catch (e: Exception) {}
+        }
+        animator.start()
+    }
+    
+    /**
+     * Update Layout Order: 
+     * Left Side: [Ball] [Bubble]
+     * Right Side: [Bubble] [Ball]
+     */
+    private fun updateLayoutOrientation(isRight: Boolean) {
+        rootLayout?.post {
+            rootLayout?.removeAllViews()
+            if (isRight) {
+                // Determine orders
+                rootLayout?.addView(statusText)
+                rootLayout?.addView(ballContainer)
+            } else {
+                rootLayout?.addView(ballContainer)
+                rootLayout?.addView(statusText)
+            }
+        }
+    }
+    
     private fun startBlinking() {
-        blinkHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        if (blinkHandler == null) {
+            blinkHandler = Handler(Looper.getMainLooper())
+        }
+        
         blinkRunnable = object : Runnable {
             override fun run() {
-                // 眨眼动画：缩放Y轴
-                val closeDuration = 150L
+                // Random blink animation
+                val closeDuration = 100L
                 val openDuration = 150L
                 
                 leftEye?.animate()?.scaleY(0.1f)?.setDuration(closeDuration)?.withEndAction {
@@ -306,8 +398,9 @@ class FloatingWindowService : Service() {
                     rightEye?.animate()?.scaleY(1.0f)?.setDuration(openDuration)?.start()
                 }?.start()
                 
-                // 随机下次眨眼时间 (2-5秒)
-                val delay = (2000 + Math.random() * 3000).toLong()
+                // Random delay: 2s to 6s
+                // Occasionally double blink handled by short delay? Simplify for now.
+                val delay = (2000 + Math.random() * 4000).toLong()
                 blinkHandler?.postDelayed(this, delay)
             }
         }
@@ -320,67 +413,58 @@ class FloatingWindowService : Service() {
     }
 
     /**
-     * 创建Takeover弹窗
+     * Create Takeover Alert Window
      */
     private fun createTakeoverWindow() {
-        val displayMetrics = resources.displayMetrics
-        val screenWidth = displayMetrics.widthPixels
-        
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setPadding(48, 40, 48, 40)
-            
+            setPadding(48, 48, 48, 48)
             background = GradientDrawable().apply {
-                setColor(Color.WHITE) // 改为白色背景
+                setColor(Color.WHITE)
                 cornerRadius = 32f
             }
-            elevation = dp2px(8f).toFloat()
+            elevation = dp2px(16f).toFloat()
         }
         
-        // 警告图标
         val iconText = TextView(this).apply {
             text = "⚠️"
-            textSize = 40f
+            textSize = 42f
             gravity = Gravity.CENTER
         }
         
-        // 标题
         val titleText = TextView(this).apply {
-            text = "需要人工接管"
-            textSize = 20f
+            text = "需人工介入"
+            textSize = 22f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
-            setPadding(0, 16, 0, 8)
+            setPadding(0, 24, 0, 8)
         }
         
-        // 消息内容
         takeoverMessageText = TextView(this).apply {
             text = "请完成操作后点击继续"
-            textSize = 15f
-            setTextColor(Color.parseColor("#666666"))
+            textSize = 16f
+            setTextColor(Color.parseColor("#444444")) // Dark grey
             gravity = Gravity.CENTER
-            setPadding(0, 8, 0, 24)
-            maxLines = 5
+            setPadding(0, 8, 0, 32)
+            maxLines = 6
         }
         
-        // 继续按钮
         val continueButton = Button(this).apply {
-            text = "已完成，继续"
+            text = "完成并继续"
             textSize = 16f
             setTextColor(Color.WHITE)
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
-                setColor(Color.BLACK)
+                setColor(Color.BLACK) // Black button
                 cornerRadius = 24f
             }
-            setPadding(48, 0, 48, 0)
+            elevation = dp2px(4f).toFloat()
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 
-                dp2px(48f)
-            ).apply {
-                topMargin = dp2px(16f)
-            }
+                dp2px(56f)
+            )
             
             setOnClickListener {
                 hideTakeoverAlert()
@@ -405,10 +489,8 @@ class FloatingWindowService : Service() {
                 @Suppress("DEPRECATION")
                 WindowManager.LayoutParams.TYPE_PHONE
             }
-            
             flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
                     WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
-            
             format = PixelFormat.TRANSLUCENT
         }
         
@@ -423,33 +505,49 @@ class FloatingWindowService : Service() {
     private fun removeFloatingWindow() {
         try {
             stopBlinking()
-            floatingView?.let {
-                windowManager?.removeView(it)
-            }
+            floatingView?.let { windowManager?.removeView(it) }
             floatingView = null
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
     }
     
     private fun removeTakeoverWindow() {
         try {
-            takeoverView?.let {
-                windowManager?.removeView(it)
-            }
+            takeoverView?.let { windowManager?.removeView(it) }
             takeoverView = null
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        } catch (e: Exception) { e.printStackTrace() }
     }
     
     fun updateStatus(content: String) {
         floatingView?.post {
             if (content.isEmpty()) {
-                statusText?.visibility = View.GONE
+                if (statusText?.visibility == View.VISIBLE) {
+                    statusText?.animate()?.alpha(0f)?.setDuration(200)?.withEndAction {
+                        statusText?.visibility = View.GONE
+                        // Recalculate snap after hidden (width changes)
+                        statusText?.text = "" 
+                        snapToEdge() 
+                    }?.start()
+                }
             } else {
                 statusText?.text = content
-                statusText?.visibility = View.VISIBLE
+                if (statusText?.visibility != View.VISIBLE) {
+                    statusText?.alpha = 0f
+                    statusText?.visibility = View.VISIBLE
+                    statusText?.animate()?.alpha(1f)?.setDuration(200)?.start()
+                    
+                    // Re-layout might be needed if width grows outwards
+                    // If stuck to right edge, growing text pushes ball left correctly due to 'Bubble -> Ball' order?
+                    // No, layout is set to specific X. If width grows, it grows to right (off screen) unless we adjust X.
+                    // This is tricky.
+                    // Simplified fix: When text updates, force snap again to keep alignment? 
+                    // Or let it be. 'snapToEdge' re-runs on text hide helps.
+                    // For text Show:
+                    if (isOnRightSide) {
+                         // Ideally we should adjust X, but that requires measuring text width.
+                         // For now, let's just trigger a re-snap / refresh layout
+                         floatingView?.postDelayed({ snapToEdge() }, 50)
+                    }
+                }
             }
         }
     }
@@ -457,8 +555,8 @@ class FloatingWindowService : Service() {
     fun showWindow() {
         floatingView?.post {
             floatingView?.visibility = View.VISIBLE
-            // 重置位置到左上或记忆位置 (这里暂不重置，保留上次位置)
             startBlinking()
+            snapToEdge()
         }
     }
     
