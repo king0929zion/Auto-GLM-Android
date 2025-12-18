@@ -49,9 +49,6 @@ class FloatingWindowService : Service() {
     
     // Takeover
     private var takeoverView: View? = null
-    private var takeoverParams: WindowManager.LayoutParams? = null
-    private var takeoverMessageText: TextView? = null
-    
     companion object {
         private var instance: FloatingWindowService? = null
         
@@ -74,6 +71,10 @@ class FloatingWindowService : Service() {
         
         fun hideTakeover() {
             instance?.hideTakeoverAlert()
+        }
+
+        fun showTouchFeedback(x: Int, y: Int) {
+            instance?.showFeedback(x, y)
         }
     }
     
@@ -524,37 +525,58 @@ class FloatingWindowService : Service() {
         } catch (e: Exception) { e.printStackTrace() }
     }
     
+    // Typewriter
+    private val typewriterHandler = Handler(Looper.getMainLooper())
+    private var typewriterRunnable: Runnable? = null
+    
     fun updateStatus(content: String) {
         floatingView?.post {
+            // Cancel existing typewriter
+            typewriterRunnable?.let { typewriterHandler.removeCallbacks(it) }
+            
             if (content.isEmpty()) {
                 if (statusText?.visibility == View.VISIBLE) {
                     statusText?.animate()?.alpha(0f)?.setDuration(200)?.withEndAction {
                         statusText?.visibility = View.GONE
-                        // Recalculate snap after hidden (width changes)
                         statusText?.text = "" 
                         snapToEdge() 
                     }?.start()
                 }
             } else {
-                statusText?.text = content
+                // If not visible, show it
                 if (statusText?.visibility != View.VISIBLE) {
                     statusText?.alpha = 0f
                     statusText?.visibility = View.VISIBLE
+                    statusText?.text = "" // Start empty
                     statusText?.animate()?.alpha(1f)?.setDuration(200)?.start()
-                    
-                    // Re-layout might be needed if width grows outwards
-                    // If stuck to right edge, growing text pushes ball left correctly due to 'Bubble -> Ball' order?
-                    // No, layout is set to specific X. If width grows, it grows to right (off screen) unless we adjust X.
-                    // This is tricky.
-                    // Simplified fix: When text updates, force snap again to keep alignment? 
-                    // Or let it be. 'snapToEdge' re-runs on text hide helps.
-                    // For text Show:
-                    if (isOnRightSide) {
-                         // Ideally we should adjust X, but that requires measuring text width.
-                         // For now, let's just trigger a re-snap / refresh layout
-                         floatingView?.postDelayed({ snapToEdge() }, 50)
+                }
+                
+                // If content is same as current text (completed), do nothing
+                if (statusText?.text.toString() == content) return@post
+                
+                // Calculate delay: faster for longer text
+                val delay = if (content.length > 30) 15L else 30L
+                
+                var charIndex = 0
+                statusText?.text = "" // Clear for typing
+                
+                typewriterRunnable = object : Runnable {
+                    override fun run() {
+                        if (charIndex < content.length) {
+                            charIndex++
+                            statusText?.text = content.substring(0, charIndex)
+                            // Ideally, we should check if width change affects position here
+                            typewriterHandler.postDelayed(this, delay)
+                        } else {
+                            // Finished
+                            if (isOnRightSide) {
+                                // Re-snap to ensure right-alignment consistency if width changed significantly
+                                snapToEdge()
+                            }
+                        }
                     }
                 }
+                typewriterHandler.post(typewriterRunnable!!)
             }
         }
     }
