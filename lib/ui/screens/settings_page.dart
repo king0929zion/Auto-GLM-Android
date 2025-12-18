@@ -623,7 +623,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: () async {
-                            final url = Uri.parse('https://github.com/nicokosi/adb-keyboard/releases');
+                            final url = Uri.parse('https://github.com/senzhk/ADBKeyBoard/blob/master/ADBKeyboard.apk');
                             if (await canLaunchUrl(url)) {
                               await launchUrl(url, mode: LaunchMode.externalApplication);
                             }

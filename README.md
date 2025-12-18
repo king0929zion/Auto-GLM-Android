@@ -65,7 +65,7 @@ AutoZi 支持两种输入方式，根据配置自动选择：
    - 按照应用内说明启动服务（需要 ADB 或 root）
 
 2. **安装 ADB Keyboard**
-   - 下载 [ADB Keyboard APK](https://github.com/nicokosi/adb-keyboard/releases)
+   - 下载 [ADB Keyboard APK](https://github.com/senzhk/ADBKeyBoard/blob/master/ADBKeyboard.apk)
    - 安装后在系统设置 → 语言和输入法中**启用** ADB Keyboard
 
 3. **授权 Shizuku**
@@ -140,5 +140,5 @@ android/
 
 - [智谱AI](https://bigmodel.cn/) - 提供 AutoGLM 模型
 - [Shizuku](https://shizuku.rikka.app/) - 提供系统级能力
-- [ADB Keyboard](https://github.com/nicokosi/adb-keyboard) - 可靠的文字输入
+- [ADB Keyboard](https://github.com/senzhk/ADBKeyBoard) - 可靠的文字输入
 - [Flutter](https://flutter.dev/) - 跨平台开发框架
