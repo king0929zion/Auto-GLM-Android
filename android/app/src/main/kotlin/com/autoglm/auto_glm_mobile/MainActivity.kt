@@ -86,7 +86,6 @@ class MainActivity : FlutterActivity() {
             "requestIgnoreBatteryOptimizations" -> requestIgnoreBatteryOptimizations(result)
             "startKeepAliveService" -> startKeepAliveService(result)
             "stopKeepAliveService" -> stopKeepAliveService(result)
-            "isAdbKeyboardInstalled" -> isAdbKeyboardInstalled(result)
             else -> result.notImplemented()
         }
     }
@@ -568,18 +567,6 @@ class MainActivity : FlutterActivity() {
             result.success(true)
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Stop KeepAliveService error: ${e.message}")
-            result.success(false)
-        }
-    }
-    
-    /**
-     * 检查 ADB Keyboard 是否已安装
-     */
-    private fun isAdbKeyboardInstalled(result: MethodChannel.Result) {
-        try {
-            packageManager.getPackageInfo("com.android.adbkeyboard", 0)
-            result.success(true)
-        } catch (e: PackageManager.NameNotFoundException) {
             result.success(false)
         }
     }

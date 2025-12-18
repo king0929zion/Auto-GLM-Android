@@ -34,7 +34,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   bool _shizukuRunning = false;
   bool _shizukuAuthorized = false;
   bool _batteryOptimizationIgnored = false;
-  bool _adbKeyboardInstalled = false;
   
   final DeviceController _deviceController = DeviceController();
   Timer? _permissionCheckTimer;
@@ -86,7 +85,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       _shizukuRunning = await _deviceController.isShizukuRunning();
       _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
       _batteryOptimizationIgnored = await _deviceController.isIgnoringBatteryOptimizations();
-      _adbKeyboardInstalled = await _deviceController.isAdbKeyboardInstalled();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
@@ -207,23 +205,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               isRequired: false,
               onTap: () => _deviceController.requestIgnoreBatteryOptimizations(),
             ),
-            const Divider(height: 1),
-            // ADB Keyboard
-            _buildPermissionTile(
-              title: 'ADB Keyboard',
-              subtitle: _adbKeyboardInstalled 
-                  ? '已安装 - 配合Shizuku提供更可靠的输入' 
-                  : '未安装（可选，需Shizuku）',
-              icon: Icons.keyboard,
-              isGranted: _adbKeyboardInstalled,
-              isRequired: false,
-              onTap: () => _showAdbKeyboardGuide(),
-            ),
           ]),
-          
-          // 输入方式说明卡片
-          const SizedBox(height: AppTheme.spacingMD),
-          _buildInputMethodInfoCard(),
           
           const SizedBox(height: AppTheme.spacingLG),
           
@@ -540,125 +522,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       ),
       child: Column(
         children: children,
-      ),
-    );
-  }
-  
-  /// 显示 ADB Keyboard 安装引导
-  void _showAdbKeyboardGuide() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.keyboard, color: AppTheme.accentOrange),
-            const SizedBox(width: 12),
-            const Text('ADB Keyboard'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'ADB Keyboard 配合 Shizuku 可以提供更可靠的中文输入能力，特别是在微信等应用中。',
-              style: TextStyle(height: 1.5),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              '安装步骤：',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              '1. 下载 ADB Keyboard APK\n'
-              '2. 安装并在设置中启用\n'
-              '3. 确保 Shizuku 已授权',
-              style: TextStyle(height: 1.5),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('知道了'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              final url = Uri.parse('https://github.com/nicokosi/adb-keyboard/releases');
-              if (await canLaunchUrl(url)) {
-                await launchUrl(url, mode: LaunchMode.externalApplication);
-              }
-            },
-            child: const Text('下载'),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  /// 构建输入方式说明卡片
-  Widget _buildInputMethodInfoCard() {
-    final bool useShizukuInput = _shizukuAuthorized;
-    
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingMD),
-      decoration: BoxDecoration(
-        color: useShizukuInput 
-            ? AppTheme.success.withOpacity(0.1)
-            : AppTheme.info.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMD),
-        border: Border.all(
-          color: useShizukuInput 
-              ? AppTheme.success.withOpacity(0.3)
-              : AppTheme.info.withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            useShizukuInput ? Icons.keyboard : Icons.accessibility_new,
-            color: useShizukuInput ? AppTheme.success : AppTheme.info,
-            size: 28,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '当前输入方式',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  useShizukuInput 
-                      ? 'Shizuku + ADB Keyboard（推荐）'
-                      : '无障碍服务',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 15,
-                  ),
-                ),
-                if (!useShizukuInput) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '授权Shizuku可获得更可靠的输入（需安装ADB Keyboard）',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

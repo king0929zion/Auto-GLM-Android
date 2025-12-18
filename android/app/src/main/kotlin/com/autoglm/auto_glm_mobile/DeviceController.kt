@@ -1,4 +1,4 @@
-﻿package com.autoglm.auto_glm_mobile
+package com.autoglm.auto_glm_mobile
 
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -13,7 +13,6 @@ import android.media.projection.MediaProjection
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.Looper
 import android.os.SystemClock
 import android.util.DisplayMetrics
 import android.view.InputDevice
@@ -37,7 +36,6 @@ class DeviceController(private val context: Context) {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
     private val handlerThread = HandlerThread("DeviceControllerThread")
     private val handler: Handler
-    private val mainHandler = Handler(Looper.getMainLooper())
     
     private var screenWidth: Int = 1080
     private var screenHeight: Int = 2400
@@ -105,16 +103,13 @@ class DeviceController(private val context: Context) {
                 android.util.Log.d("DeviceController", "Starting screenshot capture...")
                 
                 // 方法1: 使用无障碍服务截图 (最可靠，Android 11+)
-                if (AutoGLMAccessibilityService.isEnabled(context)) {
-                    AutoGLMAccessibilityService.waitForInstance(1200)
-                }
                 if (AutoGLMAccessibilityService.isAvailable()) {
                     android.util.Log.d("DeviceController", "Trying Accessibility Service screenshot...")
                     
                     val latch = java.util.concurrent.CountDownLatch(1)
                     var resultBitmap: Bitmap? = null
                     
-                    mainHandler.post {
+                    handler.post {
                         AutoGLMAccessibilityService.takeScreenshot { bitmap ->
                             resultBitmap = bitmap
                             latch.countDown()
@@ -369,41 +364,15 @@ class DeviceController(private val context: Context) {
     
     /**
      * 点击操作
-     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun tap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                // 方法1: 无障碍服务手势 (Android 7.0+, 最可靠)
-                val a11yServiceForGesture =
-                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
-                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    android.util.Log.d("DeviceController", "Trying Accessibility gesture tap...")
-                     
-                    val latch = java.util.concurrent.CountDownLatch(1)
-                    var gestureSuccess = false
-                     
-                    mainHandler.post {
-                        a11yServiceForGesture.performTap(x.toFloat(), y.toFloat()) { success ->
-                            gestureSuccess = success
-                            latch.countDown()
-                        }
-                    }
-                    
-                    if (latch.await(3, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
-                        Thread.sleep(delay.toLong())
-                        callback(true, null)
-                        return@execute
-                    }
-                    android.util.Log.w("DeviceController", "Accessibility gesture failed, trying Shizuku...")
-                }
-                
-                // 方法2: Shizuku InputManager 注入事件
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
-                // 方法3: Shell 命令降级
+                // 降级方案：使用shell命令
                 try {
                     executeShellCommand("input tap $x $y")
                     Thread.sleep(delay.toLong())
@@ -417,42 +386,16 @@ class DeviceController(private val context: Context) {
     
     /**
      * 双击操作
-     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun doubleTap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                // 方法1: 无障碍服务手势
-                val a11yServiceForGesture =
-                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
-                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    android.util.Log.d("DeviceController", "Trying Accessibility gesture double tap...")
-                     
-                    val latch = java.util.concurrent.CountDownLatch(1)
-                    var gestureSuccess = false
-                     
-                    mainHandler.post {
-                        a11yServiceForGesture.performDoubleTap(x.toFloat(), y.toFloat()) { success ->
-                            gestureSuccess = success
-                            latch.countDown()
-                        }
-                    }
-                    
-                    if (latch.await(3, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
-                        Thread.sleep(delay.toLong())
-                        callback(true, null)
-                        return@execute
-                    }
-                }
-                
-                // 方法2: Shizuku InputManager 注入事件
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(100)
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
-                // 方法3: Shell 命令降级
                 try {
                     executeShellCommand("input tap $x $y && sleep 0.1 && input tap $x $y")
                     Thread.sleep(delay.toLong())
@@ -466,42 +409,14 @@ class DeviceController(private val context: Context) {
     
     /**
      * 长按操作
-     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun longPress(x: Int, y: Int, duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                // 方法1: 无障碍服务手势
-                val a11yServiceForGesture =
-                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
-                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    android.util.Log.d("DeviceController", "Trying Accessibility gesture long press...")
-                     
-                    val latch = java.util.concurrent.CountDownLatch(1)
-                    var gestureSuccess = false
-                     
-                    mainHandler.post {
-                        a11yServiceForGesture.performLongPress(
-                            x.toFloat(), y.toFloat(), duration.toLong()
-                        ) { success ->
-                            gestureSuccess = success
-                            latch.countDown()
-                        }
-                    }
-                    
-                    if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
-                        Thread.sleep(delay.toLong())
-                        callback(true, null)
-                        return@execute
-                    }
-                }
-                
-                // 方法2: Shizuku InputManager 注入事件
                 injectSwipe(x.toFloat(), y.toFloat(), x.toFloat(), y.toFloat(), duration.toLong())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
-                // 方法3: Shell 命令降级
                 try {
                     executeShellCommand("input swipe $x $y $x $y $duration")
                     Thread.sleep(delay.toLong())
@@ -515,40 +430,11 @@ class DeviceController(private val context: Context) {
     
     /**
      * 滑动操作
-     * 降级策略：无障碍服务 → Shizuku InputManager → Shell命令
      */
     fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, 
               duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                // 方法1: 无障碍服务手势
-                val a11yServiceForGesture =
-                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
-                if (a11yServiceForGesture != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    android.util.Log.d("DeviceController", "Trying Accessibility gesture swipe...")
-                     
-                    val latch = java.util.concurrent.CountDownLatch(1)
-                    var gestureSuccess = false
-                     
-                    mainHandler.post {
-                        a11yServiceForGesture.performSwipe(
-                            startX.toFloat(), startY.toFloat(),
-                            endX.toFloat(), endY.toFloat(),
-                            duration.toLong()
-                        ) { success ->
-                            gestureSuccess = success
-                            latch.countDown()
-                        }
-                    }
-                    
-                    if (latch.await(5, java.util.concurrent.TimeUnit.SECONDS) && gestureSuccess) {
-                        Thread.sleep(delay.toLong())
-                        callback(true, null)
-                        return@execute
-                    }
-                }
-                
-                // 方法2: Shizuku InputManager 注入事件
                 injectSwipe(
                     startX.toFloat(), startY.toFloat(),
                     endX.toFloat(), endY.toFloat(),
@@ -557,7 +443,6 @@ class DeviceController(private val context: Context) {
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
-                // 方法3: Shell 命令降级
                 try {
                     executeShellCommand("input swipe $startX $startY $endX $endY $duration")
                     Thread.sleep(delay.toLong())
@@ -570,76 +455,42 @@ class DeviceController(private val context: Context) {
     }
     /**
      * 输入文本
-     * 优先：Shizuku 剪贴板+粘贴（更可靠，支持微信等应用）
-     * 回退：无障碍服务
+     * 多种输入方式的降级策略：
+     * 1. ADB Keyboard广播 (支持中文)
+     * 2. input text命令 (仅ASCII)
+     * 3. 无障碍服务粘贴 (Android 11+)
      */
     fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                android.util.Log.d("DeviceController", "typeText: '$text'")
+                android.util.Log.d("DeviceController", "typeText: $text")
                 
-                // 1. 如果 Shizuku 已授权，优先使用剪贴板+粘贴
-                if (Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
-                    android.util.Log.d("DeviceController", "Shizuku available, trying clipboard+paste")
-                    val shizukuResult = tryShizukuClipboardPaste(text)
-                    if (shizukuResult) {
-                        android.util.Log.d("DeviceController", "Shizuku clipboard+paste success")
-                        callback(true, null)
-                        return@execute
-                    }
-                    android.util.Log.w("DeviceController", "Shizuku failed, fallback to accessibility")
-                }
-                
-                // 2. 回退到无障碍服务
-                if (!AutoGLMAccessibilityService.isEnabled(context)) {
-                    android.util.Log.e("DeviceController", "Accessibility Service not enabled")
-                    callback(false, "无障碍服务未启用")
+                // 方法1: 尝试使用ADB Keyboard (支持中文)
+                val adbKeyboardResult = tryAdbKeyboardInput(text)
+                if (adbKeyboardResult) {
+                    android.util.Log.d("DeviceController", "ADB Keyboard input success")
+                    callback(true, null)
                     return@execute
                 }
                 
-                val service = AutoGLMAccessibilityService.waitForInstance(2000)
-                if (service == null) {
-                    android.util.Log.e("DeviceController", "Accessibility Service instance is null")
-                    callback(false, "无障碍服务正在连接，请稍后重试")
+                // 方法2: 使用input text命令 (仅支持ASCII)
+                val inputTextResult = tryInputTextCommand(text)
+                if (inputTextResult) {
+                    android.util.Log.d("DeviceController", "input text command success")
+                    callback(true, null)
                     return@execute
                 }
                 
-                // 尝试最多3次
-                for (attempt in 1..3) {
-                    android.util.Log.d("DeviceController", "Accessibility attempt $attempt/3")
-                    
-                    val latch = java.util.concurrent.CountDownLatch(1)
-                    var accessibilityResult = false
-                     
-                    mainHandler.post {
-                        accessibilityResult = service.typeTextLikePython(text)
-                        android.util.Log.d("DeviceController", "Accessibility input result: $accessibilityResult")
-                        latch.countDown()
-                    }
-                    
-                    // 等待无障碍服务完成
-                    latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
-                    
-                    if (accessibilityResult) {
-                        callback(true, null)
-                        return@execute
-                    }
-                    
-                    // 失败了，等待一下再重试
-                    if (attempt < 3) {
-                        android.util.Log.w("DeviceController", "Attempt $attempt failed, waiting before retry...")
-                        Thread.sleep(500)
-                    }
+                // 方法3: 使用剪贴板 + 模拟粘贴
+                val clipboardResult = tryClipboardPaste(text)
+                if (clipboardResult) {
+                    android.util.Log.d("DeviceController", "clipboard paste success")
+                    callback(true, null)
+                    return@execute
                 }
                 
-                android.util.Log.e("DeviceController", "All 3 accessibility attempts failed")
-                val reason = AutoGLMAccessibilityService.getLastInputFailure()
-                val message = if (!reason.isNullOrBlank()) {
-                    "文本输入失败：$reason"
-                } else {
-                    "文本输入失败，请确保输入框已获取焦点"
-                }
-                callback(false, message)
+                android.util.Log.e("DeviceController", "All input methods failed")
+                callback(false, "All input methods failed")
                 
             } catch (e: Exception) {
                 android.util.Log.e("DeviceController", "typeText error: ${e.message}", e)
@@ -649,120 +500,60 @@ class DeviceController(private val context: Context) {
     }
     
     /**
-     * 使用 Shizuku + ADB Keyboard 输入文本
-     * 这是最可靠的中文输入方式，支持微信等应用
-     */
-    private fun tryShizukuClipboardPaste(text: String): Boolean {
-        // 直接调用 ADB Keyboard 输入方法
-        return tryAdbKeyboardInput(text)
-    }
-    
-    /**
-     * 使用ADB方式输入文字并回调
-     */
-    private fun tryAdbKeyboardAndCallback(text: String, callback: (Boolean, String?) -> Unit) {
-        try {
-            // 方法2: 尝试使用ADB Keyboard (支持中文)
-            val adbKeyboardResult = tryAdbKeyboardInput(text)
-            if (adbKeyboardResult) {
-                android.util.Log.d("DeviceController", "ADB Keyboard input success")
-                callback(true, null)
-                return
-            }
-            
-            // 方法3: 使用input text命令 (仅支持ASCII)
-            val inputTextResult = tryInputTextCommand(text)
-            if (inputTextResult) {
-                android.util.Log.d("DeviceController", "input text command success")
-                callback(true, null)
-                return
-            }
-            
-            android.util.Log.e("DeviceController", "All input methods failed")
-            callback(false, "All input methods failed. Please install ADB Keyboard for Chinese input.")
-            
-        } catch (e: Exception) {
-            android.util.Log.e("DeviceController", "ADB input error: ${e.message}", e)
-            callback(false, e.message)
-        }
-    }
-    
-    /**
      * 使用ADB Keyboard输入文本
-     * 严格按照原Python实现
      */
     private fun tryAdbKeyboardInput(text: String): Boolean {
         return try {
-            android.util.Log.d("DeviceController", "tryAdbKeyboardInput: $text")
-            
             // 检查ADB Keyboard是否安装
-            val packageCheck = executeShizukuShellCommand("pm list packages com.android.adbkeyboard")
-            android.util.Log.d("DeviceController", "Package check: $packageCheck")
-            
+            val packageCheck = executeShellCommand("pm list packages com.android.adbkeyboard")
             if (!packageCheck.contains("com.android.adbkeyboard")) {
                 android.util.Log.w("DeviceController", "ADB Keyboard not installed")
                 return false
             }
             
             // 获取当前输入法
-            val originalIme = executeShizukuShellCommand("settings get secure default_input_method").trim()
+            val originalIme = executeShellCommand("settings get secure default_input_method").trim()
             android.util.Log.d("DeviceController", "Original IME: $originalIme")
             
-            // 切换到ADB Keyboard（如果还没有）
+            // 切换到ADB Keyboard
             if (!originalIme.contains("com.android.adbkeyboard")) {
-                val setResult = executeShizukuShellCommand("ime set com.android.adbkeyboard/.AdbIME")
+                val setResult = executeShellCommand("ime set com.android.adbkeyboard/.AdbIME")
                 android.util.Log.d("DeviceController", "ime set result: $setResult")
-                Thread.sleep(500)
+                Thread.sleep(800)
             }
             
-            // 清除现有文本 - 使用与Python相同的命令格式
-            val clearResult = executeShizukuShellCommand("am broadcast -a ADB_CLEAR_TEXT")
-            android.util.Log.d("DeviceController", "Clear result: $clearResult")
-            Thread.sleep(200)
+            // 清除现有文本
+            executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
+            Thread.sleep(300)
             
-            // Base64编码 - 与Python实现一致
+            // Base64编码并发送
             val encodedText = android.util.Base64.encodeToString(
                 text.toByteArray(Charsets.UTF_8),
                 android.util.Base64.NO_WRAP
             )
-            android.util.Log.d("DeviceController", "Encoded text: $encodedText")
             
-            // 发送广播 - 不使用引号，与Python实现完全一致
-            // Python: am broadcast -a ADB_INPUT_B64 --es msg <base64>
-            val broadcastResult = executeShizukuShellCommand("am broadcast -a ADB_INPUT_B64 --es msg $encodedText")
-            android.util.Log.d("DeviceController", "Broadcast result: $broadcastResult")
-            Thread.sleep(300)
+            val broadcastResult = executeShellCommand("am broadcast -a ADB_INPUT_B64 --es msg '$encodedText'")
+            android.util.Log.d("DeviceController", "broadcast result: $broadcastResult")
+            Thread.sleep(500)
             
-            // 检查广播是否成功
-            val success = broadcastResult.contains("result=0") || broadcastResult.contains("Broadcast completed")
-            android.util.Log.d("DeviceController", "ADB Keyboard success: $success")
+            // 恢复原输入法
+            if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard") && originalIme != "null") {
+                executeShellCommand("ime set $originalIme")
+                Thread.sleep(300)
+            }
             
-            // 恢复原输入法（可选，保持ADB Keyboard可能更好）
-            // if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard") && originalIme != "null") {
-            //     executeShizukuShellCommand("ime set $originalIme")
-            // }
-            
-            success
+            true
         } catch (e: Exception) {
-            android.util.Log.e("DeviceController", "ADB Keyboard error: ${e.message}", e)
+            android.util.Log.e("DeviceController", "ADB Keyboard error: ${e.message}")
             false
         }
     }
     
     /**
      * 使用input text命令输入
-     * 注意：只支持ASCII字符
      */
     private fun tryInputTextCommand(text: String): Boolean {
         return try {
-            android.util.Log.d("DeviceController", "tryInputTextCommand: $text")
-            
-            // 检查是否包含非ASCII字符
-            if (!text.all { it.code < 128 }) {
-                android.util.Log.w("DeviceController", "Text contains non-ASCII characters, skipping input text")
-                return false
-            }
-            
             // 转义特殊字符
             val escapedText = text
                 .replace("\\", "\\\\")
@@ -777,7 +568,7 @@ class DeviceController(private val context: Context) {
                 .replace(")", "\\)")
                 .replace(";", "\\;")
             
-            val result = executeShizukuShellCommand("input text \"$escapedText\"")
+            val result = executeShellCommand("input text \"$escapedText\"")
             android.util.Log.d("DeviceController", "input text result: $result")
             Thread.sleep(300)
             
@@ -793,16 +584,18 @@ class DeviceController(private val context: Context) {
      */
     private fun tryClipboardPaste(text: String): Boolean {
         return try {
-            android.util.Log.d("DeviceController", "tryClipboardPaste: $text")
+            // 设置剪贴板内容
+            val encodedText = android.util.Base64.encodeToString(
+                text.toByteArray(Charsets.UTF_8),
+                android.util.Base64.NO_WRAP
+            )
             
-            // 使用am命令设置剪贴板（需要Android 10+）
-            val escaped = text.replace("'", "'\\''")
-            executeShizukuShellCommand("am broadcast -a clipper.set -e text '$escaped'")
+            // 使用服务设置剪贴板
+            executeShellCommand("service call clipboard 2 i32 1 s16 '$text'")
             Thread.sleep(200)
             
-            // 模拟长按触发粘贴菜单
-            // 或直接使用 input keyevent
-            executeShizukuShellCommand("input keyevent 279") // KEYCODE_PASTE
+            // 模拟Ctrl+V粘贴
+            executeShellCommand("input keyevent 279") // KEYCODE_PASTE
             Thread.sleep(300)
             
             true
@@ -818,19 +611,7 @@ class DeviceController(private val context: Context) {
     fun clearText(callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                // 优先使用无障碍服务
-                val a11yService =
-                    if (AutoGLMAccessibilityService.isEnabled(context)) AutoGLMAccessibilityService.waitForInstance(1200) else null
-                if (a11yService != null) {
-                    mainHandler.post {
-                        val result = a11yService.clearText()
-                        callback(result, if (result) null else "Failed to clear text")
-                    }
-                    return@execute
-                }
-                 
-                // 回退到ADB广播
-                executeShizukuShellCommand("am broadcast -a ADB_CLEAR_TEXT")
+                executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
                 Thread.sleep(300)
                 callback(true, null)
             } catch (e: Exception) {
