@@ -135,32 +135,42 @@ class _SettingsPageState extends State<SettingsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.scaffoldBackgroundColor,
+      // Default background color (AppTheme.scaffoldBackgroundColor)
       appBar: AppBar(
-        title: const Text('设置',
-            style: TextStyle(
-                fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
         centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+        backgroundColor: AppTheme.scaffoldWhite,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+          style: IconButton.styleFrom(
+            foregroundColor: AppTheme.primaryBlack,
+          ),
+        ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 8),
+            padding: const EdgeInsets.only(right: 16),
             child: TextButton(
               onPressed: _isSaving ? null : _saveSettings,
               style: TextButton.styleFrom(
                 foregroundColor: AppTheme.primaryBlack,
+                disabledForegroundColor: AppTheme.grey400,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                backgroundColor: AppTheme.primaryBlack,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                minimumSize: const Size(60, 32),
               ),
               child: _isSaving
                   ? const SizedBox(
-                      width: 20,
-                      height: 20,
+                      width: 14,
+                      height: 14,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppTheme.primaryBlack),
+                        strokeWidth: 2, 
+                        color: Colors.white
+                      ),
                     )
-                  : const Text('保存',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  : const Text('Save', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
             ),
           ),
         ],
@@ -176,101 +186,106 @@ class _SettingsPageState extends State<SettingsPage>
     return Form(
       key: _formKey,
       child: ListView(
-        padding: const EdgeInsets.all(AppTheme.spacingMD),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         children: [
-          // 权限状态部分（新增）
-          _buildSectionHeader(
-            icon: Icons.security,
-            title: '权限状态',
-          ),
+          // 权限状态部分
+          _buildSectionHeader(title: 'PERMISSIONS'),
           _buildCard([
-            // 无障碍服务
             _buildPermissionTile(
-              title: '无障碍服务',
-              subtitle: _accessibilityEnabled ? '已启用' : '未启用（必需）',
-              icon: Icons.accessibility_new,
+              title: 'Accessibility Service',
+              subtitle: _accessibilityEnabled ? 'Active' : 'Required',
+              icon: Icons.accessibility_new_outlined,
               isGranted: _accessibilityEnabled,
               isRequired: true,
               onTap: () => _deviceController.openAccessibilitySettings(),
             ),
-            const Divider(height: 1),
-            // AutoZi 输入法
+            const Divider(height: 1, indent: 56),
             _buildPermissionTile(
-              title: 'AutoZi 输入法',
-              subtitle: _autoZiImeEnabled ? '已启用 - 支持可靠的中文输入' : '未启用（必需）',
-              icon: Icons.keyboard,
+              title: 'AutoZi Input Method',
+              subtitle: _autoZiImeEnabled ? 'Active' : 'Required for reliable input',
+              icon: Icons.keyboard_outlined,
               isGranted: _autoZiImeEnabled,
               isRequired: true,
               onTap: () => _deviceController.openInputMethodSettings(),
             ),
-            const Divider(height: 1),
-            // Shizuku
+            const Divider(height: 1, indent: 56),
             _buildPermissionTile(
               title: 'Shizuku',
               subtitle: _getShizukuStatusText(),
-              icon: Icons.developer_mode,
+              icon: Icons.adb_outlined,
               isGranted: _shizukuAuthorized,
               isRequired: true,
               onTap: _handleShizukuAction,
             ),
-            const Divider(height: 1),
-            // 悬浮窗权限
+            const Divider(height: 1, indent: 56),
             _buildPermissionTile(
-              title: '悬浮窗权限',
-              subtitle: _overlayPermission ? '已授权' : '未授权（可选）',
-              icon: Icons.picture_in_picture,
+              title: 'Floating Window',
+              subtitle: _overlayPermission ? 'Authorized' : 'Optional',
+              icon: Icons.picture_in_picture_alt_outlined,
               isGranted: _overlayPermission,
               isRequired: false,
               onTap: () => _deviceController.openOverlaySettings(),
             ),
-            const Divider(height: 1),
-            // 电池优化白名单
+            const Divider(height: 1, indent: 56),
             _buildPermissionTile(
-              title: '电池优化白名单',
-              subtitle: _batteryOptimizationIgnored
-                  ? '已加入 - 防止无障碍服务被关闭'
-                  : '未加入（强烈推荐）',
-              icon: Icons.battery_saver,
+              title: 'Battery Optimization',
+              subtitle: _batteryOptimizationIgnored ? 'Ignored' : 'Recommended',
+              icon: Icons.battery_charging_full_outlined,
               isGranted: _batteryOptimizationIgnored,
               isRequired: false,
-              onTap: () =>
-                  _deviceController.requestIgnoreBatteryOptimizations(),
+              onTap: () => _deviceController.requestIgnoreBatteryOptimizations(),
             ),
           ]),
 
-          const SizedBox(height: AppTheme.spacingLG),
+          const SizedBox(height: 32),
 
           // API Key 配置部分
-          _buildSectionHeader(
-            icon: Icons.key,
-            title: '智谱 API 配置',
-          ),
+          _buildSectionHeader(title: 'MODEL CONFIG'),
           _buildCard([
             Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingMD),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const Text(
+                    'Zhipu AI API Key',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.primaryBlack,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   TextFormField(
                     controller: _apiKeyController,
                     obscureText: _obscureApiKey,
+                    cursorColor: AppTheme.primaryBlack,
+                    style: const TextStyle(fontSize: 15, fontFamily: 'monospace'),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
-                        return '请输入 API Key';
+                        return 'API Key is required';
                       }
                       return null;
                     },
                     decoration: InputDecoration(
-                      labelText: 'API Key',
-                      hintText: '请输入您的智谱 API Key',
-                      prefixIcon: const Icon(Icons.vpn_key),
+                      hintText: 'Enter your API Key',
+                      hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 14),
                       filled: true,
-                      fillColor: Colors.transparent,
+                      fillColor: AppTheme.grey50,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: AppTheme.primaryBlack, width: 1),
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureApiKey
-                              ? Icons.visibility_off
-                              : Icons.visibility,
+                          _obscureApiKey ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: AppTheme.grey600,
+                          size: 20,
                         ),
                         onPressed: () {
                           setState(() => _obscureApiKey = !_obscureApiKey);
@@ -278,150 +293,107 @@ class _SettingsPageState extends State<SettingsPage>
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppTheme.spacingMD),
-
-                  // 获取 API Key 按钮
-                  InkWell(
+                  const SizedBox(height: 16),
+                  
+                  // 获取 API Key 链接
+                  GestureDetector(
                     onTap: _openApiKeyPage,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppTheme.spacingMD,
-                        vertical: AppTheme.spacingSM,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentOrange.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusSM),
-                        border: Border.all(
-                          color: AppTheme.accentOrange.withOpacity(0.3),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.open_in_new,
-                              size: 16, color: AppTheme.accentOrange),
-                          const SizedBox(width: 8),
-                          Text(
-                            '获取 API Key',
-                            style: TextStyle(
-                              color: AppTheme.accentOrange,
-                              fontWeight: FontWeight.w500,
-                            ),
+                    child: Row(
+                      children: const [
+                        Text(
+                          'Get API Key',
+                          style: TextStyle(
+                            color: AppTheme.primaryBlack,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            decoration: TextDecoration.underline,
                           ),
-                        ],
-                      ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_outward, size: 14, color: AppTheme.primaryBlack),
+                      ],
                     ),
                   ),
-
-                  const SizedBox(height: AppTheme.spacingSM),
-
-                  Text(
-                    '提示：使用智谱开放平台的 autoglm-phone 模型',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textHint,
-                    ),
+                  
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Powered by Zhipu AI (GLM-4V)',
+                    style: TextStyle(fontSize: 11, color: AppTheme.textHint),
                   ),
                 ],
               ),
             ),
           ]),
 
-          const SizedBox(height: AppTheme.spacingLG),
+          const SizedBox(height: 32),
 
           // 功能入口
-          _buildSectionHeader(
-            icon: Icons.apps,
-            title: '功能',
-          ),
+          _buildSectionHeader(title: 'GENERAL'),
           _buildCard([
-            ListTile(
-              leading: const Icon(Icons.apps, color: AppTheme.accentOrange),
-              title: const Text('支持的应用'),
-              subtitle: const Text('查看可用的应用列表'),
-              trailing: const Icon(Icons.chevron_right),
+             _buildListTile(
+              icon: Icons.apps_outlined,
+              title: 'Supported Apps',
+              subtitle: 'View compatible applications',
               onTap: () => Navigator.pushNamed(context, '/apps'),
             ),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.history, color: AppTheme.accentOrange),
-              title: const Text('任务历史'),
-              subtitle: const Text('查看和复用历史任务'),
-              trailing: const Icon(Icons.chevron_right),
+            const Divider(height: 1, indent: 56),
+            _buildListTile(
+              icon: Icons.history_outlined,
+              title: 'Task History',
+              subtitle: 'Review past activities',
               onTap: () => Navigator.pushNamed(context, '/history'),
             ),
           ]),
 
-          const SizedBox(height: AppTheme.spacingLG),
+          const SizedBox(height: 32),
 
-          // 关于部分
-          _buildSectionHeader(
-            icon: Icons.info_outline,
-            title: '关于',
-          ),
+          // 关于
+          _buildSectionHeader(title: 'ABOUT'),
           _buildCard([
-            ListTile(
-              title: const Text('版本'),
-              trailing: Text(
-                AppConfig.appVersion,
-                style: const TextStyle(color: AppTheme.textSecondary),
+            _buildListTile(
+              icon: Icons.info_outline,
+              title: 'Version',
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.grey100,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  AppConfig.appVersion,
+                  style: const TextStyle(
+                    fontSize: 12, 
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textSecondary
+                  ),
+                ),
               ),
+              onTap: null, // No action
             ),
-            const Divider(height: 1),
-            ListTile(
-              title: const Text('项目主页'),
-              subtitle: const Text('Open-AutoGLM'),
-              trailing: const Icon(Icons.open_in_new, size: 18),
+            const Divider(height: 1, indent: 56),
+            _buildListTile(
+              icon: Icons.code_outlined,
+              title: 'Source Code',
+              subtitle: 'Open-AutoGLM on GitHub',
               onTap: () async {
-                final uri =
-                    Uri.parse('https://github.com/AJinNight/Auto-GLM-Android');
+                final uri = Uri.parse('https://github.com/AJinNight/Auto-GLM-Android');
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 }
               },
             ),
-            const Divider(height: 1),
-            ListTile(
-              title: const Text('重置引导'),
-              subtitle: const Text('重新显示欢迎页面'),
-              onTap: _resetOnboarding,
-            ),
+             const Divider(height: 1, indent: 56),
+             _buildListTile(
+               icon: Icons.refresh_outlined,
+               title: 'Reset Onboarding',
+               onTap: _resetOnboarding,
+             ),
           ]),
 
-          const SizedBox(height: AppTheme.spacingXL),
+          const SizedBox(height: 48),
         ],
       ),
     );
-  }
-
-  String _getShizukuStatusText() {
-    if (!_shizukuInstalled) return '未安装（可选）';
-    if (!_shizukuRunning) return '服务未启动';
-    if (!_shizukuAuthorized) return '等待授权';
-    return '已授权';
-  }
-
-  Future<void> _handleShizukuAction() async {
-    if (!_shizukuInstalled) {
-      // 打开 Shizuku 下载页面
-      final uri = Uri.parse('https://shizuku.rikka.app/');
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
-      return;
-    }
-
-    if (!_shizukuRunning) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请先打开 Shizuku 应用并启动服务')),
-      );
-      return;
-    }
-
-    // 请求授权
-    await _deviceController.requestShizukuPermission();
-    await Future.delayed(const Duration(seconds: 1));
-    _checkAllPermissions();
   }
 
   Widget _buildPermissionTile({
@@ -434,16 +406,22 @@ class _SettingsPageState extends State<SettingsPage>
   }) {
     return InkWell(
       onTap: isGranted ? null : onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMD),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
-            Icon(
-              icon,
-              color: isGranted
-                  ? AppTheme.primaryBlack
-                  : (isRequired ? AppTheme.error : AppTheme.grey400),
-              size: 24,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isGranted ? AppTheme.primaryBlack : AppTheme.grey100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isGranted ? Colors.white : AppTheme.grey600,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -455,38 +433,33 @@ class _SettingsPageState extends State<SettingsPage>
                       Text(
                         title,
                         style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryBlack,
                         ),
                       ),
                       if (isRequired && !isGranted) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: AppTheme.error.withOpacity(0.1),
+                            color: AppTheme.primaryBlack,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            '必需',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.error,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: const Text(
+                            'REQ',
+                            style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: TextStyle(
                       fontSize: 13,
-                      color:
-                          isGranted ? AppTheme.success : AppTheme.textSecondary,
+                      color: isGranted ? AppTheme.success : AppTheme.textSecondary,
                     ),
                   ),
                 ],
@@ -494,69 +467,90 @@ class _SettingsPageState extends State<SettingsPage>
             ),
             if (!isGranted)
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlack,
+                  border: Border.all(color: AppTheme.primaryBlack, width: 1.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
-                  '开启',
+                  'Enable',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppTheme.primaryBlack,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               )
             else
-              const Icon(Icons.check, color: AppTheme.success, size: 20),
+              const Icon(Icons.check_circle, color: AppTheme.primaryBlack, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildListTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppTheme.radiusMD),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: AppTheme.primaryBlack),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.primaryBlack,
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (trailing != null) 
+              trailing
+            else if (onTap != null)
+              const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.grey300),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _openApiKeyPage() async {
-    final uri = Uri.parse('https://bigmodel.cn/usercenter/proj-mgmt/apikeys');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
-  void _resetOnboarding() async {
-    // 重置首次运行状态
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('first_run', true);
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('下次启动将显示引导页面')),
-      );
-    }
-  }
-
-  Widget _buildSectionHeader({
-    required IconData icon,
-    required String title,
-  }) {
+  Widget _buildSectionHeader({required String title}) {
     return Padding(
-      padding: const EdgeInsets.only(
-        left: AppTheme.spacingXS,
-        bottom: AppTheme.spacingSM,
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppTheme.accentOrange),
-          const SizedBox(width: AppTheme.spacingSM),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textSecondary,
-            ),
-          ),
-        ],
+      padding: const EdgeInsets.only(left: 4, bottom: 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: AppTheme.textSecondary, 
+          letterSpacing: 1.0,
+        ),
       ),
     );
   }
@@ -565,9 +559,8 @@ class _SettingsPageState extends State<SettingsPage>
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMD),
-        boxShadow: AppTheme.cardShadow,
-        border: Border.all(color: AppTheme.warmBeige),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.grey200, width: 1),
       ),
       child: Column(
         children: children,
