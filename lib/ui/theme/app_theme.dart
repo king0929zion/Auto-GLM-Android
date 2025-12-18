@@ -80,6 +80,7 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
+      fontFamily: 'ResourceHanRounded',
       brightness: Brightness.light,
       primaryColor: primaryBlack,
       scaffoldBackgroundColor: scaffoldWhite,
