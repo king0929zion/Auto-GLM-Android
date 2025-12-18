@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/phone_agent.dart';
 import '../../data/models/models.dart';
+import '../../data/models/chat_history.dart';
 import '../../config/settings_repository.dart';
+import '../../data/repositories/history_repository.dart';
 import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
 
@@ -23,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   final List<_ChatMessage> _messages = [];
   bool _isInitialized = false;
   String? _errorMessage;
+  String? _currentSessionId;
 
   @override
   void initState() {
@@ -79,6 +83,31 @@ class _HomePageState extends State<HomePage> {
       ));
     });
     _scrollToBottom();
+    
+    if (_currentSessionId != null) {
+      _saveMessageToHistory(MessageItem(
+        id: const Uuid().v4(),
+        isUser: false,
+        thinking: result.thinking,
+        content: result.message,
+        actionType: result.action?.actionName,
+        isSuccess: result.success,
+        timestamp: DateTime.now(),
+      ));
+    }
+  }
+
+  Future<void> _saveMessageToHistory(MessageItem message) async {
+    if (_currentSessionId == null) return;
+    final repo = HistoryRepository.instance;
+    final session = repo.getSession(_currentSessionId!);
+    if (session != null) {
+      final updatedSession = session.copyWith(
+        lastUpdatedAt: DateTime.now(),
+        messages: [...session.messages, message],
+      );
+      await repo.saveSession(updatedSession);
+    }
   }
 
   void _scrollToBottom() {
@@ -541,11 +570,30 @@ class _HomePageState extends State<HomePage> {
     final permissionsOk = await _ensureRequiredPermissions();
     if (!permissionsOk) return;
     
-    await SettingsRepository.instance.addTaskToHistory(task);
+    // Create new session if needed
+    if (_currentSessionId == null) {
+      _currentSessionId = const Uuid().v4();
+      final newSession = ConversationSession(
+        id: _currentSessionId!,
+        title: task, // First task is the title
+        createdAt: DateTime.now(),
+        lastUpdatedAt: DateTime.now(),
+        messages: [],
+      );
+      await HistoryRepository.instance.saveSession(newSession);
+    }
     
     setState(() {
       _messages.add(_ChatMessage(isUser: true, message: task));
     });
+    
+    await _saveMessageToHistory(MessageItem(
+      id: const Uuid().v4(),
+      isUser: true,
+      content: task,
+      timestamp: DateTime.now(),
+    ));
+
     _taskController.clear();
     _focusNode.unfocus();
     _scrollToBottom();
@@ -553,13 +601,22 @@ class _HomePageState extends State<HomePage> {
     try {
       await _agent.run(task);
     } catch (e) {
+      final  errorMsg = 'Error: $e';
       setState(() {
         _messages.add(_ChatMessage(
           isUser: false,
-          message: 'Error: $e',
+          message: errorMsg,
           isSuccess: false,
         ));
       });
+      
+       await _saveMessageToHistory(MessageItem(
+        id: const Uuid().v4(),
+        isUser: false,
+        content: errorMsg,
+        isSuccess: false,
+        timestamp: DateTime.now(),
+      ));
     }
   }
 
@@ -619,6 +676,7 @@ class _HomePageState extends State<HomePage> {
     }
     
     _agent.reset();
+    _currentSessionId = null;
     
     setState(() {
       _messages.clear();
@@ -644,7 +702,7 @@ class _HomePageState extends State<HomePage> {
   }
   
   Widget _buildHistorySheet() {
-    final history = SettingsRepository.instance.taskHistory;
+    final sessions = HistoryRepository.instance.getSessions();
     
     return Container(
       height: MediaQuery.of(context).size.height * 0.6,
@@ -657,7 +715,7 @@ class _HomePageState extends State<HomePage> {
               const Icon(Icons.history, color: AppTheme.primaryBlack),
               const SizedBox(width: 8),
               const Text(
-                '历史记录',
+                'History', // English for consistency
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -665,14 +723,14 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               const Spacer(),
-              if (history.isNotEmpty)
+              if (sessions.isNotEmpty)
                 TextButton(
-                  onPressed: () {
-                    SettingsRepository.instance.clearTaskHistory();
+                  onPressed: () async {
+                    await HistoryRepository.instance.clearAll();
                     Navigator.pop(context);
                     setState(() {});
                   },
-                  child: const Text('清除', style: TextStyle(color: AppTheme.error)),
+                  child: const Text('Clear', style: TextStyle(color: AppTheme.error)),
                 ),
             ],
           ),
@@ -681,30 +739,38 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 8),
           
           Expanded(
-            child: history.isEmpty
+            child: sessions.isEmpty
                 ? const Center(
                     child: Text(
-                      '暂无历史记录',
+                      'No history yet',
                       style: TextStyle(color: AppTheme.textHint),
                     ),
                   )
                 : ListView.builder(
-                    itemCount: history.length,
+                    itemCount: sessions.length,
                     itemBuilder: (context, index) {
-                      final task = history[history.length - 1 - index];
+                      final session = sessions[index];
+                      // Simple date formatting
+                      final date = session.lastUpdatedAt;
+                      final dateStr = '${date.month}/${date.day} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+                      
                       return ListTile(
                         leading: const Icon(Icons.chat_bubble_outline, size: 20, color: AppTheme.textSecondary),
                         title: Text(
-                          task,
-                          maxLines: 2,
+                          session.title,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: AppTheme.textPrimary),
+                          style: const TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.w500),
+                        ),
+                        subtitle: Text(
+                          dateStr,
+                          style: const TextStyle(fontSize: 12, color: AppTheme.textHint),
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.grey300),
                         contentPadding: EdgeInsets.zero,
                         onTap: () {
                           Navigator.pop(context);
-                          _taskController.text = task;
+                          _loadSession(session.id);
                         },
                       );
                     },
@@ -713,6 +779,37 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+  
+  Future<void> _loadSession(String sessionId) async {
+    final session = HistoryRepository.instance.getSession(sessionId);
+    if (session == null) return;
+    
+    if (_agent.isRunning) {
+       ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please wait for current task to finish')),
+      );
+      return;
+    }
+    
+    _agent.reset();
+    _currentSessionId = session.id;
+    
+    setState(() {
+      _messages.clear();
+      for (final msg in session.messages) {
+        _messages.add(_ChatMessage(
+          isUser: msg.isUser,
+          thinking: msg.thinking,
+          action: msg.actionType,
+          message: msg.content,
+          isSuccess: msg.isSuccess,
+        ));
+      }
+    });
+    
+    // Auto-scroll after loading
+    Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
   }
 
   Widget _buildErrorView() {

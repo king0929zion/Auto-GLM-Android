@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'config/settings_repository.dart';
+import 'data/repositories/history_repository.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/screens/screens.dart';
 import 'ui/screens/permission_setup_page.dart';
@@ -10,6 +11,7 @@ void main() async {
   
   // 初始化设置存储
   await SettingsRepository.instance.init();
+  await HistoryRepository.instance.init();
   
   // 设置状态栏样式
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
