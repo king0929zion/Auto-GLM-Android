@@ -4,6 +4,8 @@ import 'app_config.dart';
 
 /// 设置存储服务
 /// 负责持久化和加载应用配置
+/// 设置存储服务
+/// 负责持久化和加载应用配置
 class SettingsRepository {
   static SettingsRepository? _instance;
   SharedPreferences? _prefs;
@@ -19,6 +21,10 @@ class SettingsRepository {
   /// 初始化
   Future<void> init() async {
     _prefs = await SharedPreferences.getInstance();
+    // Migration: If we have an old generic key but no specific AutoGLM key, copy it.
+    if (_prefs!.containsKey(AppConfig.keyApiKey) && !_prefs!.containsKey(AppConfig.keyAutoglmApiKey)) {
+        await _prefs!.setString(AppConfig.keyAutoglmApiKey, _prefs!.getString(AppConfig.keyApiKey)!);
+    }
   }
   
   /// 获取SharedPreferences实例
@@ -29,55 +35,62 @@ class SettingsRepository {
     return _prefs!;
   }
   
+  // ===== Provider Selection =====
+  String get selectedProvider => prefs.getString(AppConfig.keySelectedProvider) ?? 'autoglm';
+  
+  Future<void> setSelectedProvider(String provider) async {
+      await prefs.setString(AppConfig.keySelectedProvider, provider);
+  }
+
   // ===== 模型配置 =====
   
-  /// 获取保存的模型配置
+  /// 获取当前生效的模型配置
   ModelConfig getModelConfig() {
-    return ModelConfig(
-      baseUrl: prefs.getString(AppConfig.keyBaseUrl) ?? AppConfig.defaultBaseUrl,
-      apiKey: prefs.getString(AppConfig.keyApiKey) ?? AppConfig.defaultApiKey,
-      modelName: prefs.getString(AppConfig.keyModelName) ?? AppConfig.defaultModelName,
-      maxTokens: AppConfig.defaultMaxTokens,
-      temperature: AppConfig.defaultTemperature,
-      topP: AppConfig.defaultTopP,
-      frequencyPenalty: AppConfig.defaultFrequencyPenalty,
-    );
+    if (selectedProvider == 'doubao') {
+        return ModelConfig(
+            baseUrl: AppConfig.doubaoBaseUrl,
+            apiKey: doubaoApiKey, // Must be set by user
+            modelName: doubaoModelName,
+            maxTokens: AppConfig.defaultMaxTokens,
+            temperature: AppConfig.defaultTemperature,
+            topP: AppConfig.defaultTopP,
+            frequencyPenalty: AppConfig.defaultFrequencyPenalty,
+        );
+    } else {
+        // Default to AutoGLM
+        return ModelConfig(
+            baseUrl: AppConfig.defaultBaseUrl,
+            apiKey: autoglmApiKey,
+            modelName: AppConfig.defaultModelName,
+            maxTokens: AppConfig.defaultMaxTokens,
+            temperature: AppConfig.defaultTemperature,
+            topP: AppConfig.defaultTopP,
+            frequencyPenalty: AppConfig.defaultFrequencyPenalty,
+        );
+    }
   }
   
-  /// 保存模型配置
-  Future<void> saveModelConfig(ModelConfig config) async {
-    await prefs.setString(AppConfig.keyBaseUrl, config.baseUrl);
-    await prefs.setString(AppConfig.keyApiKey, config.apiKey);
-    await prefs.setString(AppConfig.keyModelName, config.modelName);
+  // ===== AutoGLM Settings (Read/Write) =====
+  String get autoglmApiKey => prefs.getString(AppConfig.keyAutoglmApiKey) ?? '';
+  
+  Future<void> setAutoglmApiKey(String key) async {
+      await prefs.setString(AppConfig.keyAutoglmApiKey, key);
+      // Also update legacy key for backward compact if needed, or just ignore it.
+      await prefs.setString(AppConfig.keyApiKey, key); 
+  }
+
+  // ===== Doubao Settings (Read/Write) =====
+  String get doubaoApiKey => prefs.getString(AppConfig.keyDoubaoApiKey) ?? '';
+  String get doubaoModelName => prefs.getString(AppConfig.keyDoubaoModelName) ?? AppConfig.defaultDoubaoModel;
+
+  Future<void> setDoubaoApiKey(String key) async {
+      await prefs.setString(AppConfig.keyDoubaoApiKey, key);
   }
   
-  /// 获取API基础URL
-  String get baseUrl => 
-      prefs.getString(AppConfig.keyBaseUrl) ?? AppConfig.defaultBaseUrl;
-  
-  /// 设置API基础URL
-  Future<void> setBaseUrl(String url) async {
-    await prefs.setString(AppConfig.keyBaseUrl, url);
+  Future<void> setDoubaoModelName(String name) async {
+      await prefs.setString(AppConfig.keyDoubaoModelName, name);
   }
-  
-  /// 获取API密钥
-  String get apiKey => 
-      prefs.getString(AppConfig.keyApiKey) ?? AppConfig.defaultApiKey;
-  
-  /// 设置API密钥
-  Future<void> setApiKey(String key) async {
-    await prefs.setString(AppConfig.keyApiKey, key);
-  }
-  
-  /// 获取模型名称
-  String get modelName => 
-      prefs.getString(AppConfig.keyModelName) ?? AppConfig.defaultModelName;
-  
-  /// 设置模型名称
-  Future<void> setModelName(String name) async {
-    await prefs.setString(AppConfig.keyModelName, name);
-  }
-  
+
   // ===== Agent配置 =====
   
   /// 获取最大步骤数

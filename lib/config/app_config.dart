@@ -10,6 +10,10 @@ class AppConfig {
   static const String defaultBaseUrl = 'https://open.bigmodel.cn/api/paas/v4';
   static const String defaultApiKey = '';  // 用户必须在设置中配置API Key
   static const String defaultModelName = 'autoglm-phone';
+
+  /// 豆包模型配置
+  static const String doubaoBaseUrl = 'https://ark.cn-beijing.volces.com/api/v3';
+  static const String defaultDoubaoModel = 'doubao-seed-1-8-251215'; // Default or placeholder
   
   /// 模型参数默认值
   static const int defaultMaxTokens = 3000;
@@ -38,6 +42,14 @@ class AppConfig {
   static const String keyModelName = 'model_name';
   static const String keyLanguage = 'language';
   static const String keyMaxSteps = 'max_steps';
+
+  // New keys for multi-model support
+  static const String keySelectedProvider = 'selected_provider'; // 'autoglm' or 'doubao'
+  
+  static const String keyAutoglmApiKey = 'autoglm_api_key';
+  
+  static const String keyDoubaoApiKey = 'doubao_api_key';
+  static const String keyDoubaoModelName = 'doubao_model_name';
   
   /// 支持的语言
   static const List<String> supportedLanguages = ['cn', 'en'];

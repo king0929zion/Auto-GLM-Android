@@ -170,28 +170,57 @@ class _HomePageState extends State<HomePage> {
         centerTitle: true,
         backgroundColor: AppTheme.scaffoldWhite,
         surfaceTintColor: Colors.transparent, // Prevent tint on scroll
-        leading: IconButton(
-          icon: const Icon(Icons.history_outlined),
-          tooltip: '历史记录',
-          onPressed: _showHistoryDrawer,
-          style: IconButton.styleFrom(
-            foregroundColor: AppTheme.primaryBlack,
-          ),
+        leadingWidth: 100, // Allow more space for model name
+        leading: Container(
+            margin: const EdgeInsets.only(left: 12),
+            child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: _showModelSelector,
+            child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                    Flexible(
+                    child: Text(
+                        _getModelDisplayName(),
+                        style: const TextStyle(
+                        color: AppTheme.primaryBlack,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                    ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.keyboard_arrow_down, size: 16, color: AppTheme.primaryBlack),
+                ],
+                ),
+            ),
+            ),
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.history_outlined),
+            tooltip: 'History',
+            onPressed: _showHistoryDrawer,
+            style: IconButton.styleFrom(foregroundColor: AppTheme.primaryBlack),
+          ),
+          IconButton(
             icon: const Icon(Icons.add_circle_outline),
-            tooltip: '新建对话',
+            tooltip: 'New Chat',
             onPressed: _startNewConversation,
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
-            tooltip: '设置',
+            tooltip: 'Settings',
             onPressed: () async {
               await Navigator.pushNamed(context, '/settings');
+              // Agent might need re-init if settings changed
               _agent.removeListener(_onAgentChanged);
               _agent.dispose();
-              _initializeAgent();
+              _initializeAgent(); 
             },
           ),
           const SizedBox(width: 8),
@@ -810,6 +839,135 @@ class _HomePageState extends State<HomePage> {
     
     // Auto-scroll after loading
     Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+  }
+  
+  String _getModelDisplayName() {
+    final provider = SettingsRepository.instance.selectedProvider;
+    if (provider == 'doubao') return 'Doubao';
+    return 'AutoGLM';
+  }
+
+  void _showModelSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Text(
+                'Select Model',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryBlack,
+                ),
+              ),
+            ),
+            _buildModelOption(
+              title: 'AutoGLM',
+              subtitle: 'Zhipu AI (GLM-4V)',
+              value: 'autoglm',
+            ),
+            const Divider(height: 1, indent: 20, endIndent: 20),
+            _buildModelOption(
+              title: 'Doubao',
+              subtitle: 'Volcengine (Doubao-1.5-Pro)',
+              value: 'doubao',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildModelOption({
+    required String title,
+    required String subtitle,
+    required String value,
+  }) {
+    final selected = SettingsRepository.instance.selectedProvider == value;
+    
+    return InkWell(
+      onTap: () async {
+        Navigator.pop(context);
+        if (selected) return;
+        
+        await SettingsRepository.instance.setSelectedProvider(value);
+        
+        // Re-initialize agent
+        if (_agent.isRunning) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please wait for current task to finish before switching models.')),
+          );
+          // Revert selection? Ideally we shouldn't allow switching while running.
+          // For now, let's just warn and not re-init.
+          return;
+        }
+
+        _agent.removeListener(_onAgentChanged);
+        _agent.dispose();
+        setState(() => _isInitialized = false);
+        await _initializeAgent();
+        
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Switched to $title')),
+          );
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: selected ? AppTheme.primaryBlack : AppTheme.grey100,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.smart_toy_outlined, 
+                size: 20, 
+                color: selected ? Colors.white : AppTheme.grey600
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: selected ? AppTheme.primaryBlack : AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 12, 
+                      color: AppTheme.textHint,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (selected)
+              const Icon(Icons.check_circle, color: AppTheme.primaryBlack, size: 20),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildErrorView() {

@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
+import 'model_settings_page.dart';
 
 /// 设置页面
 class SettingsPage extends StatefulWidget {
@@ -18,15 +19,11 @@ class _SettingsPageState extends State<SettingsPage>
     with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
 
-  // API Key 控制器
-  final _apiKeyController = TextEditingController();
-
   // 语言配置
   String _language = AppConfig.defaultLanguage;
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _obscureApiKey = true;
 
   // 权限状态
   bool _accessibilityEnabled = false;
@@ -56,7 +53,6 @@ class _SettingsPageState extends State<SettingsPage>
   void dispose() {
     _permissionCheckTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    _apiKeyController.dispose();
     super.dispose();
   }
 
@@ -71,8 +67,6 @@ class _SettingsPageState extends State<SettingsPage>
     final prefs = await SharedPreferences.getInstance();
 
     setState(() {
-      _apiKeyController.text =
-          prefs.getString(AppConfig.keyApiKey) ?? AppConfig.defaultApiKey;
       _language =
           prefs.getString(AppConfig.keyLanguage) ?? AppConfig.defaultLanguage;
       _isLoading = false;
@@ -104,13 +98,12 @@ class _SettingsPageState extends State<SettingsPage>
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      await prefs.setString(AppConfig.keyApiKey, _apiKeyController.text);
       await prefs.setString(AppConfig.keyLanguage, _language);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('设置已保存'),
+            content: Text('Settings saved'),
             backgroundColor: AppTheme.success,
           ),
         );
@@ -120,7 +113,7 @@ class _SettingsPageState extends State<SettingsPage>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('保存失败: $e'),
+            content: Text('Failed to save: $e'),
             backgroundColor: AppTheme.error,
           ),
         );
@@ -135,7 +128,6 @@ class _SettingsPageState extends State<SettingsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Default background color (AppTheme.scaffoldBackgroundColor)
       appBar: AppBar(
         title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
         centerTitle: true,
@@ -188,7 +180,7 @@ class _SettingsPageState extends State<SettingsPage>
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         children: [
-          // 权限状态部分
+          // Permissions Section
           _buildSectionHeader(title: 'PERMISSIONS'),
           _buildCard([
             _buildPermissionTile(
@@ -239,95 +231,23 @@ class _SettingsPageState extends State<SettingsPage>
 
           const SizedBox(height: 32),
 
-          // API Key 配置部分
+          // API Key / Model Config Section
           _buildSectionHeader(title: 'MODEL CONFIG'),
           _buildCard([
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Zhipu AI API Key',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.primaryBlack,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _apiKeyController,
-                    obscureText: _obscureApiKey,
-                    cursorColor: AppTheme.primaryBlack,
-                    style: const TextStyle(fontSize: 15, fontFamily: 'monospace'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'API Key is required';
-                      }
-                      return null;
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Enter your API Key',
-                      hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 14),
-                      filled: true,
-                      fillColor: AppTheme.grey50,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppTheme.primaryBlack, width: 1),
-                      ),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureApiKey ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: AppTheme.grey600,
-                          size: 20,
-                        ),
-                        onPressed: () {
-                          setState(() => _obscureApiKey = !_obscureApiKey);
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  // 获取 API Key 链接
-                  GestureDetector(
-                    onTap: _openApiKeyPage,
-                    child: Row(
-                      children: const [
-                        Text(
-                          'Get API Key',
-                          style: TextStyle(
-                            color: AppTheme.primaryBlack,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_outward, size: 14, color: AppTheme.primaryBlack),
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Powered by Zhipu AI (GLM-4V)',
-                    style: TextStyle(fontSize: 11, color: AppTheme.textHint),
-                  ),
-                ],
+             _buildListTile(
+              icon: Icons.key_outlined,
+              title: 'Model Keys & Endpoints',
+              subtitle: 'Configure AutoGLM & Doubao',
+              onTap: () => Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (_) => const ModelSettingsPage()),
               ),
             ),
           ]),
 
           const SizedBox(height: 32),
 
-          // 功能入口
+          // General Section
           _buildSectionHeader(title: 'GENERAL'),
           _buildCard([
              _buildListTile(
@@ -347,7 +267,7 @@ class _SettingsPageState extends State<SettingsPage>
 
           const SizedBox(height: 32),
 
-          // 关于
+          // About Section
           _buildSectionHeader(title: 'ABOUT'),
           _buildCard([
             _buildListTile(
@@ -593,13 +513,6 @@ class _SettingsPageState extends State<SettingsPage>
     await _deviceController.requestShizukuPermission();
     await Future.delayed(const Duration(seconds: 1));
     _checkAllPermissions();
-  }
-
-  Future<void> _openApiKeyPage() async {
-    final uri = Uri.parse('https://bigmodel.cn/usercenter/proj-mgmt/apikeys');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 
   void _resetOnboarding() async {
