@@ -184,19 +184,19 @@ class FloatingWindowService : Service() {
         ballContainer?.addView(leftEye)
         ballContainer?.addView(rightEye)
         
-        // 2. Thinking Bubble (Optimized for Flat Minimalist Look)
+        // 2. Thinking Bubble (Refined for Exquisite Look)
         statusText = TextView(this).apply {
             text = ""
-            textSize = 12f // Slightly smaller for code look
+            textSize = 13f
             setTextColor(Color.BLACK)
-            typeface = android.graphics.Typeface.MONOSPACE // Monospace for 'thinking' feel
+            typeface = android.graphics.Typeface.DEFAULT_BOLD // Clean bold font
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp2px(12f).toFloat() // Sharper corners
-                setStroke(dp2px(1f), Color.parseColor("#E0E0E0")) // Light grey border
+                cornerRadius = dp2px(20f).toFloat() // Rounder, softer corners
+                setStroke(dp2px(1f), Color.parseColor("#E0E0E0")) // Subtle definition
             }
-            setPadding(dp2px(16f), dp2px(12f), dp2px(16f), dp2px(12f))
-            elevation = 0f // No shadow for bubble (Flat)
+            setPadding(dp2px(18f), dp2px(12f), dp2px(18f), dp2px(12f))
+            elevation = dp2px(6f).toFloat() // Restored depth
             visibility = View.GONE
             
             // Layout params
@@ -205,10 +205,10 @@ class FloatingWindowService : Service() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
             // Margins will be set dynamically based on side
-            params.marginStart = dp2px(8f)
-            params.marginEnd = dp2px(8f)
+            params.marginStart = dp2px(12f) // More spacing
+            params.marginEnd = dp2px(12f)
             layoutParams = params
-            maxWidth = dp2px(240f) // Max width for bubble
+            maxWidth = dp2px(260f) // Slightly wider
         }
         
         // Initial assembly: Ball -> Bubble (Left side default)
