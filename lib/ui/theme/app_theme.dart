@@ -9,6 +9,7 @@ class AppTheme {
   static const Color primaryBlack = Color(0xFF000000);
   static const Color primaryDark = Color(0xFF1C1C1E); // Apple style dark
   static const Color scaffoldWhite = Color(0xFFFFFFFF);
+  static const Color scaffoldBackgroundColor = scaffoldWhite;
   static const Color surfaceGrey = Color(0xFFF5F5F7); // 极其淡的灰，用于区分层级
   
   // 灰色阶 (Grayscale)
