@@ -556,31 +556,28 @@ class DeviceController(private val context: Context) {
     }
     
     /**
-     * 使用ADB Keyboard输入文本
+     * 使用 AutoZi 内置输入法输入文本
+     * 通过 Shizuku 切换到 AutoZi 输入法并发送广播
      */
     private fun tryAdbKeyboardInput(text: String): Boolean {
         return try {
-            // 检查ADB Keyboard是否安装
-            val packageCheck = executeShellCommand("pm list packages com.android.adbkeyboard")
-            if (!packageCheck.contains("com.android.adbkeyboard")) {
-                android.util.Log.w("DeviceController", "ADB Keyboard not installed")
-                return false
-            }
+            android.util.Log.d("DeviceController", "tryAutoZiInputMethod: $text")
             
             // 获取当前输入法
             val originalIme = executeShellCommand("settings get secure default_input_method").trim()
             android.util.Log.d("DeviceController", "Original IME: $originalIme")
             
-            // 切换到ADB Keyboard
-            if (!originalIme.contains("com.android.adbkeyboard")) {
-                val setResult = executeShellCommand("ime set com.android.adbkeyboard/.AdbIME")
+            // 切换到 AutoZi 输入法
+            val autoZiIme = AutoZiInputMethod.IME_ID
+            if (!originalIme.contains("com.autoglm.auto_glm_mobile")) {
+                val setResult = executeShellCommand("ime set $autoZiIme")
                 android.util.Log.d("DeviceController", "ime set result: $setResult")
-                Thread.sleep(800)
+                Thread.sleep(500)
             }
             
             // 清除现有文本
-            executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
-            Thread.sleep(300)
+            executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_CLEAR_TEXT}")
+            Thread.sleep(200)
             
             // Base64编码并发送
             val encodedText = android.util.Base64.encodeToString(
@@ -588,19 +585,19 @@ class DeviceController(private val context: Context) {
                 android.util.Base64.NO_WRAP
             )
             
-            val broadcastResult = executeShellCommand("am broadcast -a ADB_INPUT_B64 --es msg '$encodedText'")
+            val broadcastResult = executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_INPUT_B64} --es msg '$encodedText'")
             android.util.Log.d("DeviceController", "broadcast result: $broadcastResult")
-            Thread.sleep(500)
+            Thread.sleep(300)
             
             // 恢复原输入法
-            if (originalIme.isNotEmpty() && !originalIme.contains("com.android.adbkeyboard") && originalIme != "null") {
+            if (originalIme.isNotEmpty() && !originalIme.contains("com.autoglm.auto_glm_mobile") && originalIme != "null") {
                 executeShellCommand("ime set $originalIme")
-                Thread.sleep(300)
+                Thread.sleep(200)
             }
             
-            true
+            broadcastResult.contains("result=0") || broadcastResult.contains("Broadcast completed")
         } catch (e: Exception) {
-            android.util.Log.e("DeviceController", "ADB Keyboard error: ${e.message}")
+            android.util.Log.e("DeviceController", "AutoZi InputMethod error: ${e.message}")
             false
         }
     }

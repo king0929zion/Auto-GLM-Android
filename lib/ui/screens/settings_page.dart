@@ -596,43 +596,32 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    '💡 推荐配置 Shizuku + ADB Keyboard',
+                    '💡 推荐配置 Shizuku',
                     style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    '可获得更可靠的中文输入能力，支持微信等应用',
+                    '配合内置输入法可获得更可靠的中文输入能力',
                     style: TextStyle(fontSize: 13, color: Colors.black54),
                   ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    '1. 安装并启动 Shizuku\n2. 在系统设置中启用 AutoZi 输入法',
+                    style: TextStyle(fontSize: 12, color: Colors.black45, height: 1.5),
+                  ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final url = Uri.parse('https://shizuku.rikka.app/');
-                            if (await canLaunchUrl(url)) {
-                              await launchUrl(url, mode: LaunchMode.externalApplication);
-                            }
-                          },
-                          icon: const Icon(Icons.download, size: 18),
-                          label: const Text('Shizuku'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () async {
-                            final url = Uri.parse('https://github.com/senzhk/ADBKeyBoard/blob/master/ADBKeyboard.apk');
-                            if (await canLaunchUrl(url)) {
-                              await launchUrl(url, mode: LaunchMode.externalApplication);
-                            }
-                          },
-                          icon: const Icon(Icons.keyboard, size: 18),
-                          label: const Text('ADB KB'),
-                        ),
-                      ),
-                    ],
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final url = Uri.parse('https://shizuku.rikka.app/');
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(url, mode: LaunchMode.externalApplication);
+                        }
+                      },
+                      icon: const Icon(Icons.download, size: 18),
+                      label: const Text('下载 Shizuku'),
+                    ),
                   ),
                 ],
               ),

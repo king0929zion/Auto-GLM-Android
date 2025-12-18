@@ -19,6 +19,7 @@
 - 🤖 **自然语言控制** - 用日常语言描述任务，AI自动理解并执行
 - 📱 **屏幕理解** - 实时分析屏幕内容，智能识别UI元素
 - 👆 **模拟操作** - 自动执行点击、滑动、输入等操作
+- ⌨️ **内置输入法** - 支持可靠的中文输入，无需额外安装
 - 🔐 **隐私安全** - 所有操作本地执行，数据不上传
 
 ## 📋 系统要求
@@ -54,9 +55,9 @@ AutoZi 支持两种输入方式，根据配置自动选择：
 
 **适用场景：** 大多数应用的文字输入
 
-### 方案二：Shizuku + ADB Keyboard（推荐方案）
+### 方案二：Shizuku + 内置输入法（推荐方案）
 
-配合 Shizuku 和 ADB Keyboard，提供更可靠的输入能力，特别适合微信等对无障碍输入有限制的应用。
+配合 Shizuku 和 AutoZi 内置输入法，提供更可靠的输入能力，特别适合微信等对无障碍输入有限制的应用。
 
 **配置步骤：**
 
@@ -64,16 +65,16 @@ AutoZi 支持两种输入方式，根据配置自动选择：
    - 下载 [Shizuku](https://shizuku.rikka.app/)
    - 按照应用内说明启动服务（需要 ADB 或 root）
 
-2. **安装 ADB Keyboard**
-   - 下载 [ADB Keyboard APK](https://github.com/senzhk/ADBKeyBoard/blob/master/ADBKeyboard.apk)
-   - 安装后在系统设置 → 语言和输入法中**启用** ADB Keyboard
+2. **启用 AutoZi 输入法**
+   - 打开系统设置 → 语言和输入法 → 管理键盘
+   - 找到 **AutoZi 输入法** 并启用
 
 3. **授权 Shizuku**
    - 返回 AutoZi 设置页
    - 点击 Shizuku 项进行授权
 
 **自动切换逻辑：**
-- Shizuku 已授权 → 使用 ADB Keyboard（支持中文）
+- Shizuku 已授权 → 使用 AutoZi 内置输入法（支持中文）
 - Shizuku 未授权 → 使用无障碍服务
 
 ---
@@ -83,7 +84,8 @@ AutoZi 支持两种输入方式，根据配置自动选择：
 | 权限 | 必需 | 说明 |
 |------|:----:|------|
 | 无障碍服务 | ✅ | 读取屏幕、模拟点击、基础输入 |
-| Shizuku | ❌ | 配合 ADB Keyboard 提供更可靠的输入 |
+| Shizuku | ❌ | 配合内置输入法提供更可靠的输入 |
+| AutoZi 输入法 | ❌ | 内置输入法，需在系统设置中启用 |
 | 悬浮窗 | ❌ | 显示任务执行状态 |
 | 电池优化白名单 | ❌ | 防止无障碍服务被系统关闭（强烈推荐） |
 
@@ -128,6 +130,7 @@ android/
         ├── MainActivity.kt              # 主Activity
         ├── DeviceController.kt           # 设备控制
         ├── AutoGLMAccessibilityService.kt # 无障碍服务
+        ├── AutoZiInputMethod.kt          # 内置输入法 ✨
         ├── KeepAliveService.kt           # 保活服务
         └── FloatingWindowService.kt      # 悬浮窗服务
 ```
@@ -140,5 +143,4 @@ android/
 
 - [智谱AI](https://bigmodel.cn/) - 提供 AutoGLM 模型
 - [Shizuku](https://shizuku.rikka.app/) - 提供系统级能力
-- [ADB Keyboard](https://github.com/senzhk/ADBKeyBoard) - 可靠的文字输入
 - [Flutter](https://flutter.dev/) - 跨平台开发框架

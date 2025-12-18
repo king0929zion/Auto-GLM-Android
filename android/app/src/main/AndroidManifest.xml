@@ -91,6 +91,20 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
         
+        <!-- AutoZi 内置输入法 -->
+        <service
+            android:name=".AutoZiInputMethod"
+            android:label="AutoZi 输入法"
+            android:permission="android.permission.BIND_INPUT_METHOD"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data
+                android:name="android.view.im"
+                android:resource="@xml/ime_config" />
+        </service>
+        
         <!-- 保活前台服务 -->
         <service
             android:name=".KeepAliveService"
