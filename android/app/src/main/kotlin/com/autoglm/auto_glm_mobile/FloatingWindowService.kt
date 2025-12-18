@@ -49,6 +49,9 @@ class FloatingWindowService : Service() {
     
     // Takeover
     private var takeoverView: View? = null
+    private var takeoverParams: WindowManager.LayoutParams? = null
+    private var takeoverMessageText: TextView? = null
+    
     companion object {
         private var instance: FloatingWindowService? = null
         
