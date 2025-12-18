@@ -378,14 +378,48 @@ class FloatingWindowService : Service() {
         rootLayout?.post {
             rootLayout?.removeAllViews()
             if (isRight) {
-                // Determine orders
+                // Device on Right Edge: [Text] [Ball]
                 rootLayout?.addView(statusText)
                 rootLayout?.addView(ballContainer)
             } else {
+                // Device on Left Edge: [Ball] [Text]
                 rootLayout?.addView(ballContainer)
                 rootLayout?.addView(statusText)
             }
+            updateBubbleBackground(isRight)
         }
+    }
+
+    private fun updateBubbleBackground(isRight: Boolean) {
+        val r = dp2px(20f).toFloat()
+        val sm = dp2px(4f).toFloat()
+        
+        val drawable = GradientDrawable().apply {
+             setColor(Color.parseColor("#FCFFFFFF")) // High quality white
+             setStroke(dp2px(1f), Color.parseColor("#E0E0E0"))
+             
+             // isRight means App is on Right Edge. Ball is on Right.
+             // Layout: [Bubble] [Ball]
+             // Bubble TopRight touches Ball
+             if (isRight) {
+                 // TopLeft, TopRight, BottomRight, BottomLeft
+                 // TR is small
+                 cornerRadii = floatArrayOf(r, r, sm, sm, r, r, r, r)
+             } else {
+                 // Layout: [Ball] [Bubble]
+                 // Bubble TopLeft touches Ball
+                 // TL is small
+                 cornerRadii = floatArrayOf(sm, sm, r, r, r, r, r, r)
+             }
+        }
+        statusText?.background = drawable
+        // Ensure padding is maintained or reset if background replaces it?
+        // Setting background might reset padding in some Android versions? 
+        // Usually it does if drawable has padding. GradientDrawable doesn't.
+        // But to be safe, we can re-set padding or just hope.
+        // Let's re-set padding just in case.
+        statusText?.setPadding(dp2px(18f), dp2px(12f), dp2px(18f), dp2px(12f))
+        statusText?.elevation = dp2px(6f).toFloat()
     }
     
     private fun startBlinking() {

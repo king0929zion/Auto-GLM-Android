@@ -34,7 +34,7 @@ class ThinkingCard extends StatefulWidget {
 
 class _ThinkingCardState extends State<ThinkingCard> 
     with SingleTickerProviderStateMixin {
-  bool _isExpanded = true;
+  bool _isExpanded = false;
   
   @override
   Widget build(BuildContext context) {
