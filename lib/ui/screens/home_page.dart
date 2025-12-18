@@ -498,58 +498,125 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildMessageItem(_ChatMessage msg) {
     if (msg.isUser) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 12, left: 48),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.accentOrange.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(12),
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16, left: 60),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppTheme.primaryBlack,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(4),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryBlack.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              )
+            ],
+          ),
+          child: Text(
+            msg.message ?? '', 
+            style: const TextStyle(
+              fontSize: 15, 
+              color: Colors.white,
+              height: 1.4,
+            ),
+          ),
         ),
-        child: Text(msg.message ?? '', style: const TextStyle(fontSize: 15)),
       );
     }
     
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12, right: 48),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.warmBeige),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (msg.thinking != null && msg.thinking!.isNotEmpty) ...[
-            Text(
-              msg.thinking!,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
-            ),
-            const SizedBox(height: 8),
-          ],
-          if (msg.action != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: msg.isSuccess == true 
-                  ? AppTheme.success.withOpacity(0.1)
-                  : AppTheme.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16, right: 60),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceWhite,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+          border: Border.all(color: AppTheme.warmBeige),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (msg.thinking != null && msg.thinking!.isNotEmpty) ...[
+              Row(
+                children: [
+                  const Icon(Icons.psychology, size: 14, color: AppTheme.textHint),
+                  const SizedBox(width: 6),
+                  Text(
+                    '思考过程',
+                    style: TextStyle(color: AppTheme.textHint, fontSize: 12),
+                  ),
+                ],
               ),
-              child: Text(
-                msg.action!,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: msg.isSuccess == true ? AppTheme.success : AppTheme.error,
+              const SizedBox(height: 8),
+              Text(
+                msg.thinking!,
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.5),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Divider(height: 1, thickness: 0.5),
+              ),
+            ],
+            if (msg.action != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.grey50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: msg.isSuccess == true 
+                      ? AppTheme.success.withOpacity(0.3)
+                      : AppTheme.error.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      msg.isSuccess == true ? Icons.check_circle_outline : Icons.error_outline,
+                      size: 14,
+                      color: msg.isSuccess == true ? AppTheme.success : AppTheme.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      msg.action!,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 8),
+            ],
+            if (msg.message != null)
+              Text(
+                msg.message!, 
+                style: const TextStyle(
+                  fontSize: 15, 
+                  color: AppTheme.textPrimary,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
           ],
-          if (msg.message != null)
-            Text(msg.message!, style: const TextStyle(fontSize: 14)),
-        ],
+        ),
       ),
     );
   }
@@ -559,7 +626,20 @@ class _HomePageState extends State<HomePage> {
     
     return SafeArea(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(color: AppTheme.warmBeige),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryBlack.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         child: Row(
           children: [
             Expanded(
@@ -572,43 +652,40 @@ class _HomePageState extends State<HomePage> {
                 onSubmitted: (_) => _startTask(),
                 decoration: InputDecoration(
                   hintText: isRunning ? '任务执行中...' : '输入您的任务...',
+                  hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 14),
                   filled: true,
-                  fillColor: AppTheme.surfaceWhite,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
-                  disabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    borderSide: BorderSide.none,
-                  ),
+                  fillColor: Colors.transparent,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
                 ),
+                style: const TextStyle(fontSize: 15),
               ),
             ),
             const SizedBox(width: 8),
-            // 发送/停止按钮 - 任务执行中变为停止按钮
-            Container(
-              width: 48,
-              height: 48,
+            // 发送/停止按钮
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: isRunning ? AppTheme.error : AppTheme.accentOrange,
+                color: isRunning ? AppTheme.primaryBlack : AppTheme.primaryBlack,
                 shape: BoxShape.circle,
               ),
-              child: IconButton(
-                onPressed: isRunning ? _stopTask : _startTask,
-                tooltip: isRunning ? '停止任务' : '发送',
-                icon: isRunning
-                  ? const Icon(Icons.stop, color: Colors.white, size: 22)
-                  : const Icon(Icons.send, color: Colors.white, size: 20),
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                child: IconButton(
+                  onPressed: isRunning ? _stopTask : _startTask,
+                  tooltip: isRunning ? '停止任务' : '发送',
+                  icon: Icon(
+                    isRunning ? Icons.stop : Icons.arrow_upward,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                ),
               ),
             ),
           ],

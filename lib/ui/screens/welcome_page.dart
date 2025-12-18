@@ -154,7 +154,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
                     height: 8,
                     decoration: BoxDecoration(
                       color: _currentPage == index
-                          ? AppTheme.accentOrange
+                          ? AppTheme.primaryBlack
                           : AppTheme.warmBeige,
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -244,13 +244,13 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: page.color.withOpacity(0.1),
+              color: AppTheme.primaryBlack.withOpacity(0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(
               page.icon,
               size: 64,
-              color: page.color,
+              color: AppTheme.primaryBlack,
             ),
           ),
           
@@ -336,6 +336,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
               color: AppTheme.surfaceWhite,
               borderRadius: BorderRadius.circular(AppTheme.radiusMD),
               boxShadow: AppTheme.cardShadow,
+              border: Border.all(color: AppTheme.warmBeige),
             ),
             child: Column(
               children: [
@@ -408,13 +409,13 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
             width: 80,
             height: 80,
             decoration: BoxDecoration(
-              color: page.color.withOpacity(0.1),
+              color: AppTheme.primaryBlack.withOpacity(0.05),
               shape: BoxShape.circle,
             ),
             child: Icon(
               page.icon,
               size: 40,
-              color: page.color,
+              color: AppTheme.primaryBlack,
             ),
           ),
           

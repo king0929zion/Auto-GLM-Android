@@ -2,7 +2,7 @@ name: auto_glm_mobile
 description: "AutoZi - AI-powered phone automation"
 publish_to: 'none'
 
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ^3.5.0

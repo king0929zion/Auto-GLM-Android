@@ -14,19 +14,20 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver {
+class _SettingsPageState extends State<SettingsPage>
+    with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
-  
+
   // API Key 控制器
   final _apiKeyController = TextEditingController();
-  
+
   // 语言配置
   String _language = AppConfig.defaultLanguage;
-  
+
   bool _isLoading = true;
   bool _isSaving = false;
   bool _obscureApiKey = true;
-  
+
   // 权限状态
   bool _accessibilityEnabled = false;
   bool _overlayPermission = false;
@@ -35,7 +36,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   bool _shizukuAuthorized = false;
   bool _batteryOptimizationIgnored = false;
   bool _autoZiImeEnabled = false;
-  
+
   final DeviceController _deviceController = DeviceController();
   Timer? _permissionCheckTimer;
 
@@ -50,7 +51,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       if (mounted) _checkAllPermissions();
     });
   }
-  
+
   @override
   void dispose() {
     _permissionCheckTimer?.cancel();
@@ -58,7 +59,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
     _apiKeyController.dispose();
     super.dispose();
   }
-  
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -68,16 +69,16 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     setState(() {
-      _apiKeyController.text = prefs.getString(AppConfig.keyApiKey) ?? 
-          AppConfig.defaultApiKey;
-      _language = prefs.getString(AppConfig.keyLanguage) ?? 
-          AppConfig.defaultLanguage;
+      _apiKeyController.text =
+          prefs.getString(AppConfig.keyApiKey) ?? AppConfig.defaultApiKey;
+      _language =
+          prefs.getString(AppConfig.keyLanguage) ?? AppConfig.defaultLanguage;
       _isLoading = false;
     });
   }
-  
+
   Future<void> _checkAllPermissions() async {
     try {
       _accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
@@ -85,26 +86,27 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       _shizukuInstalled = await _deviceController.isShizukuInstalled();
       _shizukuRunning = await _deviceController.isShizukuRunning();
       _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
-      _batteryOptimizationIgnored = await _deviceController.isIgnoringBatteryOptimizations();
+      _batteryOptimizationIgnored =
+          await _deviceController.isIgnoringBatteryOptimizations();
       _autoZiImeEnabled = await _deviceController.isAutoZiImeEnabled();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
-    
+
     if (mounted) setState(() {});
   }
 
   Future<void> _saveSettings() async {
     if (!_formKey.currentState!.validate()) return;
-    
+
     setState(() => _isSaving = true);
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       await prefs.setString(AppConfig.keyApiKey, _apiKeyController.text);
       await prefs.setString(AppConfig.keyLanguage, _language);
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -133,24 +135,39 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
+      backgroundColor: AppTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('设置'),
+        title: const Text('设置',
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
         actions: [
-          TextButton(
-            onPressed: _isSaving ? null : _saveSettings,
-            child: _isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('保存'),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: _isSaving ? null : _saveSettings,
+              style: TextButton.styleFrom(
+                foregroundColor: AppTheme.primaryBlack,
+              ),
+              child: _isSaving
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primaryBlack),
+                    )
+                  : const Text('保存',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlack))
           : _buildForm(),
     );
   }
@@ -180,9 +197,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
             // AutoZi 输入法
             _buildPermissionTile(
               title: 'AutoZi 输入法',
-              subtitle: _autoZiImeEnabled 
-                  ? '已启用 - 支持可靠的中文输入' 
-                  : '未启用（必需）',
+              subtitle: _autoZiImeEnabled ? '已启用 - 支持可靠的中文输入' : '未启用（必需）',
               icon: Icons.keyboard,
               isGranted: _autoZiImeEnabled,
               isRequired: true,
@@ -212,18 +227,19 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
             // 电池优化白名单
             _buildPermissionTile(
               title: '电池优化白名单',
-              subtitle: _batteryOptimizationIgnored 
-                  ? '已加入 - 防止无障碍服务被关闭' 
+              subtitle: _batteryOptimizationIgnored
+                  ? '已加入 - 防止无障碍服务被关闭'
                   : '未加入（强烈推荐）',
               icon: Icons.battery_saver,
               isGranted: _batteryOptimizationIgnored,
               isRequired: false,
-              onTap: () => _deviceController.requestIgnoreBatteryOptimizations(),
+              onTap: () =>
+                  _deviceController.requestIgnoreBatteryOptimizations(),
             ),
           ]),
-          
+
           const SizedBox(height: AppTheme.spacingLG),
-          
+
           // API Key 配置部分
           _buildSectionHeader(
             icon: Icons.key,
@@ -252,7 +268,9 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                       fillColor: Colors.transparent,
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscureApiKey ? Icons.visibility_off : Icons.visibility,
+                          _obscureApiKey
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() => _obscureApiKey = !_obscureApiKey);
@@ -261,7 +279,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacingMD),
-                  
+
                   // 获取 API Key 按钮
                   InkWell(
                     onTap: _openApiKeyPage,
@@ -280,7 +298,8 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.open_in_new, size: 16, color: AppTheme.accentOrange),
+                          Icon(Icons.open_in_new,
+                              size: 16, color: AppTheme.accentOrange),
                           const SizedBox(width: 8),
                           Text(
                             '获取 API Key',
@@ -293,9 +312,9 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: AppTheme.spacingSM),
-                  
+
                   Text(
                     '提示：使用智谱开放平台的 autoglm-phone 模型',
                     style: TextStyle(
@@ -307,9 +326,9 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               ),
             ),
           ]),
-          
+
           const SizedBox(height: AppTheme.spacingLG),
-          
+
           // 功能入口
           _buildSectionHeader(
             icon: Icons.apps,
@@ -332,9 +351,9 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               onTap: () => Navigator.pushNamed(context, '/history'),
             ),
           ]),
-          
+
           const SizedBox(height: AppTheme.spacingLG),
-          
+
           // 关于部分
           _buildSectionHeader(
             icon: Icons.info_outline,
@@ -354,7 +373,8 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               subtitle: const Text('Open-AutoGLM'),
               trailing: const Icon(Icons.open_in_new, size: 18),
               onTap: () async {
-                final uri = Uri.parse('https://github.com/AJinNight/Auto-GLM-Android');
+                final uri =
+                    Uri.parse('https://github.com/AJinNight/Auto-GLM-Android');
                 if (await canLaunchUrl(uri)) {
                   await launchUrl(uri, mode: LaunchMode.externalApplication);
                 }
@@ -367,20 +387,20 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               onTap: _resetOnboarding,
             ),
           ]),
-          
+
           const SizedBox(height: AppTheme.spacingXL),
         ],
       ),
     );
   }
-  
+
   String _getShizukuStatusText() {
     if (!_shizukuInstalled) return '未安装（可选）';
     if (!_shizukuRunning) return '服务未启动';
     if (!_shizukuAuthorized) return '等待授权';
     return '已授权';
   }
-  
+
   Future<void> _handleShizukuAction() async {
     if (!_shizukuInstalled) {
       // 打开 Shizuku 下载页面
@@ -390,20 +410,20 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       }
       return;
     }
-    
+
     if (!_shizukuRunning) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('请先打开 Shizuku 应用并启动服务')),
       );
       return;
     }
-    
+
     // 请求授权
     await _deviceController.requestShizukuPermission();
     await Future.delayed(const Duration(seconds: 1));
     _checkAllPermissions();
   }
-  
+
   Widget _buildPermissionTile({
     required String title,
     required String subtitle,
@@ -412,74 +432,88 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
     required bool isRequired,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: isGranted 
-              ? AppTheme.success.withOpacity(0.1)
-              : (isRequired ? AppTheme.error.withOpacity(0.1) : Colors.grey.withOpacity(0.1)),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(
-          icon,
-          color: isGranted 
-              ? AppTheme.success
-              : (isRequired ? AppTheme.error : Colors.grey),
-          size: 20,
-        ),
-      ),
-      title: Row(
-        children: [
-          Text(title),
-          if (isRequired && !isGranted) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                '必需',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: AppTheme.error,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-      subtitle: Text(
-        subtitle,
-        style: TextStyle(
-          fontSize: 12,
-          color: isGranted ? AppTheme.success : AppTheme.textSecondary,
-        ),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: isGranted ? AppTheme.success : Colors.grey,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            isGranted ? Icons.check_circle : Icons.arrow_forward_ios,
-            color: isGranted ? AppTheme.success : Colors.grey,
-            size: isGranted ? 20 : 14,
-          ),
-        ],
-      ),
+    return InkWell(
       onTap: isGranted ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: isGranted
+                  ? AppTheme.primaryBlack
+                  : (isRequired ? AppTheme.error : AppTheme.grey400),
+              size: 24,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if (isRequired && !isGranted) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '必需',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: AppTheme.error,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color:
+                          isGranted ? AppTheme.success : AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isGranted)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBlack,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  '开启',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            else
+              const Icon(Icons.check, color: AppTheme.success, size: 20),
+          ],
+        ),
+      ),
     );
   }
 
@@ -500,7 +534,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       );
     }
   }
-
 
   Widget _buildSectionHeader({
     required IconData icon,
@@ -534,6 +567,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
         color: AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(AppTheme.radiusMD),
         boxShadow: AppTheme.cardShadow,
+        border: Border.all(color: AppTheme.warmBeige),
       ),
       child: Column(
         children: children,

@@ -36,6 +36,7 @@ class TaskStatusBar extends StatelessWidget {
         color: AppTheme.surfaceWhite,
         borderRadius: BorderRadius.circular(AppTheme.radiusMD),
         boxShadow: AppTheme.cardShadow,
+        border: Border.all(color: AppTheme.warmBeige),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

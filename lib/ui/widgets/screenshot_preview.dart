@@ -45,12 +45,12 @@ class ScreenshotPreview extends StatelessWidget {
           maxHeight: MediaQuery.of(context).size.height * 0.6,
         ),
         decoration: BoxDecoration(
-          color: AppTheme.backgroundGrey,
-          borderRadius: BorderRadius.circular(AppTheme.radiusLG),
-          boxShadow: AppTheme.cardShadow,
+          color: AppTheme.grey50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.grey200),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppTheme.radiusLG),
+          borderRadius: BorderRadius.circular(11), // 略小于外边框
           child: Stack(
             children: [
               // 截图内容
@@ -91,21 +91,21 @@ class ScreenshotPreview extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: 300,
-      color: AppTheme.backgroundGrey,
-      child: Column(
+      color: AppTheme.grey50,
+      child: const Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
             Icons.phone_android,
-            size: 64,
-            color: AppTheme.textHint,
+            size: 48,
+            color: AppTheme.grey300,
           ),
-          const SizedBox(height: AppTheme.spacingMD),
+          SizedBox(height: 12),
           Text(
             '等待截图...',
             style: TextStyle(
               color: AppTheme.textHint,
-              fontSize: 14,
+              fontSize: 13,
             ),
           ),
         ],
@@ -116,28 +116,28 @@ class ScreenshotPreview extends StatelessWidget {
   Widget _buildLoadingOverlay(BuildContext context) {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withOpacity(0.4),
+        color: Colors.black.withOpacity(0.3),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               SizedBox(
-                width: 48,
-                height: 48,
+                width: 40,
+                height: 40,
                 child: CircularProgressIndicator(
                   value: loadingProgress,
                   strokeWidth: 3,
                   valueColor: const AlwaysStoppedAnimation<Color>(
-                    AppTheme.accentOrange,
+                    Colors.white,
                   ),
                 ),
               ),
-              const SizedBox(height: AppTheme.spacingMD),
-              Text(
+              const SizedBox(height: 12),
+              const Text(
                 '执行中...',
                 style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -150,22 +150,19 @@ class ScreenshotPreview extends StatelessWidget {
   
   Widget _buildStepBadge(BuildContext context) {
     return Positioned(
-      top: AppTheme.spacingSM,
-      left: AppTheme.spacingSM,
+      top: 12,
+      left: 12,
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingSM,
-          vertical: AppTheme.spacingXS,
-        ),
+        padding: const EdgeInsets.symmetric( horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: AppTheme.accentOrange,
-          borderRadius: BorderRadius.circular(AppTheme.radiusSM),
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(4),
         ),
         child: Text(
           stepInfo!,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: FontWeight.w500,
           ),
         ),

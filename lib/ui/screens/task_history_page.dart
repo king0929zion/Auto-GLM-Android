@@ -8,7 +8,7 @@ import '../../data/models/task_record.dart';
 class TaskHistoryPage extends StatefulWidget {
   /// 选择任务的回调
   final void Function(String task)? onTaskSelected;
-  
+
   const TaskHistoryPage({super.key, this.onTaskSelected});
 
   @override
@@ -19,13 +19,13 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
   final HistoryService _historyService = HistoryService();
   List<TaskRecord> _records = [];
   bool _isLoading = true;
-  
+
   @override
   void initState() {
     super.initState();
     _loadHistory();
   }
-  
+
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
     try {
@@ -46,9 +46,10 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
+      backgroundColor: AppTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('任务历史', style: TextStyle(fontWeight: FontWeight.bold)),
+        title:
+            const Text('任务历史', style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -63,7 +64,8 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
         ],
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+              child: CircularProgressIndicator(color: AppTheme.primaryBlack))
           : _records.isEmpty
               ? _buildEmptyState()
               : _buildHistoryList(),
@@ -133,15 +135,15 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
     return Container(
       decoration: BoxDecoration(
         color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: AppTheme.cardShadow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.grey200),
       ),
       child: Material(
         color: Colors.transparent,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: () => _showTaskDetails(record),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -149,43 +151,38 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
               children: [
                 Row(
                   children: [
-                    // 状态图标
+                    // 状态点
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
-                        color: isCompleted
-                            ? const Color(0xFFE8F5E9)
-                            : const Color(0xFFFFEBEE),
+                        color: isCompleted ? AppTheme.success : AppTheme.error,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        isCompleted ? Icons.check : Icons.close,
-                        size: 16,
-                        color: isCompleted ? Colors.green : Colors.red,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      dateStr,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        dateStr,
-                        style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
+                    const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.backgroundLight,
-                        borderRadius: BorderRadius.circular(8),
+                        color: AppTheme.grey50,
+                        borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         durationStr,
                         style: const TextStyle(
-                          color: AppTheme.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textHint,
+                          fontSize: 11,
+                          fontFamily: 'monospace',
                         ),
                       ),
                     ),
@@ -195,8 +192,8 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
                 Text(
                   record.prompt,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
                     color: AppTheme.textPrimary,
                     height: 1.4,
                   ),
@@ -205,42 +202,68 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
                 ),
                 if (record.errorMessage != null) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    record.errorMessage!,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.error.withOpacity(0.8),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.error.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline,
+                            size: 14, color: AppTheme.error),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            record.errorMessage!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.error.withOpacity(0.9),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
                 const SizedBox(height: 12),
+                const Divider(height: 1, color: AppTheme.grey100),
+                const SizedBox(height: 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     if (widget.onTaskSelected != null)
                       TextButton.icon(
                         onPressed: () {
-                           if (widget.onTaskSelected != null) {
-                             widget.onTaskSelected!(record.prompt);
-                             Navigator.pop(context);
-                           }
+                          if (widget.onTaskSelected != null) {
+                            widget.onTaskSelected!(record.prompt);
+                            Navigator.pop(context);
+                          }
                         },
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('再次执行'),
+                        icon: const Icon(Icons.refresh, size: 14),
+                        label: const Text('重试'),
                         style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.accentOrange,
+                          foregroundColor: AppTheme.primaryBlack,
+                          textStyle: const TextStyle(fontSize: 13),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                          minimumSize: Size.zero,
                           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 16),
                     TextButton.icon(
                       onPressed: () => _showTaskDetails(record),
-                      icon: const Icon(Icons.format_list_bulleted, size: 16),
+                      icon: const Icon(Icons.article_outlined, size: 14),
                       label: const Text('日志'),
                       style: TextButton.styleFrom(
                         foregroundColor: AppTheme.textSecondary,
+                        textStyle: const TextStyle(fontSize: 13),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 4),
+                        minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                     ),
@@ -292,7 +315,8 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
                           const SizedBox(height: 4),
                           Text(
                             DateFormat('yyyy-MM-dd HH:mm:ss').format(
-                              DateTime.fromMillisecondsSinceEpoch(record.startTime),
+                              DateTime.fromMillisecondsSinceEpoch(
+                                  record.startTime),
                             ),
                             style: const TextStyle(
                               color: AppTheme.textSecondary,
@@ -309,7 +333,7 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
                   ],
                 ),
               ),
-              
+
               // prompt
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -329,9 +353,9 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
                   ),
                 ),
               ),
-              
+
               const Divider(height: 1),
-              
+
               // logs
               Expanded(
                 child: ListView.separated(
@@ -340,14 +364,14 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
                   itemCount: record.logs.length,
                   separatorBuilder: (context, index) => const Divider(),
                   itemBuilder: (context, index) {
-                     return SelectableText(
-                       record.logs[index],
-                       style: const TextStyle(
-                         fontSize: 13,
-                         fontFamily: 'monospace',
-                         height: 1.5,
-                       ),
-                     );
+                    return SelectableText(
+                      record.logs[index],
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontFamily: 'monospace',
+                        height: 1.5,
+                      ),
+                    );
                   },
                 ),
               ),

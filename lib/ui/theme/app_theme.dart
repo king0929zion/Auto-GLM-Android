@@ -3,95 +3,122 @@ import 'package:flutter/material.dart';
 /// AutoGLM Mobile 应用主题配置
 /// 色彩体系：温暖的米色系
 class AppTheme {
-  // 主色调 - 温暖的米色系
-  static const Color primaryBeige = Color(0xFFF5F1E8);
-  static const Color secondaryBeige = Color(0xFFE8DFC3);
-  static const Color warmBeige = Color(0xFFDDD4BB);
+  // === 新版极简黑白设计体系 ===
   
-  // 强调色 - 柔和的橙色系  
-  static const Color accentOrange = Color(0xFFFFA574);
-  static const Color accentOrangeDeep = Color(0xFFFF8C42);
-  static const Color accentOrangeLight = Color(0xFFFFD4B8);
+  // 核心色调
+  static const Color primaryBlack = Color(0xFF000000);
+  static const Color primaryDark = Color(0xFF1C1C1E); // Apple style dark
+  static const Color scaffoldWhite = Color(0xFFFFFFFF);
+  static const Color surfaceGrey = Color(0xFFF5F5F7); // 极其淡的灰，用于区分层级
   
-  // 别名（兼容性）
-  static const Color primaryColor = accentOrange;
-  static const Color backgroundColor = Color(0xFF121212);
-  static const Color surfaceColor = Color(0xFF1E1E1E);
+  // 灰色阶 (Grayscale)
+  static const Color grey50 = Color(0xFFFAFAFA);
+  static const Color grey100 = Color(0xFFF2F2F7);
+  static const Color grey200 = Color(0xFFE5E5EA); // 边框、分割线
+  static const Color grey300 = Color(0xFFD1D1D6);
+  static const Color grey400 = Color(0xFFC7C7CC); // 占位符
+  static const Color grey600 = Color(0xFF8E8E93); // 次要文字
+  static const Color grey800 = Color(0xFF3C3C43); // 主要文字
+  
+  // 功能色
+  static const Color functionalError = Color(0xFFE02020); // 更有质感的红
+  static const Color functionalSuccess = Color(0xFF34C759); // 清新的绿
+  static const Color functionalWarning = Color(0xFFFF9500);
+  
+  // === 兼容旧版变量名 (映射到新版极简色系) ===
+  
+  // 原主色调 (米色) -> 映射为白色/浅灰
+  static const Color primaryBeige = scaffoldWhite;
+  static const Color secondaryBeige = grey100;
+  static const Color warmBeige = grey200; // 常用作边框
+  
+  // 原强调色 (橙色) -> 映射为黑色 (作为主要行动点)
+  static const Color accentOrange = primaryBlack;
+  static const Color accentOrangeDeep = primaryDark;
+  static const Color accentOrangeLight = grey200; // 原淡橙色背景 -> 淡灰
+  
+  // 别名
+  static const Color primaryColor = primaryBlack;
+  static const Color backgroundColor = grey50; // 深色模式背景 (保留定义但暂不强调)
+  static const Color surfaceColor = primaryDark; // 深色模式表面 (保留定义)
   
   // 背景色
-  static const Color backgroundLight = Color(0xFFFAFAFA);
-  static const Color backgroundGrey = Color(0xFFF0F0F0);
-  static const Color surfaceWhite = Color(0xFFFFFFFF);
+  static const Color backgroundLight = scaffoldWhite;
+  static const Color backgroundGrey = grey50;
+  static const Color surfaceWhite = scaffoldWhite;
   
   // 文字色
-  static const Color textPrimary = Color(0xFF333333);
-  static const Color textSecondary = Color(0xFF666666);
-  static const Color textHint = Color(0xFF999999);
+  static const Color textPrimary = primaryBlack;
+  static const Color textSecondary = grey600; // 更加精致的灰
+  static const Color textHint = grey400;
   
   // 状态色
-  static const Color success = Color(0xFF7CB342);
-  static const Color error = Color(0xFFE57373);
-  static const Color warning = Color(0xFFFFB74D);
-  static const Color info = Color(0xFF90A4AE);
+  static const Color success = functionalSuccess;
+  static const Color error = functionalError;
+  static const Color warning = functionalWarning;
+  static const Color info = grey600;
   
-  // 间距
+  // 间距 - 保持不变
   static const double spacingXS = 4.0;
   static const double spacingSM = 8.0;
   static const double spacingMD = 16.0;
   static const double spacingLG = 24.0;
   static const double spacingXL = 32.0;
   
-  // 圆角
-  static const double radiusSM = 8.0;
-  static const double radiusMD = 12.0;
-  static const double radiusLG = 16.0;
-  static const double radiusXL = 24.0;
+  // 圆角 - 稍微减小圆角，显得更干练
+  static const double radiusSM = 4.0;
+  static const double radiusMD = 8.0;
+  static const double radiusLG = 12.0;
+  static const double radiusXL = 16.0;
   
   // 按钮高度
   static const double buttonHeight = 48.0;
   static const double buttonMinTouchTarget = 44.0;
   
-  /// 创建亮色主题
+  /// 创建极简亮色主题
   static ThemeData get lightTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primaryColor: accentOrange,
-      scaffoldBackgroundColor: backgroundLight,
+      primaryColor: primaryBlack,
+      scaffoldBackgroundColor: scaffoldWhite,
       
       // 色彩方案
       colorScheme: const ColorScheme.light(
-        primary: accentOrange,
+        primary: primaryBlack,
         onPrimary: Colors.white,
-        secondary: secondaryBeige,
-        onSecondary: textPrimary,
-        surface: surfaceWhite,
-        onSurface: textPrimary,
-        error: error,
+        secondary: grey800,
+        onSecondary: Colors.white,
+        surface: scaffoldWhite,
+        onSurface: primaryBlack,
+        error: functionalError,
         onError: Colors.white,
-        outline: warmBeige,
+        outline: grey200,
       ),
       
-      // AppBar 主题
+      // AppBar 主题 - 极简白底黑字
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryBeige,
-        foregroundColor: textPrimary,
+        backgroundColor: scaffoldWhite,
+        foregroundColor: primaryBlack,
         elevation: 0,
         centerTitle: true,
+        scrolledUnderElevation: 0, // 滚动时不显示阴影
         titleTextStyle: TextStyle(
-          color: textPrimary,
+          color: primaryBlack,
           fontSize: 18,
           fontWeight: FontWeight.w600,
+          letterSpacing: -0.5, // 稍微紧凑的字间距
         ),
+        iconTheme: IconThemeData(color: primaryBlack),
       ),
       
-      // 卡片主题
+      // 卡片主题 - 极简，去阴影，加边框
       cardTheme: CardThemeData(
-        color: surfaceWhite,
-        elevation: 2,
-        shadowColor: textHint.withOpacity(0.2),
-        shape: const RoundedRectangleBorder(
+        color: scaffoldWhite,
+        elevation: 0, // 去除阴影，扁平化
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(radiusMD)),
+          side: const BorderSide(color: grey200, width: 1.0), // 细边框
         ),
         margin: const EdgeInsets.symmetric(
           horizontal: spacingMD,
@@ -99,12 +126,12 @@ class AppTheme {
         ),
       ),
       
-      // 按钮主题
+      // 按钮主题 - 黑底白字
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: accentOrange,
+          backgroundColor: primaryBlack,
           foregroundColor: Colors.white,
-          elevation: 2,
+          elevation: 0, // 扁平化
           minimumSize: const Size(double.infinity, buttonHeight),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(radiusMD)),
@@ -112,14 +139,15 @@ class AppTheme {
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
           ),
         ),
       ),
       
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: accentOrange,
-          side: const BorderSide(color: accentOrange, width: 1.5),
+          foregroundColor: primaryBlack,
+          side: const BorderSide(color: primaryBlack, width: 1.5),
           minimumSize: const Size(double.infinity, buttonHeight),
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(Radius.circular(radiusMD)),
@@ -133,7 +161,7 @@ class AppTheme {
       
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: accentOrange,
+          foregroundColor: primaryBlack,
           textStyle: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w500,
@@ -144,7 +172,7 @@ class AppTheme {
       // 输入框主题
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: surfaceWhite,
+        fillColor: grey50,
         hintStyle: const TextStyle(color: textHint),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: spacingMD,
@@ -152,15 +180,15 @@ class AppTheme {
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMD),
-          borderSide: const BorderSide(color: warmBeige),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMD),
-          borderSide: const BorderSide(color: warmBeige),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMD),
-          borderSide: const BorderSide(color: accentOrange, width: 2),
+          borderSide: const BorderSide(color: primaryBlack, width: 1),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusMD),
@@ -168,32 +196,34 @@ class AppTheme {
         ),
       ),
       
-      // 文字主题
+      // 文字主题 - 使用更现代的字重
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
-          fontSize: 28,
+          fontSize: 32,
           fontWeight: FontWeight.bold,
-          color: textPrimary,
+          color: primaryBlack,
+          letterSpacing: -1.0,
         ),
         headlineMedium: TextStyle(
           fontSize: 24,
           fontWeight: FontWeight.bold,
-          color: textPrimary,
+          color: primaryBlack,
+          letterSpacing: -0.5,
         ),
         headlineSmall: TextStyle(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: primaryBlack,
         ),
         titleLarge: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: primaryBlack,
         ),
         titleMedium: TextStyle(
           fontSize: 16,
           fontWeight: FontWeight.w500,
-          color: textPrimary,
+          color: primaryBlack,
         ),
         titleSmall: TextStyle(
           fontSize: 14,
@@ -203,10 +233,12 @@ class AppTheme {
         bodyLarge: TextStyle(
           fontSize: 16,
           color: textPrimary,
+          height: 1.5,
         ),
         bodyMedium: TextStyle(
           fontSize: 14,
           color: textPrimary,
+          height: 1.5,
         ),
         bodySmall: TextStyle(
           fontSize: 12,
@@ -214,117 +246,125 @@ class AppTheme {
         ),
         labelLarge: TextStyle(
           fontSize: 14,
-          fontWeight: FontWeight.w500,
-          color: textSecondary,
+          fontWeight: FontWeight.w600,
+          color: primaryBlack,
         ),
       ),
       
       // 底部导航主题
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: surfaceWhite,
-        selectedItemColor: accentOrange,
+        backgroundColor: scaffoldWhite,
+        selectedItemColor: primaryBlack,
         unselectedItemColor: textHint,
         type: BottomNavigationBarType.fixed,
-        elevation: 8,
+        elevation: 0,
+        landscapeLayout: BottomNavigationBarLandscapeLayout.centered,
       ),
       
       // 进度指示器主题
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: accentOrange,
-        linearTrackColor: secondaryBeige,
+        color: primaryBlack,
+        linearTrackColor: grey200,
       ),
       
       // 浮动按钮主题
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: accentOrange,
+        backgroundColor: primaryBlack,
         foregroundColor: Colors.white,
-        elevation: 4,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
       ),
       
       // 分割线主题
       dividerTheme: const DividerThemeData(
-        color: warmBeige,
+        color: grey200,
         thickness: 1,
         space: spacingMD,
       ),
       
       // 芯片主题
       chipTheme: ChipThemeData(
-        backgroundColor: secondaryBeige,
-        selectedColor: accentOrange,
+        backgroundColor: grey100,
+        selectedColor: primaryBlack,
         labelStyle: const TextStyle(color: textPrimary),
+        secondaryLabelStyle: const TextStyle(color: Colors.white),
+        secondarySelectedColor: primaryBlack,
+        checkmarkColor: Colors.white,
         padding: const EdgeInsets.symmetric(
           horizontal: spacingSM,
           vertical: spacingXS,
         ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusSM),
+          side: const BorderSide(color: Colors.transparent),
         ),
       ),
       
       // 对话框主题
       dialogTheme: const DialogThemeData(
-        backgroundColor: surfaceWhite,
+        backgroundColor: scaffoldWhite,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(radiusLG)),
+          side: BorderSide(color: grey200), // 细边框代替阴影
         ),
         titleTextStyle: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: textPrimary,
+          color: primaryBlack,
         ),
       ),
       
       // 底部弹窗主题
       bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: surfaceWhite,
+        backgroundColor: scaffoldWhite,
+        modalBackgroundColor: scaffoldWhite,
+        elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(radiusXL),
           ),
+          side: BorderSide(color: grey200), // 顶部边框
         ),
       ),
       
       // Snackbar主题
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: textPrimary,
+        backgroundColor: primaryBlack,
         contentTextStyle: const TextStyle(color: Colors.white),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusSM),
         ),
         behavior: SnackBarBehavior.floating,
       ),
+      
+      iconTheme: const IconThemeData(
+        color: primaryBlack,
+        size: 24,
+      ),
     );
   }
   
-  /// 创建渐变背景装饰
+  /// 创建渐变背景装饰 - 极简风格不需要渐变，返回纯色
   static BoxDecoration get gradientBackground {
     return const BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [primaryBeige, backgroundLight],
-      ),
+      color: scaffoldWhite,
     );
   }
   
-  /// 创建卡片阴影
+  /// 创建卡片阴影 - 极简风格去阴影，返回空列表
   static List<BoxShadow> get cardShadow {
-    return [
-      BoxShadow(
-        color: textHint.withOpacity(0.1),
-        blurRadius: 8,
-        offset: const Offset(0, 2),
-      ),
-    ];
+    return [];
   }
   
-  /// 创建软阴影
+  /// 创建软阴影 - 极简风格去阴影，只保留极淡的轮廓
   static List<BoxShadow> get softShadow {
     return [
       BoxShadow(
-        color: textHint.withOpacity(0.08),
-        blurRadius: 16,
+        color: primaryBlack.withOpacity(0.05),
+        blurRadius: 10,
         offset: const Offset(0, 4),
       ),
     ];

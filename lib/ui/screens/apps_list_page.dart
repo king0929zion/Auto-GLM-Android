@@ -14,7 +14,7 @@ class AppsListPage extends StatefulWidget {
 class _AppsListPageState extends State<AppsListPage> {
   String _searchQuery = '';
   String _selectedCategory = '全部';
-  
+
   // 应用分类
   static const Map<String, List<String>> _categories = {
     '全部': [],
@@ -31,36 +31,37 @@ class _AppsListPageState extends State<AppsListPage> {
 
   List<MapEntry<String, String>> get _filteredApps {
     var apps = AppPackages.packages.entries.toList();
-    
+
     // 按分类筛选
     if (_selectedCategory != '全部') {
       final categoryApps = _categories[_selectedCategory] ?? [];
       apps = apps.where((e) => categoryApps.contains(e.key)).toList();
     }
-    
+
     // 按搜索词筛选
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      apps = apps.where((e) => 
-        e.key.toLowerCase().contains(query) ||
-        e.value.toLowerCase().contains(query)
-      ).toList();
+      apps = apps
+          .where((e) =>
+              e.key.toLowerCase().contains(query) ||
+              e.value.toLowerCase().contains(query))
+          .toList();
     }
-    
+
     // 按名称排序，去重
     final seen = <String>{};
     apps = apps.where((e) => seen.add(e.value)).toList();
     apps.sort((a, b) => a.key.compareTo(b.key));
-    
+
     return apps;
   }
 
   @override
   Widget build(BuildContext context) {
     final filteredApps = _filteredApps;
-    
+
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
+      backgroundColor: AppTheme.scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('支持的应用'),
         actions: [
@@ -86,17 +87,37 @@ class _AppsListPageState extends State<AppsListPage> {
             child: TextField(
               decoration: InputDecoration(
                 hintText: '搜索应用名称或包名...',
-                prefixIcon: const Icon(Icons.search),
+                hintStyle:
+                    const TextStyle(color: AppTheme.textHint, fontSize: 14),
+                prefixIcon: const Icon(Icons.search,
+                    color: AppTheme.textHint, size: 20),
+                contentPadding:
+                    const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                filled: true,
+                fillColor: AppTheme.grey50,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:
+                      const BorderSide(color: AppTheme.primaryBlack, width: 1),
+                ),
                 suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        setState(() {
-                          _searchQuery = '';
-                        });
-                      },
-                    )
-                  : null,
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () {
+                          setState(() {
+                            _searchQuery = '';
+                          });
+                        },
+                      )
+                    : null,
               ),
               onChanged: (value) {
                 setState(() {
@@ -105,18 +126,19 @@ class _AppsListPageState extends State<AppsListPage> {
               },
             ),
           ),
-          
+
           // 分类筛选
           SizedBox(
             height: 40,
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMD),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingMD),
               itemCount: _categories.length,
               itemBuilder: (context, index) {
                 final category = _categories.keys.elementAt(index);
                 final isSelected = category == _selectedCategory;
-                
+
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
@@ -127,46 +149,61 @@ class _AppsListPageState extends State<AppsListPage> {
                         _selectedCategory = category;
                       });
                     },
-                    selectedColor: AppTheme.accentOrange,
+                    backgroundColor: Colors.transparent,
+                    selectedColor: AppTheme.primaryBlack,
+                    checkmarkColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(
+                        color:
+                            isSelected ? Colors.transparent : AppTheme.grey200,
+                      ),
+                    ),
                     labelStyle: TextStyle(
                       color: isSelected ? Colors.white : AppTheme.textPrimary,
+                      fontSize: 13,
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                   ),
                 );
               },
             ),
           ),
-          
+
           const SizedBox(height: AppTheme.spacingSM),
-          
+
           // 应用列表
           Expanded(
             child: filteredApps.isEmpty
-              ? _buildEmptyState()
-              : ListView.separated(
-                  padding: const EdgeInsets.all(AppTheme.spacingMD),
-                  itemCount: filteredApps.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (context, index) {
-                    final app = filteredApps[index];
-                    return _buildAppTile(app.key, app.value);
-                  },
-                ),
+                ? _buildEmptyState()
+                : ListView.separated(
+                    padding: const EdgeInsets.all(AppTheme.spacingMD),
+                    itemCount: filteredApps.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, indent: 68),
+                    itemBuilder: (context, index) {
+                      final app = filteredApps[index];
+                      return _buildAppTile(app.key, app.value);
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
-  
+
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.apps,
-            size: 64,
-            color: AppTheme.textHint,
+            Icons.apps_outlined,
+            size: 48,
+            color: AppTheme.grey300,
           ),
           const SizedBox(height: AppTheme.spacingMD),
           const Text(
@@ -177,15 +214,16 @@ class _AppsListPageState extends State<AppsListPage> {
       ),
     );
   }
-  
+
   Widget _buildAppTile(String appName, String packageName) {
     return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       leading: Container(
-        width: 40,
-        height: 40,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
-          color: AppTheme.secondaryBeige,
-          borderRadius: BorderRadius.circular(8),
+          color: AppTheme.grey100,
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Center(
           child: Text(
@@ -193,14 +231,17 @@ class _AppsListPageState extends State<AppsListPage> {
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
-              color: AppTheme.accentOrangeDeep,
+              color: AppTheme.primaryBlack,
             ),
           ),
         ),
       ),
       title: Text(
         appName,
-        style: const TextStyle(fontWeight: FontWeight.w500),
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 15,
+        ),
       ),
       subtitle: Text(
         packageName,
@@ -210,21 +251,31 @@ class _AppsListPageState extends State<AppsListPage> {
           fontFamily: 'monospace',
         ),
       ),
-      trailing: IconButton(
-        icon: const Icon(Icons.copy, size: 18),
-        color: AppTheme.textHint,
-        onPressed: () {
-          // 复制包名到剪贴板
-          _copyToClipboard(packageName);
-        },
-        tooltip: '复制包名',
+      trailing: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.grey200),
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.content_copy, size: 14),
+          padding: EdgeInsets.zero,
+          color: AppTheme.textSecondary,
+          onPressed: () {
+            // 复制包名到剪贴板
+            _copyToClipboard(packageName);
+          },
+          tooltip: '复制包名',
+        ),
       ),
       onTap: () {
         _showAppDetails(appName, packageName);
       },
     );
   }
-  
+
   void _copyToClipboard(String text) {
     // 复制到剪贴板
     ScaffoldMessenger.of(context).showSnackBar(
@@ -234,15 +285,16 @@ class _AppsListPageState extends State<AppsListPage> {
       ),
     );
   }
-  
+
   void _showAppDetails(String appName, String packageName) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppTheme.surfaceWhite,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: AppTheme.warmBeige),
         ),
         padding: const EdgeInsets.all(AppTheme.spacingLG),
         child: Column(
@@ -261,14 +313,14 @@ class _AppsListPageState extends State<AppsListPage> {
               ),
             ),
             const SizedBox(height: AppTheme.spacingLG),
-            
+
             // 应用名称
             Text(
               appName,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppTheme.spacingSM),
-            
+
             // 包名
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingSM),
@@ -296,9 +348,9 @@ class _AppsListPageState extends State<AppsListPage> {
                 ],
               ),
             ),
-            
+
             const SizedBox(height: AppTheme.spacingLG),
-            
+
             // 使用示例
             const Text(
               '使用示例',
@@ -319,8 +371,10 @@ class _AppsListPageState extends State<AppsListPage> {
                 style: const TextStyle(fontSize: 14),
               ),
             ),
-            
-            SizedBox(height: MediaQuery.of(context).padding.bottom + AppTheme.spacingMD),
+
+            SizedBox(
+                height:
+                    MediaQuery.of(context).padding.bottom + AppTheme.spacingMD),
           ],
         ),
       ),
