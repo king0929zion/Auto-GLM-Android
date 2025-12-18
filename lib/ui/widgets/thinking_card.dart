@@ -41,11 +41,11 @@ class _ThinkingCardState extends State<ThinkingCard>
     return Container(
       margin: const EdgeInsets.symmetric(
         horizontal: AppTheme.spacingMD,
-        vertical: AppTheme.spacingSM,
+        vertical: 8,
       ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMD),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: _getBorderColor(),
           width: 1,
@@ -59,12 +59,11 @@ class _ThinkingCardState extends State<ThinkingCard>
           
           // 思考内容
           if (_isExpanded) ...[
-            _buildThinkingContent(),
+            if (widget.thinking.isNotEmpty)
+              _buildThinkingContent(),
             
-            // 动作信息
-            if (widget.action != null) ...[
+            if (widget.action != null)
               _buildActionContent(),
-            ],
           ],
         ],
       ),
@@ -73,24 +72,22 @@ class _ThinkingCardState extends State<ThinkingCard>
   
   Color _getBorderColor() {
     if (widget.isExecuting) return AppTheme.primaryBlack;
-    if (widget.isSuccess == false) return AppTheme.error.withOpacity(0.5);
+    if (widget.isSuccess == false) return AppTheme.error.withOpacity(0.3);
     return AppTheme.grey200;
   }
   
   Widget _buildHeader() {
     return InkWell(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(AppTheme.radiusMD),
-      ),
+      borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
         child: Row(
           children: [
             // 步骤标识
             Container(
-              width: 24,
-              height: 24,
+              width: 20,
+              height: 20,
               decoration: BoxDecoration(
                 color: _getStepColor(),
                 shape: BoxShape.circle,
@@ -98,8 +95,8 @@ class _ThinkingCardState extends State<ThinkingCard>
               alignment: Alignment.center,
               child: widget.isExecuting
                 ? const SizedBox(
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -109,7 +106,7 @@ class _ThinkingCardState extends State<ThinkingCard>
                     '${widget.stepNumber}',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -122,13 +119,31 @@ class _ThinkingCardState extends State<ThinkingCard>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.isExecuting ? 'Agent 思考中...' : 'Agent 动作',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        widget.isExecuting ? 'Thinking...' : 'Action',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textPrimary,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      if (widget.isSuccess == false)
+                        Container(
+                          margin: const EdgeInsets.only(left: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.error.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                             '失败',
+                             style: TextStyle(fontSize: 10, color: AppTheme.error),
+                          ),
+                        ),
+                    ],
                   ),
                   if (widget.action != null) ...[
                     const SizedBox(height: 2),
@@ -161,50 +176,27 @@ class _ThinkingCardState extends State<ThinkingCard>
   
   Color _getStepColor() {
     if (widget.isExecuting) return AppTheme.primaryBlack;
-    if (widget.isSuccess == true) return AppTheme.success;
     if (widget.isSuccess == false) return AppTheme.error;
-    return AppTheme.grey400; // Grey for history items
+    if (widget.isSuccess == true) return AppTheme.primaryBlack; // Success is also black
+    return AppTheme.grey300; // History items
   }
   
   Widget _buildThinkingContent() {
-    if (widget.thinking.isEmpty) return const SizedBox.shrink();
-    
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppTheme.grey100),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.psychology_alt, size: 14, color: AppTheme.grey600),
-              const SizedBox(width: 6),
-              const Text(
-                '思考逻辑',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.grey600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           SelectableText(
             widget.thinking,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 14,
               color: AppTheme.textPrimary,
               height: 1.6,
             ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -215,48 +207,43 @@ class _ThinkingCardState extends State<ThinkingCard>
     
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(
-          top: BorderSide(color: AppTheme.grey100),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.terminal, size: 14, color: AppTheme.grey600),
-              const SizedBox(width: 6),
-              const Text(
-                '参数详情',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.grey600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppTheme.grey50,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppTheme.grey100),
             ),
-            child: SelectableText(
-              action.toJsonString(),
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textPrimary,
-                fontFamily: 'monospace',
-                height: 1.4,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                 const Text(
+                  'PARAMETERS',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.textHint,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SelectableText(
+                  action.toJsonString(),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppTheme.textSecondary,
+                    fontFamily: 'monospace',
+                    height: 1.4,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
         ],
       ),
     );

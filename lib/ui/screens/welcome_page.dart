@@ -30,31 +30,27 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   
   final List<_WelcomePageData> _pages = [
     _WelcomePageData(
-      icon: Icons.smart_toy,
-      title: '欢迎使用 AutoZi',
-      description: 'AI驱动的手机自动化助手\n让您用自然语言控制手机',
-      color: AppTheme.accentOrange,
+      icon: Icons.smart_toy_outlined,
+      title: 'AutoZi 智能助手',
+      description: 'AI 驱动的手机自动化助手\n自然语言，一语即达',
       type: _PageType.intro,
     ),
     _WelcomePageData(
-      icon: Icons.auto_awesome,
-      title: '智能理解，自动执行',
-      description: '只需描述您想要完成的任务\nAI会自动分析屏幕并执行操作',
-      color: AppTheme.accentOrangeDeep,
+      icon: Icons.auto_awesome_outlined,
+      title: '智能理解',
+      description: '描述您的需求\nAI 自动规划并执行操作',
       type: _PageType.intro,
     ),
     _WelcomePageData(
-      icon: Icons.key,
+      icon: Icons.vpn_key_outlined,
       title: '配置 API 密钥',
-      description: '请输入您的智谱 API Key\n用于连接 AutoGLM 服务',
-      color: AppTheme.info,
+      description: '连接 AutoGLM 服务的密钥',
       type: _PageType.apiKey,
     ),
     _WelcomePageData(
-      icon: Icons.accessibility_new,
+      icon: Icons.shield_outlined,
       title: '权限配置',
-      description: '开启必要权限后即可开始使用',
-      color: AppTheme.success,
+      description: '授予必要权限以接管操作',
       type: _PageType.permission,
     ),
   ];
@@ -101,22 +97,27 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     }
   }
   
-  bool get _allPermissionsGranted => _accessibilityEnabled;
+  bool get _allPermissionsGranted => _accessibilityEnabled && _overlayPermission && _shizukuAuthorized;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
+      backgroundColor: AppTheme.scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
-            // 跳过按钮
+            // 跳过按钮 (仅非强制页面)
             Align(
               alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: _skip,
-                child: const Text('跳过'),
-              ),
+              child: _currentPage < 2 
+                  ? TextButton(
+                      onPressed: _skip,
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.textHint,
+                      ),
+                      child: const Text('跳过'),
+                    )
+                  : const SizedBox(height: 48),
             ),
             
             // 页面内容
@@ -128,7 +129,6 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
                   setState(() {
                     _currentPage = page;
                   });
-                  // 当进入权限页面时，启动定时检查
                   if (_pages[page].type == _PageType.permission) {
                     _startPermissionCheck();
                   } else {
@@ -143,19 +143,18 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
             
             // 页面指示器
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingLG),
+              padding: const EdgeInsets.symmetric(vertical: 32),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(_pages.length, (index) {
+                  final isActive = _currentPage == index;
                   return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
+                    duration: const Duration(milliseconds: 300),
                     margin: const EdgeInsets.symmetric(horizontal: 4),
-                    width: _currentPage == index ? 24 : 8,
+                    width: isActive ? 24 : 8,
                     height: 8,
                     decoration: BoxDecoration(
-                      color: _currentPage == index
-                          ? AppTheme.primaryBlack
-                          : AppTheme.warmBeige,
+                      color: isActive ? AppTheme.primaryBlack : AppTheme.grey200,
                       borderRadius: BorderRadius.circular(4),
                     ),
                   );
@@ -165,13 +164,28 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
             
             // 底部按钮
             Padding(
-              padding: const EdgeInsets.all(AppTheme.spacingLG),
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
               child: SizedBox(
                 width: double.infinity,
-                height: 48,
+                height: 56,
                 child: ElevatedButton(
                   onPressed: _getButtonAction(),
-                  child: Text(_getButtonText()),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBlack,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    disabledBackgroundColor: AppTheme.grey200,
+                  ),
+                  child: Text(
+                    _getButtonText(),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -197,9 +211,9 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   String _getButtonText() {
     final page = _pages[_currentPage];
     if (page.type == _PageType.permission) {
-      return _allPermissionsGranted ? '开始使用' : '请完成权限配置';
+      return _allPermissionsGranted ? '开始探索' : '请完成所有配置';
     }
-    return _currentPage < _pages.length - 1 ? '下一步' : '开始使用';
+    return _currentPage < _pages.length - 1 ? '继续' : '开始使用';
   }
   
   VoidCallback? _getButtonAction() {
@@ -207,8 +221,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     if (page.type == _PageType.permission) {
       return _allPermissionsGranted ? _complete : null;
     }
-    if (page.type == _PageType.apiKey && _currentPage < _pages.length - 1) {
-      // API Key 页面，需要在保存后才能下一步
+    if (page.type == _PageType.apiKey) {
       return _saveApiKeyAndNext;
     }
     return _currentPage < _pages.length - 1 ? _nextPage : _complete;
@@ -235,45 +248,42 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   
   Widget _buildIntroPage(_WelcomePageData page) {
     return Padding(
-      padding: const EdgeInsets.all(AppTheme.spacingXL),
+      padding: const EdgeInsets.symmetric(horizontal: 40),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 图标
           Container(
             width: 120,
             height: 120,
             decoration: BoxDecoration(
-              color: AppTheme.primaryBlack.withOpacity(0.05),
+              color: AppTheme.grey50,
               shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.grey100),
             ),
             child: Icon(
               page.icon,
-              size: 64,
+              size: 56,
               color: AppTheme.primaryBlack,
             ),
           ),
-          
-          const SizedBox(height: AppTheme.spacingXL),
-          
-          // 标题
+          const SizedBox(height: 40),
           Text(
             page.title,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            style: const TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: AppTheme.primaryBlack,
+              letterSpacing: -0.5,
             ),
             textAlign: TextAlign.center,
           ),
-          
-          const SizedBox(height: AppTheme.spacingMD),
-          
-          // 描述
+          const SizedBox(height: 16),
           Text(
             page.description,
             style: const TextStyle(
               fontSize: 16,
               color: AppTheme.textSecondary,
-              height: 1.5,
+              height: 1.6,
             ),
             textAlign: TextAlign.center,
           ),
@@ -284,114 +294,67 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   
   Widget _buildApiKeyPage(_WelcomePageData page) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppTheme.spacingXL),
+      padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          // 图标
-          Container(
-            width: 100,
-            height: 100,
-            decoration: BoxDecoration(
-              color: page.color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              page.icon,
-              size: 48,
-              color: page.color,
-            ),
-          ),
-          
-          const SizedBox(height: AppTheme.spacingLG),
-          
-          // 标题
+          const SizedBox(height: 48),
+          Icon(page.icon, size: 64, color: AppTheme.primaryBlack),
+          const SizedBox(height: 32),
           Text(
             page.title,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+            style: const TextStyle(
+              fontSize: 24,
               fontWeight: FontWeight.bold,
+              color: AppTheme.primaryBlack,
             ),
-            textAlign: TextAlign.center,
           ),
-          
-          const SizedBox(height: AppTheme.spacingSM),
-          
-          // 描述
+          const SizedBox(height: 12),
           Text(
             page.description,
             style: const TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               color: AppTheme.textSecondary,
-              height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
+          const SizedBox(height: 48),
           
-          const SizedBox(height: AppTheme.spacingXL),
-          
-          // API Key 输入框
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingMD),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceWhite,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMD),
-              boxShadow: AppTheme.cardShadow,
-              border: Border.all(color: AppTheme.warmBeige),
+          TextField(
+            controller: _apiKeyController,
+            style: const TextStyle(fontSize: 16),
+            decoration: InputDecoration(
+              labelText: 'API Key',
+              hintText: '请输入智谱 API Key',
+              prefixIcon: const Icon(Icons.key_outlined, size: 20, color: AppTheme.textSecondary),
+              filled: true,
+              fillColor: AppTheme.grey50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Colors.transparent),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppTheme.primaryBlack),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
             ),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _apiKeyController,
-                  decoration: const InputDecoration(
-                    labelText: '智谱 API Key',
-                    hintText: '请输入您的 API Key',
-                    prefixIcon: Icon(Icons.vpn_key),
-                    filled: true,
-                    fillColor: Colors.transparent,
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: AppTheme.spacingMD),
-                
-                // 获取 API Key 按钮
-                InkWell(
-                  onTap: _openApiKeyPage,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingMD,
-                      vertical: AppTheme.spacingSM,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentOrange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusSM),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.open_in_new, size: 16, color: AppTheme.accentOrange),
-                        const SizedBox(width: 8),
-                        Text(
-                          '获取 API Key',
-                          style: TextStyle(
-                            color: AppTheme.accentOrange,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            obscureText: true,
           ),
           
-          const SizedBox(height: AppTheme.spacingMD),
+          const SizedBox(height: 24),
           
-          Text(
-            '提示：您可以稍后在设置中配置 API Key',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppTheme.textHint,
+          TextButton.icon(
+            onPressed: _openApiKeyPage,
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('获取 API Key'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryBlack,
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -400,176 +363,64 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   }
   
   Widget _buildPermissionPage(_WelcomePageData page) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppTheme.spacingLG),
-      child: Column(
-        children: [
-          // 标题
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryBlack.withOpacity(0.05),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              page.icon,
-              size: 40,
-              color: AppTheme.primaryBlack,
-            ),
-          ),
-          
-          const SizedBox(height: AppTheme.spacingMD),
-          
-          Text(
-            page.title,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          
-          const SizedBox(height: AppTheme.spacingLG),
-          
-          // 必需权限标题
-          _buildSectionTitle('必需权限', Icons.check_circle, AppTheme.accentOrange),
-          
-          const SizedBox(height: AppTheme.spacingSM),
-          
-          // 无障碍服务
-          _buildPermissionCard(
-            title: '无障碍服务',
-            subtitle: _accessibilityEnabled
-                ? '已启用 - 用于模拟点击、滑动和输入'
-                : '点击前往设置开启（必需）',
-            icon: Icons.accessibility_new,
-            isGranted: _accessibilityEnabled,
-            isRequired: true,
-            onTap: () => _handleAccessibilitySetup(),
-          ),
-          
-          const SizedBox(height: AppTheme.spacingLG),
-          
-          // 可选权限标题
-          _buildSectionTitle('可选权限（增强体验）', Icons.star_outline, AppTheme.textHint),
-          
-          const SizedBox(height: AppTheme.spacingSM),
-          
-          _buildPermissionCard(
-            title: '悬浮窗权限',
-            subtitle: _overlayPermission
-                ? '已授权 - 用于显示任务执行状态'
-                : '未授权（不影响核心功能）',
-            icon: Icons.picture_in_picture,
-            isGranted: _overlayPermission,
-            isRequired: false,
-            onTap: () => _handleOverlayPermission(),
-          ),
-          
-          const SizedBox(height: AppTheme.spacingMD),
-          
-          _buildPermissionCard(
-            title: 'Shizuku（推荐）',
-            subtitle: _shizukuAuthorized
-                ? '已授权 - 提供更可靠的输入能力'
-                : (_shizukuInstalled ? '点击授权' : '未安装（可跳过）'),
-            icon: Icons.security,
-            isGranted: _shizukuAuthorized,
-            isRequired: false,
-            onTap: () => _showShizukuGuide(),
-          ),
-          
-          const SizedBox(height: AppTheme.spacingMD),
-          
-          // Shizuku 优势说明
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingMD),
-            decoration: BoxDecoration(
-              color: AppTheme.info.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMD),
-              border: Border.all(color: AppTheme.info.withOpacity(0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.lightbulb_outline, size: 18, color: AppTheme.info),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Shizuku 的优势',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.info,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  '• 更可靠的文本输入（特别是微信等应用）\n'
-                  '• 支持剪贴板+粘贴的输入方式\n'
-                  '• 不依赖 ADB Keyboard 等额外应用\n'
-                  '• 提供系统级截图能力的备选方案',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textSecondary,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          
-          const SizedBox(height: AppTheme.spacingLG),
-          
-          // 进度提示
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingMD),
-            decoration: BoxDecoration(
-              color: _allPermissionsGranted 
-                  ? AppTheme.success.withOpacity(0.1)
-                  : AppTheme.warmBeige.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(AppTheme.radiusMD),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _allPermissionsGranted ? Icons.check_circle : Icons.info_outline,
-                  color: _allPermissionsGranted ? AppTheme.success : AppTheme.textSecondary,
-                ),
-                const SizedBox(width: AppTheme.spacingSM),
-                Expanded(
-                  child: Text(
-                    _allPermissionsGranted 
-                        ? '权限配置完成，可以开始使用了！'
-                        : '请至少开启无障碍服务以正常使用应用',
-                    style: TextStyle(
-                      color: _allPermissionsGranted ? AppTheme.success : AppTheme.textSecondary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildSectionTitle(String title, IconData icon, Color color) {
-    return Row(
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 8),
+        const SizedBox(height: 24),
         Text(
-          title,
-          style: TextStyle(
-            fontSize: 14,
+          page.title,
+          style: const TextStyle(
+            fontSize: 28,
             fontWeight: FontWeight.bold,
-            color: color,
+            letterSpacing: -0.5,
           ),
         ),
+        const SizedBox(height: 8),
+        Text(
+          page.description,
+          style: const TextStyle(
+            fontSize: 16,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 32),
+        
+        _buildPermissionCard(
+          title: '无障碍服务',
+          subtitle: _accessibilityEnabled ? '已就绪' : '核心操控能力',
+          icon: Icons.accessibility_new_outlined,
+          isGranted: _accessibilityEnabled,
+          onTap: () => _handleAccessibilitySetup(),
+        ),
+        const SizedBox(height: 16),
+        _buildPermissionCard(
+          title: '悬浮窗权限',
+          subtitle: _overlayPermission ? '已就绪' : '任务状态显示',
+          icon: Icons.layers_outlined,
+          isGranted: _overlayPermission,
+          onTap: () => _handleOverlayPermission(),
+        ),
+        const SizedBox(height: 16),
+        _buildPermissionCard(
+          title: 'Shizuku 服务',
+          subtitle: _shizukuAuthorized ? '已就绪' : '高级输入与控制',
+          icon: Icons.adb_outlined,
+          isGranted: _shizukuAuthorized,
+          onTap: () => _showShizukuGuide(),
+        ),
+         const SizedBox(height: 24),
+         Center(
+          child: Text(
+           _allPermissionsGranted 
+              ? '所有配置已就绪' 
+              : '需授予所有权限以继续',
+            style: TextStyle(
+              fontSize: 13,
+              color: _allPermissionsGranted ? AppTheme.primaryBlack : AppTheme.textHint,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+         ),
       ],
     );
   }
@@ -579,95 +430,64 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     required String subtitle,
     required IconData icon,
     required bool isGranted,
-    required bool isRequired,
     required VoidCallback onTap,
   }) {
-    return Card(
-      color: isGranted 
-          ? AppTheme.success.withOpacity(0.1)
-          : AppTheme.surfaceWhite,
-      elevation: isGranted ? 2 : 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: isGranted ? AppTheme.success : AppTheme.warmBeige,
-          width: isGranted ? 2 : 1,
-        ),
-      ),
-      child: InkWell(
-        onTap: isGranted ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: isGranted
-                      ? AppTheme.success.withOpacity(0.2)
-                      : AppTheme.warmBeige.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  icon,
-                  color: isGranted ? AppTheme.success : AppTheme.textSecondary,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (isRequired) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppTheme.error.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '必需',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: AppTheme.error,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: isGranted ? AppTheme.success : AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                isGranted ? Icons.check_circle : Icons.arrow_forward_ios,
-                color: isGranted ? AppTheme.success : AppTheme.textHint,
-                size: isGranted ? 24 : 16,
-              ),
-            ],
+    return InkWell(
+      onTap: isGranted ? null : onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isGranted ? AppTheme.grey50 : AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isGranted ? Colors.transparent : AppTheme.grey200,
           ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isGranted ? Colors.white : AppTheme.primaryBlack,
+                borderRadius: BorderRadius.circular(12),
+                border: isGranted ? Border.all(color: AppTheme.grey200) : null,
+              ),
+              child: Icon(
+                isGranted ? Icons.check : icon,
+                color: isGranted ? AppTheme.primaryBlack : Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isGranted ? AppTheme.textSecondary : AppTheme.primaryBlack,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isGranted ? AppTheme.textHint : AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isGranted)
+              const Icon(Icons.arrow_forward, size: 20, color: AppTheme.primaryBlack),
+          ],
         ),
       ),
     );
@@ -690,7 +510,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
           children: [
             Row(
               children: [
-                Icon(Icons.security, color: AppTheme.accentOrange),
+                const Icon(Icons.security, color: AppTheme.primaryBlack),
                 const SizedBox(width: 12),
                 const Text(
                   'Shizuku 配置指南',
@@ -718,6 +538,10 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                      side: const BorderSide(color: AppTheme.grey200),
+                    ),
                     child: const Text('稍后配置'),
                   ),
                 ),
@@ -737,6 +561,10 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
                       }
                       Future.delayed(const Duration(seconds: 1), _checkPermissions);
                     },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryBlack,
+                      foregroundColor: Colors.white,
+                    ),
                     child: Text(_shizukuInstalled ? '立即授权' : '下载 Shizuku'),
                   ),
                 ),
@@ -757,18 +585,19 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppTheme.accentOrange.withOpacity(0.1),
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryBlack,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 number,
-                style: TextStyle(
+                style: const TextStyle(
+                  fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.accentOrange,
+                  color: Colors.white,
                 ),
               ),
             ),
@@ -788,7 +617,7 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
                 const SizedBox(height: 2),
                 Text(
                   description,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppTheme.textSecondary,
                   ),
@@ -863,14 +692,12 @@ class _WelcomePageData {
   final IconData icon;
   final String title;
   final String description;
-  final Color color;
   final _PageType type;
 
   _WelcomePageData({
     required this.icon,
     required this.title,
     required this.description,
-    required this.color,
     this.type = _PageType.intro,
   });
 }
