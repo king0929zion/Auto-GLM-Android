@@ -62,11 +62,11 @@ flutter:
     - assets/images/
     # - assets/fonts/
 
-  # To use "Resource Round" (ZiYuan) font:
-  # 1. Download "ResourceHanRoundedCN-Regular.ttf" from https://github.com/CyanoHao/Resource-Han-Rounded/releases
-  # 2. Place it in "assets/fonts/" directory.
-  # 3. Uncomment the following lines:
-  # fonts:
-  #   - family: ResourceHanRounded
-  #     fonts:
-  #       - asset: assets/fonts/ResourceHanRoundedCN-Regular.ttf
+  fonts:
+    - family: ResourceHanRounded
+      fonts:
+        - asset: assets/fonts/ResourceHanRoundedCN-Regular.ttf
+        - asset: assets/fonts/ResourceHanRoundedCN-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/ResourceHanRoundedCN-Bold.ttf
+          weight: 700
