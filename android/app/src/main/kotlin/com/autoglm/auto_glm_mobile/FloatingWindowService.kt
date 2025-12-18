@@ -142,7 +142,7 @@ class FloatingWindowService : Service() {
                 shape = GradientDrawable.OVAL
                 setColor(Color.BLACK)
             }
-            elevation = dp2px(6f).toFloat() // Shadow
+            elevation = dp2px(8f).toFloat() // Keep shadow for the ball to make it pop (it's a sprite)
             // Add a subtle border
             foreground = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -184,19 +184,19 @@ class FloatingWindowService : Service() {
         ballContainer?.addView(leftEye)
         ballContainer?.addView(rightEye)
         
-        // 2. Thinking Bubble
+        // 2. Thinking Bubble (Optimized for Flat Minimalist Look)
         statusText = TextView(this).apply {
             text = ""
-            textSize = 13f
+            textSize = 12f // Slightly smaller for code look
             setTextColor(Color.BLACK)
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            typeface = android.graphics.Typeface.MONOSPACE // Monospace for 'thinking' feel
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp2px(16f).toFloat()
-                setStroke(dp2px(1f), Color.parseColor("#E0E0E0"))
+                cornerRadius = dp2px(12f).toFloat() // Sharper corners
+                setStroke(dp2px(1f), Color.parseColor("#E0E0E0")) // Light grey border
             }
-            setPadding(dp2px(16f), dp2px(10f), dp2px(16f), dp2px(10f))
-            elevation = dp2px(4f).toFloat()
+            setPadding(dp2px(16f), dp2px(12f), dp2px(16f), dp2px(12f))
+            elevation = 0f // No shadow for bubble (Flat)
             visibility = View.GONE
             
             // Layout params
@@ -422,30 +422,32 @@ class FloatingWindowService : Service() {
             setPadding(48, 48, 48, 48)
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = 32f
+                cornerRadius = dp2px(24f).toFloat()
+                setStroke(dp2px(1f), Color.parseColor("#E0E0E0")) // Border
             }
-            elevation = dp2px(16f).toFloat()
+            elevation = 0f // Flat
         }
         
         val iconText = TextView(this).apply {
             text = "⚠️"
-            textSize = 42f
+            textSize = 36f
             gravity = Gravity.CENTER
         }
         
         val titleText = TextView(this).apply {
+            text = "Manual Intervention" // English for 'premium' feel? Or keep Chinese? User speaks Chinese.
             text = "需人工介入"
-            textSize = 22f
+            textSize = 20f
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             setTextColor(Color.BLACK)
             gravity = Gravity.CENTER
-            setPadding(0, 24, 0, 8)
+            setPadding(0, 16, 0, 8)
         }
         
         takeoverMessageText = TextView(this).apply {
             text = "请完成操作后点击继续"
-            textSize = 16f
-            setTextColor(Color.parseColor("#444444")) // Dark grey
+            textSize = 15f
+            setTextColor(Color.parseColor("#666666")) // Grey 600
             gravity = Gravity.CENTER
             setPadding(0, 8, 0, 32)
             maxLines = 6
@@ -453,17 +455,17 @@ class FloatingWindowService : Service() {
         
         val continueButton = Button(this).apply {
             text = "完成并继续"
-            textSize = 16f
+            textSize = 15f
             setTextColor(Color.WHITE)
             typeface = android.graphics.Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(Color.BLACK) // Black button
-                cornerRadius = 24f
+                cornerRadius = dp2px(20f).toFloat() // Pill shape
             }
-            elevation = dp2px(4f).toFloat()
+            elevation = 0f // No shadow
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, 
-                dp2px(56f)
+                dp2px(48f)
             )
             
             setOnClickListener {
