@@ -1,4 +1,4 @@
-package com.autoglm.auto_glm_mobile
+﻿package com.autoglm.auto_glm_mobile
 
 import android.app.usage.UsageStatsManager
 import android.content.Context
@@ -455,42 +455,97 @@ class DeviceController(private val context: Context) {
     }
     /**
      * 输入文本
-     * 多种输入方式的降级策略：
-     * 1. ADB Keyboard广播 (支持中文)
-     * 2. input text命令 (仅ASCII)
-     * 3. 无障碍服务粘贴 (Android 11+)
+     * 策略：
+     * 1. Shizuku 已授权 -> ADB Keyboard / input text / 剪贴板
+     * 2. Shizuku 未授权 -> 无障碍服务
      */
     fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
                 android.util.Log.d("DeviceController", "typeText: $text")
                 
-                // 方法1: 尝试使用ADB Keyboard (支持中文)
-                val adbKeyboardResult = tryAdbKeyboardInput(text)
-                if (adbKeyboardResult) {
-                    android.util.Log.d("DeviceController", "ADB Keyboard input success")
-                    callback(true, null)
+                // 检查 Shizuku 是否可用
+                val shizukuAvailable = try {
+                    Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+                } catch (e: Exception) {
+                    false
+                }
+                
+                if (shizukuAvailable) {
+                    android.util.Log.d("DeviceController", "Shizuku available, trying shell methods")
+                    
+                    // 方法1: 尝试使用ADB Keyboard (支持中文)
+                    val adbKeyboardResult = tryAdbKeyboardInput(text)
+                    if (adbKeyboardResult) {
+                        android.util.Log.d("DeviceController", "ADB Keyboard input success")
+                        callback(true, null)
+                        return@execute
+                    }
+                    
+                    // 方法2: 使用input text命令 (仅支持ASCII)
+                    val inputTextResult = tryInputTextCommand(text)
+                    if (inputTextResult) {
+                        android.util.Log.d("DeviceController", "input text command success")
+                        callback(true, null)
+                        return@execute
+                    }
+                    
+                    // 方法3: 使用剪贴板 + 模拟粘贴
+                    val clipboardResult = tryClipboardPaste(text)
+                    if (clipboardResult) {
+                        android.util.Log.d("DeviceController", "clipboard paste success")
+                        callback(true, null)
+                        return@execute
+                    }
+                    
+                    android.util.Log.w("DeviceController", "Shizuku methods failed, falling back to accessibility")
+                }
+                
+                // 回退：使用无障碍服务
+                android.util.Log.d("DeviceController", "Using accessibility service for input")
+                
+                if (!AutoGLMAccessibilityService.isEnabled(context)) {
+                    android.util.Log.e("DeviceController", "Accessibility Service not enabled")
+                    callback(false, "无障碍服务未启用")
                     return@execute
                 }
                 
-                // 方法2: 使用input text命令 (仅支持ASCII)
-                val inputTextResult = tryInputTextCommand(text)
-                if (inputTextResult) {
-                    android.util.Log.d("DeviceController", "input text command success")
-                    callback(true, null)
+                val service = AutoGLMAccessibilityService.waitForInstance(2000)
+                if (service == null) {
+                    android.util.Log.e("DeviceController", "Accessibility Service instance is null")
+                    callback(false, "无障碍服务正在连接，请稍后重试")
                     return@execute
                 }
                 
-                // 方法3: 使用剪贴板 + 模拟粘贴
-                val clipboardResult = tryClipboardPaste(text)
-                if (clipboardResult) {
-                    android.util.Log.d("DeviceController", "clipboard paste success")
-                    callback(true, null)
-                    return@execute
+                // 尝试最多3次
+                for (attempt in 1..3) {
+                    android.util.Log.d("DeviceController", "Accessibility attempt $attempt/3")
+                    
+                    val latch = java.util.concurrent.CountDownLatch(1)
+                    var accessibilityResult = false
+                     
+                    mainHandler.post {
+                        accessibilityResult = service.typeTextLikePython(text)
+                        android.util.Log.d("DeviceController", "Accessibility input result: $accessibilityResult")
+                        latch.countDown()
+                    }
+                    
+                    latch.await(5, java.util.concurrent.TimeUnit.SECONDS)
+                    
+                    if (accessibilityResult) {
+                        callback(true, null)
+                        return@execute
+                    }
+                    
+                    if (attempt < 3) {
+                        android.util.Log.w("DeviceController", "Attempt $attempt failed, waiting before retry...")
+                        Thread.sleep(500)
+                    }
                 }
                 
                 android.util.Log.e("DeviceController", "All input methods failed")
-                callback(false, "All input methods failed")
+                val reason = AutoGLMAccessibilityService.getLastInputFailure()
+                callback(false, reason ?: "文本输入失败，请确保输入框已获取焦点")
                 
             } catch (e: Exception) {
                 android.util.Log.e("DeviceController", "typeText error: ${e.message}", e)

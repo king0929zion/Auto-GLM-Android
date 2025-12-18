@@ -40,35 +40,52 @@
 ### 3. 授予权限
 
 **必需权限：**
-- ✅ **无障碍服务** - 用于模拟点击、滑动
+- ✅ **无障碍服务** - 用于模拟点击、滑动、基础输入
 
-**可选权限（推荐）：**
-- 🔐 **Shizuku** - 提供更可靠的输入能力
-- 🔋 **电池优化白名单** - 防止无障碍服务被系统关闭
-- 🔲 **悬浮窗** - 显示任务执行状态
+---
 
-## 📦 权限说明
+## 📦 输入方式
 
-### 无障碍服务（必需）
+AutoZi 支持两种输入方式，根据配置自动选择：
 
-AutoZi 需要无障碍服务权限来：
-- 读取屏幕内容进行 AI 分析
-- 模拟触摸事件（点击、滑动）
+### 方案一：无障碍服务（基础方案）
 
-### Shizuku（可选，推荐）
+只需开启无障碍服务即可使用。
 
-如果启用 Shizuku，AutoZi 将使用更可靠的输入方式：
-1. ADB Keyboard 广播（支持中文）
-2. Shell 命令输入
+**适用场景：** 大多数应用的文字输入
 
-**配置 Shizuku：**
-1. 下载安装 [Shizuku](https://shizuku.rikka.app/)
-2. 按照 Shizuku 应用内的说明启动服务
-3. 返回 AutoZi 授权
+### 方案二：Shizuku + ADB Keyboard（推荐方案）
 
-### 电池优化白名单（可选，强烈推荐）
+配合 Shizuku 和 ADB Keyboard，提供更可靠的输入能力，特别适合微信等对无障碍输入有限制的应用。
 
-部分国产 ROM（小米、华为、OPPO、vivo 等）会在应用被划掉后自动关闭无障碍服务。将 AutoZi 加入电池优化白名单可以防止这种情况。
+**配置步骤：**
+
+1. **安装 Shizuku**
+   - 下载 [Shizuku](https://shizuku.rikka.app/)
+   - 按照应用内说明启动服务（需要 ADB 或 root）
+
+2. **安装 ADB Keyboard**
+   - 下载 [ADB Keyboard APK](https://github.com/nicokosi/adb-keyboard/releases)
+   - 安装后在系统设置 → 语言和输入法中**启用** ADB Keyboard
+
+3. **授权 Shizuku**
+   - 返回 AutoZi 设置页
+   - 点击 Shizuku 项进行授权
+
+**自动切换逻辑：**
+- Shizuku 已授权 → 使用 ADB Keyboard（支持中文）
+- Shizuku 未授权 → 使用无障碍服务
+
+---
+
+## 📋 权限说明
+
+| 权限 | 必需 | 说明 |
+|------|:----:|------|
+| 无障碍服务 | ✅ | 读取屏幕、模拟点击、基础输入 |
+| Shizuku | ❌ | 配合 ADB Keyboard 提供更可靠的输入 |
+| 悬浮窗 | ❌ | 显示任务执行状态 |
+| 电池优化白名单 | ❌ | 防止无障碍服务被系统关闭（强烈推荐） |
 
 ## 🛠️ 构建项目
 
@@ -123,4 +140,5 @@ android/
 
 - [智谱AI](https://bigmodel.cn/) - 提供 AutoGLM 模型
 - [Shizuku](https://shizuku.rikka.app/) - 提供系统级能力
+- [ADB Keyboard](https://github.com/nicokosi/adb-keyboard) - 可靠的文字输入
 - [Flutter](https://flutter.dev/) - 跨平台开发框架
