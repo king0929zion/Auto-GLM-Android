@@ -6,6 +6,7 @@ import '../../config/app_config.dart';
 import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
 import 'model_settings_page.dart';
+import '../../l10n/app_strings.dart';
 
 /// 设置页面
 class SettingsPage extends StatefulWidget {
@@ -125,13 +126,60 @@ class _SettingsPageState extends State<SettingsPage>
     }
   }
 
+  String _getStr(String key) => AppStrings.getString(key, _language);
+
+  Future<void> _showLanguageSelector() async {
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                _getStr('selectLanguage'),
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryBlack),
+              ),
+            ),
+            ListTile(
+              leading: const Text('🇺🇸', style: TextStyle(fontSize: 24)),
+              title: const Text('English'),
+              trailing: _language == 'en' ? const Icon(Icons.check_circle, color: AppTheme.primaryBlack) : null,
+              onTap: () => Navigator.pop(context, 'en'),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Text('🇨🇳', style: TextStyle(fontSize: 24)),
+              title: const Text('简体中文'),
+              trailing: _language == 'cn' ? const Icon(Icons.check_circle, color: AppTheme.primaryBlack) : null,
+              onTap: () => Navigator.pop(context, 'cn'),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+
+    if (result != null && result != _language) {
+      setState(() => _language = result);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(AppConfig.keyLanguage, _language);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-      backgroundColor: AppTheme.grey50, // Subtle background contrast
+    return Scaffold(
+      backgroundColor: AppTheme.grey50,
       appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+        title: Text(_getStr('settings'), style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
         centerTitle: true,
-        backgroundColor: AppTheme.grey50, // Match body
+        backgroundColor: AppTheme.grey50,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -158,19 +206,15 @@ class _SettingsPageState extends State<SettingsPage>
                   ? const SizedBox(
                       width: 14,
                       height: 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2, 
-                        color: Colors.white
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
-                  : const Text('Save', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
+                  : Text(_getStr('save'), style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
             ),
           ),
         ],
       ),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryBlack))
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryBlack))
           : _buildForm(),
     );
   }
@@ -181,12 +225,12 @@ class _SettingsPageState extends State<SettingsPage>
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         children: [
-          // Permissions Section
-          _buildSectionHeader(title: 'SYSTEM PERMISSIONS'),
+          // Permissions
+          _buildSectionHeader(title: _getStr('permissions')),
           _buildCard([
             _buildPermissionTile(
-              title: 'Accessibility Service',
-              subtitle: _accessibilityEnabled ? 'Active' : 'Required for core functions',
+              title: _getStr('accessibility'),
+              subtitle: _accessibilityEnabled ? _getStr('active') : _getStr('required'),
               icon: Icons.accessibility_new_outlined,
               isGranted: _accessibilityEnabled,
               isRequired: true,
@@ -194,8 +238,8 @@ class _SettingsPageState extends State<SettingsPage>
             ),
             const Divider(height: 1, indent: 56),
             _buildPermissionTile(
-              title: 'AutoZi Input Method',
-              subtitle: _autoZiImeEnabled ? 'Active' : 'Required for text input',
+              title: _getStr('inputMethod'),
+              subtitle: _autoZiImeEnabled ? _getStr('active') : _getStr('required'),
               icon: Icons.keyboard_outlined,
               isGranted: _autoZiImeEnabled,
               isRequired: true,
@@ -203,7 +247,7 @@ class _SettingsPageState extends State<SettingsPage>
             ),
             const Divider(height: 1, indent: 56),
             _buildPermissionTile(
-              title: 'Shizuku',
+              title: _getStr('shizuku'),
               subtitle: _getShizukuStatusText(),
               icon: Icons.adb_outlined,
               isGranted: _shizukuAuthorized,
@@ -214,11 +258,12 @@ class _SettingsPageState extends State<SettingsPage>
           
           const SizedBox(height: 24),
 
-          _buildSectionHeader(title: 'ENHANCEMENTS'),
+          // Enhancements
+          _buildSectionHeader(title: _getStr('enhancements')),
           _buildCard([
             _buildPermissionTile(
-              title: 'Floating Window',
-              subtitle: _overlayPermission ? 'Active' : 'For visual feedback',
+              title: _getStr('floatingWindow'),
+              subtitle: _overlayPermission ? _getStr('active') : _getStr('optional'),
               icon: Icons.picture_in_picture_alt_outlined,
               isGranted: _overlayPermission,
               isRequired: false,
@@ -226,8 +271,8 @@ class _SettingsPageState extends State<SettingsPage>
             ),
             const Divider(height: 1, indent: 56),
             _buildPermissionTile(
-              title: 'Battery Optimization',
-              subtitle: _batteryOptimizationIgnored ? 'Ignored' : 'Allow background running',
+              title: _getStr('batteryOpt'),
+              subtitle: _batteryOptimizationIgnored ? _getStr('ignored') : _getStr('recommended'),
               icon: Icons.battery_charging_full_outlined,
               isGranted: _batteryOptimizationIgnored,
               isRequired: false,
@@ -237,13 +282,13 @@ class _SettingsPageState extends State<SettingsPage>
 
           const SizedBox(height: 32),
 
-          // MODEL CONFIG
-          _buildSectionHeader(title: 'INTELLIGENCE'),
+          // Intelligence
+          _buildSectionHeader(title: _getStr('intelligence')),
           _buildCard([
              _buildListTile(
               icon: Icons.psychology_outlined,
-              title: 'Model Configuration',
-              subtitle: 'provider, api keys & endpoints',
+              title: _getStr('modelConfig'),
+              subtitle: 'AutoGLM / Doubao',
               onTap: () => Navigator.push(
                 context, 
                 MaterialPageRoute(builder: (_) => const ModelSettingsPage()),
@@ -253,46 +298,49 @@ class _SettingsPageState extends State<SettingsPage>
 
           const SizedBox(height: 32),
 
-          // GENERAL
-          _buildSectionHeader(title: 'GENERAL'),
+          // General
+          _buildSectionHeader(title: _getStr('general')),
           _buildCard([
+             _buildListTile(
+              icon: Icons.language,
+              title: _getStr('language'),
+              subtitle: _language == 'cn' ? '简体中文' : 'English',
+              onTap: _showLanguageSelector,
+            ),
+            const Divider(height: 1, indent: 56),
             _buildListTile(
               icon: Icons.history_outlined,
-              title: 'Task History',
-              subtitle: 'Review past activities',
+              title: _getStr('history'),
               onTap: () => Navigator.pushNamed(context, '/history'),
             ),
             const Divider(height: 1, indent: 56),
              _buildListTile(
               icon: Icons.apps_outlined,
-              title: 'Supported Apps',
-              subtitle: 'Compatible applications list',
+              title: _getStr('supportedApps'),
               onTap: () => Navigator.pushNamed(context, '/apps'),
             ),
           ]),
 
           const SizedBox(height: 32),
 
-          // ABOUT
-          _buildSectionHeader(title: 'INFORMATION'),
+          // About
+          _buildSectionHeader(title: _getStr('about')),
           _buildCard([
             _buildListTile(
               icon: Icons.description_outlined,
-              title: 'Documentation',
-              subtitle: 'User guide & technical docs',
+              title: _getStr('documentation'),
               onTap: () => _launchGithub(''),
             ),
             const Divider(height: 1, indent: 56),
             _buildListTile(
               icon: Icons.code_outlined,
-              title: 'GitHub Repository',
-              subtitle: 'Source code & contribution',
+              title: _getStr('github'),
               onTap: () => _launchGithub(''),
             ),
             const Divider(height: 1, indent: 56),
             _buildListTile(
               icon: Icons.info_outline,
-              title: 'Version',
+              title: _getStr('version'),
               trailing: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -313,7 +361,7 @@ class _SettingsPageState extends State<SettingsPage>
              const Divider(height: 1, indent: 56),
              _buildListTile(
                icon: Icons.refresh_outlined,
-               title: 'Reset Onboarding',
+               title: _getStr('resetOnboarding'),
                onTap: _resetOnboarding,
              ),
           ]),
