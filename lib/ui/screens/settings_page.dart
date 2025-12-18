@@ -567,4 +567,48 @@ class _SettingsPageState extends State<SettingsPage>
       ),
     );
   }
+  String _getShizukuStatusText() {
+    if (!_shizukuInstalled) return 'Not Installed';
+    if (!_shizukuRunning) return 'Service Not Running';
+    if (!_shizukuAuthorized) return 'Awaiting Authorization';
+    return 'Authorized';
+  }
+
+  Future<void> _handleShizukuAction() async {
+    if (!_shizukuInstalled) {
+      final uri = Uri.parse('https://shizuku.rikka.app/');
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+      return;
+    }
+
+    if (!_shizukuRunning) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please start Shizuku service first.')),
+      );
+      return;
+    }
+
+    await _deviceController.requestShizukuPermission();
+    await Future.delayed(const Duration(seconds: 1));
+    _checkAllPermissions();
+  }
+
+  Future<void> _openApiKeyPage() async {
+    final uri = Uri.parse('https://bigmodel.cn/usercenter/proj-mgmt/apikeys');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  void _resetOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('first_run', true);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Onboarding will be shown on next launch.')),
+      );
+    }
+  }
 }
