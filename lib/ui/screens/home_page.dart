@@ -132,7 +132,289 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  /// 检查并确保必需权限 - 简化版弹窗
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // Default background is sufficient (AppTheme.scaffoldBackgroundColor)
+      appBar: AppBar(
+        title: const Text('AutoZi', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
+        centerTitle: true,
+        backgroundColor: AppTheme.scaffoldWhite,
+        surfaceTintColor: Colors.transparent, // Prevent tint on scroll
+        leading: IconButton(
+          icon: const Icon(Icons.history_outlined),
+          tooltip: '历史记录',
+          onPressed: _showHistoryDrawer,
+          style: IconButton.styleFrom(
+            foregroundColor: AppTheme.primaryBlack,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: '新建对话',
+            onPressed: _startNewConversation,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: '设置',
+            onPressed: () async {
+              await Navigator.pushNamed(context, '/settings');
+              _agent.removeListener(_onAgentChanged);
+              _agent.dispose();
+              _initializeAgent();
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: _errorMessage != null ? _buildErrorView() : _buildBody(),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.grey200, width: 1),
+            ),
+            child: const Icon(Icons.auto_awesome_outlined, size: 48, color: AppTheme.grey400),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            '有什么可以帮您？',
+            style: TextStyle(
+              color: AppTheme.primaryBlack, 
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '尝试输入 "帮我查看今天的待办事项"',
+            style: TextStyle(color: AppTheme.textHint, fontSize: 14),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageItem(_ChatMessage msg) {
+    if (msg.isUser) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 24, left: 60),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          decoration: const BoxDecoration(
+            color: AppTheme.primaryBlack,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(4),
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          child: Text(
+            msg.message ?? '', 
+            style: const TextStyle(
+              fontSize: 15, 
+              color: Colors.white,
+              height: 1.5,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 24, right: 40),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceWhite,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(20),
+            bottomLeft: Radius.circular(20),
+            bottomRight: Radius.circular(20),
+          ),
+          border: Border.all(color: AppTheme.grey200),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (msg.thinking != null && msg.thinking!.isNotEmpty) ...[
+              Row(
+                children: [
+                  // Spinning icon or static brain?
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: AppTheme.grey50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.auto_awesome, size: 12, color: AppTheme.primaryBlack),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Thinking Process',
+                    style: TextStyle(
+                      color: AppTheme.textSecondary, 
+                      fontSize: 12, 
+                      fontWeight: FontWeight.w600
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                msg.thinking!,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary, 
+                  fontSize: 14, 
+                  height: 1.6,
+                  fontFamily: 'monospace', // Code-like feel for thinking
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Divider(height: 1, thickness: 1, color: AppTheme.grey100),
+              ),
+            ],
+            
+            if (msg.action != null) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppTheme.grey50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: AppTheme.grey200,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      msg.isSuccess == true ? Icons.check_circle : Icons.error,
+                      size: 16,
+                      color: msg.isSuccess == true ? AppTheme.primaryBlack : AppTheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        msg.action!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryBlack,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            
+            if (msg.message != null)
+              Text(
+                msg.message!, 
+                style: const TextStyle(
+                  fontSize: 15, 
+                  color: AppTheme.primaryBlack,
+                  height: 1.6,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputArea() {
+    final isRunning = _agent.isRunning;
+    
+    return SafeArea(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(color: AppTheme.grey200),
+          // No shadow for flat design
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _taskController,
+                focusNode: _focusNode,
+                enabled: _isInitialized && !isRunning,
+                maxLines: null, // Allow multi-line expand
+                minLines: 1,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _startTask(),
+                decoration: InputDecoration(
+                  hintText: isRunning ? 'AutoZi is working...' : 'Ask AutoZi anything...',
+                  hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 15),
+                  filled: true,
+                  fillColor: Colors.transparent,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  disabledBorder: InputBorder.none,
+                ),
+                style: const TextStyle(fontSize: 16, color: AppTheme.primaryBlack),
+                cursorColor: AppTheme.primaryBlack,
+              ),
+            ),
+            const SizedBox(width: 4),
+            // Send Button
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 40,
+              height: 40,
+              margin: const EdgeInsets.only(right: 4),
+              decoration: BoxDecoration(
+                color: isRunning ? AppTheme.grey200 : AppTheme.primaryBlack,
+                shape: BoxShape.circle,
+              ),
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                child: InkWell(
+                  onTap: isRunning ? _stopTask : _startTask,
+                  customBorder: const CircleBorder(),
+                  child: Icon(
+                    isRunning ? Icons.stop : Icons.arrow_upward,
+                    color: isRunning ? AppTheme.primaryBlack : Colors.white,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 检查并确保必需权限 - 极简弹窗
   Future<bool> _ensureRequiredPermissions() async {
     final accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
     if (accessibilityEnabled) return true;
@@ -142,62 +424,71 @@ class _HomePageState extends State<HomePage> {
       context: context,
       barrierDismissible: true,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+        backgroundColor: AppTheme.surfaceWhite,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: const BorderSide(color: AppTheme.grey200)
+        ),
+        contentPadding: const EdgeInsets.all(32),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 图标
             Container(
-              width: 64,
-              height: 64,
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.accentOrange.withOpacity(0.1),
+                color: AppTheme.grey50,
                 shape: BoxShape.circle,
+                border: Border.all(color: AppTheme.grey200),
               ),
-              child: Icon(
-                Icons.accessibility_new,
+              child: const Icon(
+                Icons.accessibility_new_outlined,
                 size: 32,
-                color: AppTheme.accentOrange,
+                color: AppTheme.primaryBlack,
               ),
             ),
-            const SizedBox(height: 16),
-            // 标题
+            const SizedBox(height: 24),
             const Text(
-              '需要开启无障碍服务',
+              '权限未就绪',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
+                color: AppTheme.primaryBlack,
               ),
             ),
-            const SizedBox(height: 8),
-            // 描述
-            Text(
-              '点击下方按钮跳转设置页面\n找到 AutoZi 并开启',
+            const SizedBox(height: 12),
+            const Text(
+              '请前往系统设置开启无障碍服务\n"AutoZi" 才能为您操作手机',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 14,
                 color: AppTheme.textSecondary,
-                height: 1.5,
+                height: 1.6,
               ),
             ),
-            const SizedBox(height: 20),
-            // 按钮
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 52,
               child: ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(context);
                   await _deviceController.openAccessibilitySettings();
                 },
                 style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlack,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(26), // Full rounded
                   ),
                 ),
-                child: const Text('前往设置', style: TextStyle(fontSize: 16)),
+                child: const Text('去开启', style: TextStyle(fontSize: 16)),
               ),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消', style: TextStyle(color: AppTheme.textHint)),
             ),
           ],
         ),
@@ -290,44 +581,6 @@ class _HomePageState extends State<HomePage> {
     _scrollToBottom();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundLight,
-      appBar: AppBar(
-        title: const Text('AutoZi', style: TextStyle(fontWeight: FontWeight.w600)),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.history),
-          tooltip: '历史记录',
-          onPressed: _showHistoryDrawer,
-        ),
-        actions: [
-          // 新建对话按钮
-          IconButton(
-            icon: const Icon(Icons.add_comment_outlined),
-            tooltip: '新建对话',
-            onPressed: _startNewConversation,
-          ),
-          // 设置按钮
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: '设置',
-            onPressed: () async {
-              await Navigator.pushNamed(context, '/settings');
-              // Reload agent with new settings
-              _agent.removeListener(_onAgentChanged);
-              _agent.dispose();
-              _initializeAgent();
-            },
-          ),
-        ],
-      ),
-      body: _errorMessage != null ? _buildErrorView() : _buildBody(),
-    );
-  }
-  
-  /// 新建对话
   void _startNewConversation() {
     if (_agent.isRunning) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -336,7 +589,6 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     
-    // 重置 Agent 上下文，清除历史截图和对话记录
     _agent.reset();
     
     setState(() {
@@ -351,7 +603,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
   
-  /// 显示历史记录抽屉
   void _showHistoryDrawer() {
     showModalBottomSheet(
       context: context,
@@ -363,26 +614,25 @@ class _HomePageState extends State<HomePage> {
     );
   }
   
-  /// 构建历史记录面板
   Widget _buildHistorySheet() {
     final history = SettingsRepository.instance.taskHistory;
     
     return Container(
       height: MediaQuery.of(context).size.height * 0.6,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 标题栏
           Row(
             children: [
-              const Icon(Icons.history, color: AppTheme.accentOrange),
+              const Icon(Icons.history, color: AppTheme.primaryBlack),
               const SizedBox(width: 8),
               const Text(
                 '历史记录',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryBlack,
                 ),
               ),
               const Spacer(),
@@ -397,9 +647,10 @@ class _HomePageState extends State<HomePage> {
                 ),
             ],
           ),
-          const Divider(),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 8),
           
-          // 历史列表
           Expanded(
             child: history.isEmpty
                 ? const Center(
@@ -413,13 +664,15 @@ class _HomePageState extends State<HomePage> {
                     itemBuilder: (context, index) {
                       final task = history[history.length - 1 - index];
                       return ListTile(
-                        leading: const Icon(Icons.chat_bubble_outline, size: 20),
+                        leading: const Icon(Icons.chat_bubble_outline, size: 20, color: AppTheme.textSecondary),
                         title: Text(
                           task,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: AppTheme.textPrimary),
                         ),
-                        trailing: const Icon(Icons.arrow_forward_ios, size: 14),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.grey300),
+                        contentPadding: EdgeInsets.zero,
                         onTap: () {
                           Navigator.pop(context);
                           _taskController.text = task;
@@ -471,226 +724,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.chat_bubble_outline, size: 48, color: AppTheme.textHint),
-          const SizedBox(height: 16),
-          Text(
-            '描述您想要执行的任务',
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 16),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildMessagesList() {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: _messages.length,
       itemBuilder: (context, index) => _buildMessageItem(_messages[index]),
-    );
-  }
-
-  Widget _buildMessageItem(_ChatMessage msg) {
-    if (msg.isUser) {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 16, left: 60),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryBlack,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(20),
-              topRight: Radius.circular(4),
-              bottomLeft: Radius.circular(20),
-              bottomRight: Radius.circular(20),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryBlack.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              )
-            ],
-          ),
-          child: Text(
-            msg.message ?? '', 
-            style: const TextStyle(
-              fontSize: 15, 
-              color: Colors.white,
-              height: 1.4,
-            ),
-          ),
-        ),
-      );
-    }
-    
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 16, right: 60),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceWhite,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(20),
-            bottomLeft: Radius.circular(20),
-            bottomRight: Radius.circular(20),
-          ),
-          border: Border.all(color: AppTheme.warmBeige),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (msg.thinking != null && msg.thinking!.isNotEmpty) ...[
-              Row(
-                children: [
-                  const Icon(Icons.psychology, size: 14, color: AppTheme.textHint),
-                  const SizedBox(width: 6),
-                  Text(
-                    '思考过程',
-                    style: TextStyle(color: AppTheme.textHint, fontSize: 12),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                msg.thinking!,
-                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.5),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Divider(height: 1, thickness: 0.5),
-              ),
-            ],
-            if (msg.action != null) ...[
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.grey50,
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(
-                    color: msg.isSuccess == true 
-                      ? AppTheme.success.withOpacity(0.3)
-                      : AppTheme.error.withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      msg.isSuccess == true ? Icons.check_circle_outline : Icons.error_outline,
-                      size: 14,
-                      color: msg.isSuccess == true ? AppTheme.success : AppTheme.error,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      msg.action!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (msg.message != null)
-              Text(
-                msg.message!, 
-                style: const TextStyle(
-                  fontSize: 15, 
-                  color: AppTheme.textPrimary,
-                  height: 1.4,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInputArea() {
-    final isRunning = _agent.isRunning;
-    
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceWhite,
-          borderRadius: BorderRadius.circular(30),
-          border: Border.all(color: AppTheme.warmBeige),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryBlack.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _taskController,
-                focusNode: _focusNode,
-                enabled: _isInitialized && !isRunning,
-                maxLines: null,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _startTask(),
-                decoration: InputDecoration(
-                  hintText: isRunning ? '任务执行中...' : '输入您的任务...',
-                  hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 14),
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  disabledBorder: InputBorder.none,
-                ),
-                style: const TextStyle(fontSize: 15),
-              ),
-            ),
-            const SizedBox(width: 8),
-            // 发送/停止按钮
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: isRunning ? AppTheme.primaryBlack : AppTheme.primaryBlack,
-                shape: BoxShape.circle,
-              ),
-              child: Material(
-                color: Colors.transparent,
-                shape: const CircleBorder(),
-                child: IconButton(
-                  onPressed: isRunning ? _stopTask : _startTask,
-                  tooltip: isRunning ? '停止任务' : '发送',
-                  icon: Icon(
-                    isRunning ? Icons.stop : Icons.arrow_upward,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
