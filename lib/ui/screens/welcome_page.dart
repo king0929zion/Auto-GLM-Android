@@ -235,7 +235,438 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
     _nextPage();
   }
 
-  // ... (intermediate code)
+  Widget _buildPage(_WelcomePageData page) {
+    switch (page.type) {
+      case _PageType.apiKey:
+        return _buildApiKeyPage(page);
+      case _PageType.permission:
+        return _buildPermissionPage(page);
+      default:
+        return _buildIntroPage(page);
+    }
+  }
+  
+  Widget _buildIntroPage(_WelcomePageData page) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 40),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: AppTheme.grey50,
+              shape: BoxShape.circle,
+              border: Border.all(color: AppTheme.grey100),
+            ),
+            child: Icon(
+              page.icon,
+              size: 56,
+              color: AppTheme.primaryBlack,
+            ),
+          ),
+          const SizedBox(height: 40),
+          Text(
+            page.title,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryBlack,
+              letterSpacing: -0.5,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            page.description,
+            style: const TextStyle(
+              fontSize: 16,
+              color: AppTheme.textSecondary,
+              height: 1.6,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildApiKeyPage(_WelcomePageData page) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const SizedBox(height: 48),
+          Icon(page.icon, size: 64, color: AppTheme.primaryBlack),
+          const SizedBox(height: 32),
+          Text(
+            page.title,
+            style: const TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.primaryBlack,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            page.description,
+            style: const TextStyle(
+              fontSize: 15,
+              color: AppTheme.textSecondary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 48),
+          
+          TextField(
+            controller: _apiKeyController,
+            style: const TextStyle(fontSize: 16),
+            decoration: InputDecoration(
+              labelText: 'API Key',
+              hintText: '请输入智谱 API Key',
+              prefixIcon: const Icon(Icons.key_outlined, size: 20, color: AppTheme.textSecondary),
+              filled: true,
+              fillColor: AppTheme.grey50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: Colors.transparent),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(color: AppTheme.primaryBlack),
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+            ),
+            obscureText: true,
+          ),
+          
+          const SizedBox(height: 24),
+          
+          TextButton.icon(
+            onPressed: _openApiKeyPage,
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: const Text('获取 API Key'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.primaryBlack,
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildPermissionPage(_WelcomePageData page) {
+    return ListView(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      children: [
+        const SizedBox(height: 24),
+        Text(
+          page.title,
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          page.description,
+          style: const TextStyle(
+            fontSize: 16,
+            color: AppTheme.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 32),
+        
+        _buildPermissionCard(
+          title: '无障碍服务',
+          subtitle: _accessibilityEnabled ? '已就绪' : '核心操控能力',
+          icon: Icons.accessibility_new_outlined,
+          isGranted: _accessibilityEnabled,
+          onTap: () => _handleAccessibilitySetup(),
+        ),
+        const SizedBox(height: 16),
+        _buildPermissionCard(
+          title: '悬浮窗权限',
+          subtitle: _overlayPermission ? '已就绪' : '任务状态显示',
+          icon: Icons.layers_outlined,
+          isGranted: _overlayPermission,
+          onTap: () => _handleOverlayPermission(),
+        ),
+        const SizedBox(height: 16),
+        _buildPermissionCard(
+          title: 'Shizuku 服务',
+          subtitle: _shizukuAuthorized ? '已就绪' : '高级输入与控制',
+          icon: Icons.adb_outlined,
+          isGranted: _shizukuAuthorized,
+          onTap: () => _showShizukuGuide(),
+        ),
+         const SizedBox(height: 24),
+         Center(
+          child: Text(
+           _allPermissionsGranted 
+              ? '所有配置已就绪' 
+              : '需授予所有权限以继续',
+            style: TextStyle(
+              fontSize: 13,
+              color: _allPermissionsGranted ? AppTheme.primaryBlack : AppTheme.textHint,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+         ),
+      ],
+    );
+  }
+  
+  Widget _buildPermissionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool isGranted,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: isGranted ? null : onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isGranted ? AppTheme.grey50 : AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isGranted ? Colors.transparent : AppTheme.grey200,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: isGranted ? Colors.white : AppTheme.primaryBlack,
+                borderRadius: BorderRadius.circular(12),
+                border: isGranted ? Border.all(color: AppTheme.grey200) : null,
+              ),
+              child: Icon(
+                isGranted ? Icons.check : icon,
+                color: isGranted ? AppTheme.primaryBlack : Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isGranted ? AppTheme.textSecondary : AppTheme.primaryBlack,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isGranted ? AppTheme.textHint : AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (!isGranted)
+              const Icon(Icons.arrow_forward, size: 20, color: AppTheme.primaryBlack),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  void _showShizukuGuide() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.security, color: AppTheme.primaryBlack),
+                const SizedBox(width: 12),
+                const Text(
+                  'Shizuku 配置指南',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            
+            _buildGuideStep('1', '安装 Shizuku', 
+              '从 Google Play 或 GitHub 下载安装 Shizuku 应用'),
+            _buildGuideStep('2', '启动 Shizuku 服务',
+              '打开 Shizuku 应用，按照提示通过 ADB 或无线调试启动服务'),
+            _buildGuideStep('3', '授权 AutoGLM',
+              '返回本应用，点击 Shizuku 权限卡片进行授权'),
+            
+            const SizedBox(height: 20),
+            
+            // 按钮
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.textSecondary,
+                      side: const BorderSide(color: AppTheme.grey200),
+                    ),
+                    child: const Text('稍后配置'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Navigator.pop(context);
+                      if (_shizukuInstalled) {
+                        await _deviceController.requestShizukuPermission();
+                      } else {
+                        // 打开 Shizuku 下载页面
+                        final uri = Uri.parse('https://shizuku.rikka.app/');
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      }
+                      Future.delayed(const Duration(seconds: 1), _checkPermissions);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryBlack,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: Text(_shizukuInstalled ? '立即授权' : '下载 Shizuku'),
+                  ),
+                ),
+              ],
+            ),
+            
+            SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
+          ],
+        ),
+      ),
+    );
+  }
+  
+  Widget _buildGuideStep(String number, String title, String description) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: const BoxDecoration(
+              color: AppTheme.primaryBlack,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Future<void> _openApiKeyPage() async {
+    final uri = Uri.parse('https://bigmodel.cn/usercenter/proj-mgmt/apikeys');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+  
+  Future<void> _handleAccessibilitySetup() async {
+    await _deviceController.openAccessibilitySettings();
+    await Future.delayed(const Duration(seconds: 2));
+    _checkPermissions();
+  }
+  
+  Future<void> _handleOverlayPermission() async {
+    final success = await _deviceController.openOverlaySettings();
+    if (success) {
+      await Future.delayed(const Duration(seconds: 2));
+      _checkPermissions();
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请在设置中授予悬浮窗权限')),
+        );
+      }
+    }
+  }
+
+  void _nextPage() {
+    _pageController.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _skip() {
+    _complete();
+  }
 
   void _complete() async {
     // 保存 API Key
