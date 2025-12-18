@@ -127,11 +127,11 @@ class _SettingsPageState extends State<SettingsPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+      backgroundColor: AppTheme.grey50, // Subtle background contrast
       appBar: AppBar(
         title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: -0.5)),
         centerTitle: true,
-        backgroundColor: AppTheme.scaffoldWhite,
+        backgroundColor: AppTheme.grey50, // Match body
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -152,6 +152,7 @@ class _SettingsPageState extends State<SettingsPage>
                 backgroundColor: AppTheme.primaryBlack,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                 minimumSize: const Size(60, 32),
+                elevation: 0,
               ),
               child: _isSaving
                   ? const SizedBox(
@@ -181,11 +182,11 @@ class _SettingsPageState extends State<SettingsPage>
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         children: [
           // Permissions Section
-          _buildSectionHeader(title: 'PERMISSIONS'),
+          _buildSectionHeader(title: 'SYSTEM PERMISSIONS'),
           _buildCard([
             _buildPermissionTile(
               title: 'Accessibility Service',
-              subtitle: _accessibilityEnabled ? 'Active' : 'Required',
+              subtitle: _accessibilityEnabled ? 'Active' : 'Required for core functions',
               icon: Icons.accessibility_new_outlined,
               isGranted: _accessibilityEnabled,
               isRequired: true,
@@ -194,7 +195,7 @@ class _SettingsPageState extends State<SettingsPage>
             const Divider(height: 1, indent: 56),
             _buildPermissionTile(
               title: 'AutoZi Input Method',
-              subtitle: _autoZiImeEnabled ? 'Active' : 'Required for reliable input',
+              subtitle: _autoZiImeEnabled ? 'Active' : 'Required for text input',
               icon: Icons.keyboard_outlined,
               isGranted: _autoZiImeEnabled,
               isRequired: true,
@@ -209,10 +210,15 @@ class _SettingsPageState extends State<SettingsPage>
               isRequired: true,
               onTap: _handleShizukuAction,
             ),
-            const Divider(height: 1, indent: 56),
+          ]),
+          
+          const SizedBox(height: 24),
+
+          _buildSectionHeader(title: 'ENHANCEMENTS'),
+          _buildCard([
             _buildPermissionTile(
               title: 'Floating Window',
-              subtitle: _overlayPermission ? 'Authorized' : 'Optional',
+              subtitle: _overlayPermission ? 'Active' : 'For visual feedback',
               icon: Icons.picture_in_picture_alt_outlined,
               isGranted: _overlayPermission,
               isRequired: false,
@@ -221,7 +227,7 @@ class _SettingsPageState extends State<SettingsPage>
             const Divider(height: 1, indent: 56),
             _buildPermissionTile(
               title: 'Battery Optimization',
-              subtitle: _batteryOptimizationIgnored ? 'Ignored' : 'Recommended',
+              subtitle: _batteryOptimizationIgnored ? 'Ignored' : 'Allow background running',
               icon: Icons.battery_charging_full_outlined,
               isGranted: _batteryOptimizationIgnored,
               isRequired: false,
@@ -231,13 +237,13 @@ class _SettingsPageState extends State<SettingsPage>
 
           const SizedBox(height: 32),
 
-          // API Key / Model Config Section
-          _buildSectionHeader(title: 'MODEL CONFIG'),
+          // MODEL CONFIG
+          _buildSectionHeader(title: 'INTELLIGENCE'),
           _buildCard([
              _buildListTile(
-              icon: Icons.key_outlined,
-              title: 'Model Keys & Endpoints',
-              subtitle: 'Configure AutoGLM & Doubao',
+              icon: Icons.psychology_outlined,
+              title: 'Model Configuration',
+              subtitle: 'provider, api keys & endpoints',
               onTap: () => Navigator.push(
                 context, 
                 MaterialPageRoute(builder: (_) => const ModelSettingsPage()),
@@ -247,29 +253,43 @@ class _SettingsPageState extends State<SettingsPage>
 
           const SizedBox(height: 32),
 
-          // General Section
+          // GENERAL
           _buildSectionHeader(title: 'GENERAL'),
           _buildCard([
-             _buildListTile(
-              icon: Icons.apps_outlined,
-              title: 'Supported Apps',
-              subtitle: 'View compatible applications',
-              onTap: () => Navigator.pushNamed(context, '/apps'),
-            ),
-            const Divider(height: 1, indent: 56),
             _buildListTile(
               icon: Icons.history_outlined,
               title: 'Task History',
               subtitle: 'Review past activities',
               onTap: () => Navigator.pushNamed(context, '/history'),
             ),
+            const Divider(height: 1, indent: 56),
+             _buildListTile(
+              icon: Icons.apps_outlined,
+              title: 'Supported Apps',
+              subtitle: 'Compatible applications list',
+              onTap: () => Navigator.pushNamed(context, '/apps'),
+            ),
           ]),
 
           const SizedBox(height: 32),
 
-          // About Section
-          _buildSectionHeader(title: 'ABOUT'),
+          // ABOUT
+          _buildSectionHeader(title: 'INFORMATION'),
           _buildCard([
+            _buildListTile(
+              icon: Icons.description_outlined,
+              title: 'Documentation',
+              subtitle: 'User guide & technical docs',
+              onTap: () => _launchGithub(''),
+            ),
+            const Divider(height: 1, indent: 56),
+            _buildListTile(
+              icon: Icons.code_outlined,
+              title: 'GitHub Repository',
+              subtitle: 'Source code & contribution',
+              onTap: () => _launchGithub(''),
+            ),
+            const Divider(height: 1, indent: 56),
             _buildListTile(
               icon: Icons.info_outline,
               title: 'Version',
@@ -288,19 +308,7 @@ class _SettingsPageState extends State<SettingsPage>
                   ),
                 ),
               ),
-              onTap: null, // No action
-            ),
-            const Divider(height: 1, indent: 56),
-            _buildListTile(
-              icon: Icons.code_outlined,
-              title: 'Source Code',
-              subtitle: 'Open-AutoGLM on GitHub',
-              onTap: () async {
-                final uri = Uri.parse('https://github.com/AJinNight/Auto-GLM-Android');
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
+              onTap: null, 
             ),
              const Divider(height: 1, indent: 56),
              _buildListTile(
@@ -314,6 +322,13 @@ class _SettingsPageState extends State<SettingsPage>
         ],
       ),
     );
+  }
+
+  Future<void> _launchGithub(String path) async {
+    final uri = Uri.parse('https://github.com/king0929zion/Auto-GLM-Android$path');
+     if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+     }
   }
 
   Widget _buildPermissionTile({
