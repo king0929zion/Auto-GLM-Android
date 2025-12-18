@@ -212,14 +212,21 @@ class _HomePageState extends State<HomePage> {
         child: Container(
           margin: const EdgeInsets.only(bottom: 24, left: 60),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: AppTheme.primaryBlack,
-            borderRadius: BorderRadius.only(
+            borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(20),
               topRight: Radius.circular(4),
               bottomLeft: Radius.circular(20),
               bottomRight: Radius.circular(20),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
           child: Text(
             msg.message ?? '', 
@@ -227,6 +234,7 @@ class _HomePageState extends State<HomePage> {
               fontSize: 15, 
               color: Colors.white,
               height: 1.5,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ),
@@ -236,7 +244,7 @@ class _HomePageState extends State<HomePage> {
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 24, right: 40),
+        margin: const EdgeInsets.only(bottom: 24, right: 24),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: AppTheme.surfaceWhite,
@@ -246,48 +254,56 @@ class _HomePageState extends State<HomePage> {
             bottomLeft: Radius.circular(20),
             bottomRight: Radius.circular(20),
           ),
-          border: Border.all(color: AppTheme.grey200),
+          border: Border.all(color: AppTheme.grey100),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (msg.thinking != null && msg.thinking!.isNotEmpty) ...[
-              Row(
-                children: [
-                  // Spinning icon or static brain?
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: AppTheme.grey50,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.auto_awesome, size: 12, color: AppTheme.primaryBlack),
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Thinking Process',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary, 
-                      fontSize: 12, 
-                      fontWeight: FontWeight.w600
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                msg.thinking!,
-                style: const TextStyle(
-                  color: AppTheme.textSecondary, 
-                  fontSize: 14, 
-                  height: 1.6,
-                  fontFamily: 'monospace', // Code-like feel for thinking
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9F9F9), // Very light grey
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Divider(height: 1, thickness: 1, color: AppTheme.grey100),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.auto_awesome, size: 14, color: AppTheme.grey600),
+                        SizedBox(width: 8),
+                        Text(
+                          'Thinking...',
+                          style: TextStyle(
+                            color: AppTheme.grey600, 
+                            fontSize: 12, 
+                            fontWeight: FontWeight.w600
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      msg.thinking!,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary, 
+                        fontSize: 13, 
+                        height: 1.5,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
             
@@ -349,13 +365,19 @@ class _HomePageState extends State<HomePage> {
     
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        padding: const EdgeInsets.all(4),
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: AppTheme.surfaceWhite,
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(color: AppTheme.grey200),
-          // No shadow for flat design
+          borderRadius: BorderRadius.circular(36),
+          border: Border.all(color: AppTheme.grey100),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -364,13 +386,13 @@ class _HomePageState extends State<HomePage> {
                 controller: _taskController,
                 focusNode: _focusNode,
                 enabled: _isInitialized && !isRunning,
-                maxLines: null, // Allow multi-line expand
+                maxLines: null,
                 minLines: 1,
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => _startTask(),
                 decoration: InputDecoration(
-                  hintText: isRunning ? 'AutoZi is working...' : 'Ask AutoZi anything...',
-                  hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 15),
+                  hintText: isRunning ? 'AutoZi is working...' : 'Ask AutoZi any task...',
+                  hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 15, fontWeight: FontWeight.normal),
                   filled: true,
                   fillColor: Colors.transparent,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -379,7 +401,7 @@ class _HomePageState extends State<HomePage> {
                   focusedBorder: InputBorder.none,
                   disabledBorder: InputBorder.none,
                 ),
-                style: const TextStyle(fontSize: 16, color: AppTheme.primaryBlack),
+                style: const TextStyle(fontSize: 16, color: AppTheme.primaryBlack, fontWeight: FontWeight.w500),
                 cursorColor: AppTheme.primaryBlack,
               ),
             ),
@@ -387,12 +409,19 @@ class _HomePageState extends State<HomePage> {
             // Send Button
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: 40,
-              height: 40,
-              margin: const EdgeInsets.only(right: 4),
+              width: 44,
+              height: 44,
+              margin: const EdgeInsets.only(right: 2),
               decoration: BoxDecoration(
-                color: isRunning ? AppTheme.grey200 : AppTheme.primaryBlack,
+                color: isRunning ? AppTheme.grey100 : AppTheme.primaryBlack,
                 shape: BoxShape.circle,
+                boxShadow: isRunning ? null : [
+                  BoxShadow(
+                    color: AppTheme.primaryBlack.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  )
+                ],
               ),
               child: Material(
                 color: Colors.transparent,
@@ -401,9 +430,9 @@ class _HomePageState extends State<HomePage> {
                   onTap: isRunning ? _stopTask : _startTask,
                   customBorder: const CircleBorder(),
                   child: Icon(
-                    isRunning ? Icons.stop : Icons.arrow_upward,
+                    isRunning ? Icons.stop_rounded : Icons.arrow_upward_rounded,
                     color: isRunning ? AppTheme.primaryBlack : Colors.white,
-                    size: 20,
+                    size: 22,
                   ),
                 ),
               ),
