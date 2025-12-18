@@ -106,9 +106,9 @@ class AppTheme {
         scrolledUnderElevation: 0, // 滚动时不显示阴影
         titleTextStyle: TextStyle(
           color: primaryBlack,
-          fontSize: 18,
+          fontSize: 17, // 稍微减小字号，更精致
           fontWeight: FontWeight.w600,
-          letterSpacing: -0.5, // 稍微紧凑的字间距
+          letterSpacing: -0.5,
         ),
         iconTheme: IconThemeData(color: primaryBlack),
       ),

@@ -89,9 +89,10 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
     }
   }
 
-  // 必需权限：无障碍服务
+  // 必需权限：无障碍服务、悬浮窗、Shizuku
   bool get _requiredPermissionsGranted {
-    return _accessibilityEnabled;
+    // Shizuku 也作为必需权限，除非用户真的无法安装（但这里我们强制要求）
+    return _accessibilityEnabled && _overlayPermission && _shizukuAuthorized;
   }
 
   bool _hasNavigated = false;
@@ -113,206 +114,149 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
     return Scaffold(
       backgroundColor: AppTheme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text('权限设置',
+        title: const Text('权限配置',
             style: TextStyle(
                 color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+        automaticallyImplyLeading: false, 
       ),
       body: _isLoading
           ? const Center(
               child: CircularProgressIndicator(color: AppTheme.primaryBlack))
-          : Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '配置必要权限',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'AutoZi 需要以下权限来自动控制您的设备',
-                    style: TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 15,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // 进度提示
-                  _buildProgressIndicator(),
-
-                  const SizedBox(height: 32),
-
-                  // 权限列表
-                  Expanded(
-                    child: ListView(
-                      children: [
-                        // 必需权限标题
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            '必需权限',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryBlack,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
+          : Column(
+              children: [
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    children: [
+                      // Header Phase
+                      const Text(
+                        '完成设置以开始使用',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.primaryBlack,
+                          letterSpacing: -0.5,
                         ),
-
-                        _buildPermissionCard(
-                          title: '无障碍服务',
-                          subtitle: _accessibilityEnabled
-                              ? '已启用 - 用于模拟点击、滑动和输入'
-                              : '点击前往设置开启',
-                          icon: Icons.accessibility_new,
-                          isGranted: _accessibilityEnabled,
-                          isRequired: true,
-                          onTap: () => _handleAccessibilitySetup(),
-                        ),
-
-                        const SizedBox(height: 32),
-
-                        // 可选权限标题
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 12),
-                          child: Text(
-                            '可选权限（增强体验）',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryBlack,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                        ),
-
-                        _buildPermissionCard(
-                          title: '悬浮窗权限',
-                          subtitle: _overlayPermission
-                              ? '已授权 - 用于显示任务状态'
-                              : '未授权（不影响任务执行）',
-                          icon: Icons.picture_in_picture,
-                          isGranted: _overlayPermission,
-                          isRequired: false,
-                          onTap: () => _handleOverlayPermission(),
-                        ),
-
-                        const SizedBox(height: 12),
-
-                        _buildPermissionCard(
-                          title: 'Shizuku（推荐）',
-                          subtitle: _shizukuInstalled
-                              ? (_shizukuRunning
-                                  ? (_shizukuAuthorized
-                                      ? '已授权 - 提供更可靠的输入能力'
-                                      : '点击授权')
-                                  : '请先启动 Shizuku 服务')
-                              : '未安装（可跳过）',
-                          icon: Icons.security,
-                          isGranted: _shizukuAuthorized,
-                          isRequired: false,
-                          onTap: () => _handleShizukuSetup(),
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Shizuku 优势说明
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.grey50,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.lightbulb_outline,
-                                      size: 16, color: AppTheme.primaryBlack),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Shizuku 的优势',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: AppTheme.primaryBlack,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                '• 更可靠的文本输入（特别是微信等应用）\n'
-                                '• 支持剪贴板+粘贴的输入方式\n'
-                                '• 不依赖 ADB Keyboard 等额外应用',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppTheme.textSecondary,
-                                  height: 1.6,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // 底部按钮
-                  const SizedBox(height: 24),
-
-                  // 继续按钮
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed:
-                          _requiredPermissionsGranted ? _navigateToHome : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryBlack,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(28),
-                        ),
-                        disabledBackgroundColor: AppTheme.grey300,
                       ),
-                      child: Text(
-                        _requiredPermissionsGranted ? '开始使用' : '请完成必需权限',
-                        style: const TextStyle(
+                      const SizedBox(height: 12),
+                      const Text(
+                        'AutoZi 需要完全控制您的设备以执行自动化任务。请授予以下所有权限。',
+                        style: TextStyle(
+                          color: AppTheme.textSecondary,
                           fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                          height: 1.5,
                         ),
                       ),
-                    ),
-                  ),
+                      const SizedBox(height: 40),
 
-                  const SizedBox(height: 16),
+                      // Progress Phase
+                      _buildProgressIndicator(),
+                      
+                      const SizedBox(height: 40),
 
-                  // 实时检测提示
-                  const Center(
-                    child: Text(
-                      '已启用实时权限检测',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textHint,
+                      // Permissions List
+                      _buildPermissionCard(
+                        title: '无障碍服务',
+                        subtitle: _accessibilityEnabled
+                            ? '已就绪'
+                            : '用于模拟点击和滑动操作',
+                        icon: Icons.accessibility_new,
+                        isGranted: _accessibilityEnabled,
+                        onTap: () => _handleAccessibilitySetup(),
                       ),
-                    ),
+                      
+                      const SizedBox(height: 16),
+
+                      _buildPermissionCard(
+                        title: '悬浮窗权限',
+                        subtitle: _overlayPermission
+                            ? '已就绪'
+                            : '用于显示任务状态面板',
+                        icon: Icons.layers_outlined,
+                        isGranted: _overlayPermission,
+                        onTap: () => _handleOverlayPermission(),
+                      ),
+
+                      const SizedBox(height: 16),
+                      
+                      _buildPermissionCard(
+                        title: 'Shizuku 服务',
+                        subtitle: _shizukuAuthorized
+                            ? '已就绪'
+                            : (_shizukuRunning ? '点击授权' : '请启动 Shizuku 服务'),
+                        icon: Icons.adb_rounded,
+                        isGranted: _shizukuAuthorized,
+                        onTap: () => _handleShizukuSetup(),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+
+                // Bottom Action
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: AppTheme.scaffoldBackgroundColor,
+                    border: Border(top: BorderSide(color: AppTheme.grey200.withOpacity(0.5))),
+                  ),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed:
+                              _requiredPermissionsGranted ? _navigateToHome : null,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryBlack,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            disabledBackgroundColor: AppTheme.grey200,
+                            disabledForegroundColor: AppTheme.grey400,
+                          ),
+                          child: Text(
+                            _requiredPermissionsGranted ? '开始探索' : '请完成所有配置',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // 实时检测提示
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 6,
+                            height: 6,
+                            decoration: const BoxDecoration(
+                              color: AppTheme.success,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            '实时检测中',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppTheme.textHint,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
     );
   }
@@ -320,70 +264,65 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
   Widget _buildProgressIndicator() {
     int grantedCount = 0;
     if (_accessibilityEnabled) grantedCount++;
+    if (_overlayPermission) grantedCount++;
+    if (_shizukuAuthorized) grantedCount++;
+    const totalCount = 3;
+    final progress = grantedCount / totalCount;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.grey200),
-      ),
-      child: Row(
-        children: [
-          // 进度环
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CircularProgressIndicator(
-                  value: grantedCount / 1,
-                  backgroundColor: AppTheme.grey100,
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                      AppTheme.primaryBlack),
-                  strokeWidth: 5,
-                ),
-                Text(
-                  '$grantedCount/1',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primaryBlack,
-                  ),
-                ),
-              ],
+    return Row(
+      children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: 64,
+              height: 64,
+              child: CircularProgressIndicator(
+                value: progress,
+                backgroundColor: AppTheme.grey100,
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppTheme.primaryBlack),
+                strokeWidth: 6,
+                strokeCap: StrokeCap.round,
+              ),
             ),
-          ),
-          const SizedBox(width: 20),
-          // 状态文字
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _requiredPermissionsGranted ? '权限配置完成' : '正在配置权限...',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _requiredPermissionsGranted ? '所有必需权限已就绪' : '请按照提示开启无障碍服务',
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
+            Text(
+              '${(progress * 100).toInt()}%',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primaryBlack,
+              ),
             ),
+          ],
+        ),
+        const SizedBox(width: 24),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                grantedCount == totalCount ? '配置完成' : '待处理项 $grantedCount/$totalCount',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.primaryBlack,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                grantedCount == totalCount 
+                  ? '您可以开始使用 AutoZi 了' 
+                  : '请依次点击下方卡片完成授权',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+            ],
           ),
-          if (_requiredPermissionsGranted)
-            const Icon(Icons.check_circle, color: AppTheme.success, size: 28),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -392,22 +331,20 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
     required String subtitle,
     required IconData icon,
     required bool isGranted,
-    required bool isRequired,
     required VoidCallback onTap,
   }) {
     return InkWell(
       onTap: isGranted ? null : onTap,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceWhite,
-          borderRadius: BorderRadius.circular(16),
+          color: isGranted ? AppTheme.grey50 : AppTheme.surfaceWhite,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isGranted
-                ? AppTheme.grey200
-                : (isRequired ? AppTheme.primaryBlack : AppTheme.grey200),
-            width: isRequired && !isGranted ? 1.5 : 1,
+            color: isGranted ? Colors.transparent : AppTheme.grey200,
+            width: 1,
           ),
         ),
         child: Row(
@@ -416,68 +353,42 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: isGranted ? AppTheme.grey100 : AppTheme.primaryBlack,
-                borderRadius: BorderRadius.circular(12),
+                color: isGranted ? Colors.white : AppTheme.primaryBlack,
+                borderRadius: BorderRadius.circular(14),
+                border: isGranted ? Border.all(color: AppTheme.grey200) : null,
               ),
               child: Icon(
-                icon,
+                isGranted ? Icons.check : icon,
                 color: isGranted ? AppTheme.primaryBlack : Colors.white,
                 size: 24,
               ),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 20),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      if (isRequired && !isGranted) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.error.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            '必需',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: AppTheme.error,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isGranted ? AppTheme.textSecondary : AppTheme.primaryBlack,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: TextStyle(
                       fontSize: 13,
-                      color:
-                          isGranted ? AppTheme.success : AppTheme.textSecondary,
+                      color: isGranted ? AppTheme.textHint : AppTheme.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isGranted)
-              const Icon(Icons.check, color: AppTheme.success, size: 20)
-            else
-              const Icon(Icons.arrow_forward_ios,
-                  color: AppTheme.grey300, size: 16),
+            if (!isGranted)
+              const Icon(Icons.arrow_forward, color: AppTheme.primaryBlack, size: 20),
           ],
         ),
       ),
