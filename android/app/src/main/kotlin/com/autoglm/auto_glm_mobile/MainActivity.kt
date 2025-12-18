@@ -86,6 +86,8 @@ class MainActivity : FlutterActivity() {
             "requestIgnoreBatteryOptimizations" -> requestIgnoreBatteryOptimizations(result)
             "startKeepAliveService" -> startKeepAliveService(result)
             "stopKeepAliveService" -> stopKeepAliveService(result)
+            "isAutoZiImeEnabled" -> isAutoZiImeEnabled(result)
+            "openInputMethodSettings" -> openInputMethodSettings(result)
             else -> result.notImplemented()
         }
     }
@@ -567,6 +569,41 @@ class MainActivity : FlutterActivity() {
             result.success(true)
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Stop KeepAliveService error: ${e.message}")
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 检查 AutoZi 输入法是否已启用
+     */
+    private fun isAutoZiImeEnabled(result: MethodChannel.Result) {
+        try {
+            val inputMethodManager = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            val enabledInputMethods = inputMethodManager.enabledInputMethodList
+            
+            val autoZiEnabled = enabledInputMethods.any { 
+                it.packageName == packageName && it.serviceName.contains("AutoZiInputMethod")
+            }
+            
+            android.util.Log.d("MainActivity", "AutoZi IME enabled: $autoZiEnabled")
+            result.success(autoZiEnabled)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Check AutoZi IME error: ${e.message}")
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 打开输入法设置页面
+     */
+    private fun openInputMethodSettings(result: MethodChannel.Result) {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            result.success(true)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Open input method settings error: ${e.message}")
             result.success(false)
         }
     }

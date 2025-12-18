@@ -34,6 +34,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   bool _shizukuRunning = false;
   bool _shizukuAuthorized = false;
   bool _batteryOptimizationIgnored = false;
+  bool _autoZiImeEnabled = false;
   
   final DeviceController _deviceController = DeviceController();
   Timer? _permissionCheckTimer;
@@ -85,6 +86,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       _shizukuRunning = await _deviceController.isShizukuRunning();
       _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
       _batteryOptimizationIgnored = await _deviceController.isIgnoringBatteryOptimizations();
+      _autoZiImeEnabled = await _deviceController.isAutoZiImeEnabled();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
@@ -175,6 +177,28 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               onTap: () => _deviceController.openAccessibilitySettings(),
             ),
             const Divider(height: 1),
+            // AutoZi 输入法
+            _buildPermissionTile(
+              title: 'AutoZi 输入法',
+              subtitle: _autoZiImeEnabled 
+                  ? '已启用 - 支持可靠的中文输入' 
+                  : '未启用（必需）',
+              icon: Icons.keyboard,
+              isGranted: _autoZiImeEnabled,
+              isRequired: true,
+              onTap: () => _deviceController.openInputMethodSettings(),
+            ),
+            const Divider(height: 1),
+            // Shizuku
+            _buildPermissionTile(
+              title: 'Shizuku',
+              subtitle: _getShizukuStatusText(),
+              icon: Icons.developer_mode,
+              isGranted: _shizukuAuthorized,
+              isRequired: true,
+              onTap: _handleShizukuAction,
+            ),
+            const Divider(height: 1),
             // 悬浮窗权限
             _buildPermissionTile(
               title: '悬浮窗权限',
@@ -183,15 +207,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               isGranted: _overlayPermission,
               isRequired: false,
               onTap: () => _deviceController.openOverlaySettings(),
-            ),
-            const Divider(height: 1),
-            _buildPermissionTile(
-              title: 'Shizuku',
-              subtitle: _getShizukuStatusText(),
-              icon: Icons.developer_mode,
-              isGranted: _shizukuAuthorized,
-              isRequired: false,
-              onTap: _handleShizukuAction,
             ),
             const Divider(height: 1),
             // 电池优化白名单
@@ -206,10 +221,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
               onTap: () => _deviceController.requestIgnoreBatteryOptimizations(),
             ),
           ]),
-          
-          // 输入方式说明卡片
-          const SizedBox(height: AppTheme.spacingMD),
-          _buildInputMethodCard(),
           
           const SizedBox(height: AppTheme.spacingLG),
           
@@ -526,108 +537,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       ),
       child: Column(
         children: children,
-      ),
-    );
-  }
-  
-  /// 构建输入方式说明卡片
-  Widget _buildInputMethodCard() {
-    final bool useShizuku = _shizukuAuthorized;
-    
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingMD),
-      decoration: BoxDecoration(
-        color: useShizuku 
-            ? AppTheme.success.withValues(alpha: 0.1)
-            : AppTheme.info.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppTheme.radiusMD),
-        border: Border.all(
-          color: useShizuku 
-              ? AppTheme.success.withValues(alpha: 0.3)
-              : AppTheme.info.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                useShizuku ? Icons.keyboard : Icons.accessibility_new,
-                color: useShizuku ? AppTheme.success : AppTheme.info,
-                size: 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '当前输入方式',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      useShizuku 
-                          ? 'Shizuku + ADB Keyboard（推荐）'
-                          : '无障碍服务（基础）',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (!useShizuku) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '💡 推荐配置 Shizuku',
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '配合内置输入法可获得更可靠的中文输入能力',
-                    style: TextStyle(fontSize: 13, color: Colors.black54),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    '1. 安装并启动 Shizuku\n2. 在系统设置中启用 AutoZi 输入法',
-                    style: TextStyle(fontSize: 12, color: Colors.black45, height: 1.5),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final url = Uri.parse('https://shizuku.rikka.app/');
-                        if (await canLaunchUrl(url)) {
-                          await launchUrl(url, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                      icon: const Icon(Icons.download, size: 18),
-                      label: const Text('下载 Shizuku'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
       ),
     );
   }
