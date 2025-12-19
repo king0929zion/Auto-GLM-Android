@@ -144,14 +144,14 @@ class FloatingWindowService : Service() {
         }
         
         // 1. The Soot Sprite (Black Ball)
-        val ballSize = dp2px(54f)
+        val ballSize = dp2px(42f) // Compact size
         ballContainer = FrameLayout(this).apply {
             layoutParams = LinearLayout.LayoutParams(ballSize, ballSize)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.BLACK)
             }
-            elevation = dp2px(8f).toFloat() // Keep shadow for the ball to make it pop (it's a sprite)
+            elevation = dp2px(6f).toFloat() // Reduced shadow
             // Add a subtle border
             foreground = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -161,10 +161,10 @@ class FloatingWindowService : Service() {
         }
         
         // Eyes Layout
-        val eyeWidth = dp2px(12f)
-        val eyeHeight = dp2px(16f)
-        val eyeTopMargin = dp2px(16f)
-        val eyeHorizontalMargin = dp2px(10f)
+        val eyeWidth = dp2px(9f)
+        val eyeHeight = dp2px(12f)
+        val eyeTopMargin = dp2px(12f)
+        val eyeHorizontalMargin = dp2px(8f)
         
         leftEye = View(this).apply {
             layoutParams = FrameLayout.LayoutParams(eyeWidth, eyeHeight).apply {
@@ -196,16 +196,16 @@ class FloatingWindowService : Service() {
         // 2. Thinking Bubble (Refined for Exquisite Look)
         statusText = TextView(this).apply {
             text = ""
-            textSize = 13f
+            textSize = 12f // Slightly smaller text
             setTextColor(Color.BLACK)
-            typeface = android.graphics.Typeface.DEFAULT_BOLD // Clean bold font
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp2px(20f).toFloat() // Rounder, softer corners
-                setStroke(dp2px(1f), Color.parseColor("#E0E0E0")) // Subtle definition
+                cornerRadius = dp2px(18f).toFloat()
+                setStroke(dp2px(1f), Color.parseColor("#E0E0E0"))
             }
-            setPadding(dp2px(18f), dp2px(12f), dp2px(18f), dp2px(12f))
-            elevation = dp2px(6f).toFloat() // Restored depth
+            setPadding(dp2px(14f), dp2px(8f), dp2px(14f), dp2px(8f))
+            elevation = dp2px(4f).toFloat() // Subtle shadow
             visibility = View.GONE
             
             // Layout params
@@ -214,10 +214,10 @@ class FloatingWindowService : Service() {
                 LinearLayout.LayoutParams.WRAP_CONTENT
             )
             // Margins will be set dynamically based on side
-            params.marginStart = dp2px(12f) // More spacing
-            params.marginEnd = dp2px(12f)
+            params.marginStart = dp2px(8f) // Reduced spacing
+            params.marginEnd = dp2px(8f)
             layoutParams = params
-            maxWidth = dp2px(260f) // Slightly wider
+            maxWidth = dp2px(220f) // Reduced width
         }
         
         // Initial assembly: Ball -> Bubble (Left side default)
@@ -651,24 +651,28 @@ class FloatingWindowService : Service() {
 
     /**
      * Show a visual feedback at coordinates (x, y)
-     * "Not too deep" - Subtle ripple effect
+     * Optimized: 
+     * - Initial: Small dot size (10px) with high opacity
+     * - Final: Large ring size (60px) with 0 opacity
+     * - Style: Clean circular stroke
      */
     fun showFeedback(x: Int, y: Int) {
-        val size = dp2px(40f) // 40dp circle
+        val startSize = dp2px(10f)
+        val endSize = dp2px(50f) 
         
         val feedbackView = View(this).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#40000000")) // 25% Black - Subtle
-                setStroke(dp2px(2f), Color.parseColor("#80FFFFFF")) // 50% White rim
+                setColor(Color.parseColor("#20000000")) // Subtle fill
+                setStroke(dp2px(2f), Color.parseColor("#99000000")) // Sharp black stroke
             }
         }
         
         val params = WindowManager.LayoutParams().apply {
-            width = size
-            height = size
-            this.x = x - size / 2
-            this.y = y - size / 2
+            width = startSize
+            height = startSize
+            this.x = x - startSize / 2
+            this.y = y - startSize / 2
             gravity = Gravity.TOP or Gravity.START
             
             type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -688,18 +692,19 @@ class FloatingWindowService : Service() {
         try {
             windowManager?.addView(feedbackView, params)
             
-            // Animation: Scale Up & Fade Out
-            feedbackView.animate()
-                .scaleX(1.5f)
-                .scaleY(1.5f)
+            val animator = feedbackView.animate()
+                .scaleX(endSize.toFloat() / startSize.toFloat())
+                .scaleY(endSize.toFloat() / startSize.toFloat())
                 .alpha(0f)
-                .setDuration(400)
+                .setDuration(500)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
                 .withEndAction {
                     try {
                         windowManager?.removeView(feedbackView)
                     } catch (e: Exception) {}
                 }
-                .start()
+            
+            animator.start()
                 
         } catch (e: Exception) {
             e.printStackTrace()
