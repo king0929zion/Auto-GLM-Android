@@ -8,6 +8,7 @@ import '../../config/settings_repository.dart';
 import '../../data/repositories/history_repository.dart';
 import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
+import '../widgets/task_execution_card.dart';
 import '../../l10n/app_strings.dart';
 import '../../config/app_config.dart';
 
@@ -26,7 +27,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
   
-  final List<_ChatMessage> _messages = [];
+  final List<_ChatItem> _chatItems = [];
   bool _isInitialized = false;
   String? _errorMessage;
   String? _currentSessionId;
@@ -34,6 +35,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   
   // 当前选择的能力模式
   String _selectedMode = 'agent'; // agent, canvas
+  
+  // 当前任务执行状态
+  TaskExecution? _currentExecution;
   
   late AnimationController _pulseController;
 
@@ -84,19 +88,51 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _onAgentChanged() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {
+        // 更新当前任务执行状态
+        if (_currentExecution != null) {
+          _currentExecution = _currentExecution!.copyWith(
+            status: _agent.isRunning ? TaskStatus.running : TaskStatus.completed,
+          );
+          // 同步更新聊天项中的执行状态
+          for (var i = 0; i < _chatItems.length; i++) {
+            if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+              _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+            }
+          }
+        }
+      });
+    }
   }
 
   void _onStepCompleted(StepResult result) {
+    final actionRecord = ActionRecord(
+      id: const Uuid().v4(),
+      actionType: result.action?.actionName ?? 'unknown',
+      description: _getActionDescription(result),
+      thinking: result.thinking,
+      timestamp: DateTime.now(),
+      isSuccess: result.success,
+    );
+    
     setState(() {
-      _messages.add(_ChatMessage(
-        isUser: false,
-        thinking: result.thinking,
-        action: result.action?.actionName,
-        message: result.message,
-        isSuccess: result.success,
-      ));
+      if (_currentExecution != null) {
+        // 添加动作到当前执行
+        _currentExecution = _currentExecution!.copyWith(
+          status: TaskStatus.running,
+          actions: [..._currentExecution!.actions, actionRecord],
+        );
+        
+        // 更新聊天项中的执行状态
+        for (var i = 0; i < _chatItems.length; i++) {
+          if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+            _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+          }
+        }
+      }
     });
+    
     _scrollToBottom();
     
     if (_currentSessionId != null) {
@@ -109,6 +145,40 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         isSuccess: result.success,
         timestamp: DateTime.now(),
       ));
+    }
+  }
+
+  String _getActionDescription(StepResult result) {
+    final action = result.action;
+    if (action == null) return result.message ?? '执行中...';
+    
+    final name = action.actionName;
+    final params = action.params;
+    
+    switch (name) {
+      case 'tap':
+      case 'click':
+        return '点击 ${params?['element'] ?? '元素'}';
+      case 'swipe':
+        return '滑动 ${params?['direction'] ?? '屏幕'}';
+      case 'scroll':
+        return '滚动 ${params?['direction'] ?? '列表'}';
+      case 'type':
+      case 'input':
+        return '输入文本';
+      case 'open_app':
+      case 'launch':
+        return '打开 ${params?['app'] ?? '应用'}';
+      case 'back':
+        return '返回上一页';
+      case 'home':
+        return '返回主屏幕';
+      case 'screenshot':
+        return '截取屏幕';
+      case 'wait':
+        return '等待中...';
+      default:
+        return result.message ?? name;
     }
   }
 
@@ -264,7 +334,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   /// 聊天区域
   Widget _buildChatArea() {
-    if (_messages.isEmpty) {
+    if (_chatItems.isEmpty) {
       return _buildEmptyState();
     }
     
@@ -274,8 +344,56 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         horizontal: AppTheme.space20,
         vertical: AppTheme.space16,
       ),
-      itemCount: _messages.length,
-      itemBuilder: (context, index) => _buildMessageBubble(_messages[index]),
+      itemCount: _chatItems.length,
+      itemBuilder: (context, index) => _buildChatItem(_chatItems[index]),
+    );
+  }
+
+  /// 构建聊天项
+  Widget _buildChatItem(_ChatItem item) {
+    if (item.isUser) {
+      return _UserBubble(message: item.message ?? '');
+    }
+    
+    // Agent 模式：显示任务执行卡片
+    if (_selectedMode == 'agent' && item.execution != null) {
+      return TaskExecutionCard(
+        execution: item.execution!,
+        onTap: () => _openVirtualScreenPreview(item.execution!),
+        onPause: () => _pauseTask(),
+        onStop: () => _stopTask(),
+      );
+    }
+    
+    // Canvas 模式或普通消息：显示消息气泡
+    return _AssistantBubble(
+      message: item.message,
+      thinking: item.thinking,
+      action: item.action,
+      isSuccess: item.isSuccess,
+      thinkingLabel: _getStr('thinking'),
+    );
+  }
+
+  /// 打开虚拟屏幕预览页面
+  void _openVirtualScreenPreview(TaskExecution execution) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VirtualScreenPreviewPage(
+          execution: execution,
+          onPause: () => _pauseTask(),
+          onStop: () => _stopTask(),
+        ),
+      ),
+    );
+  }
+
+  /// 暂停任务
+  void _pauseTask() {
+    // TODO: 实现暂停逻辑
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('暂停功能开发中...')),
     );
   }
 
@@ -319,23 +437,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
               textAlign: TextAlign.center,
             ),
+            
+            const SizedBox(height: AppTheme.space16),
+            
+            // 模式指示
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.space16,
+                vertical: AppTheme.space8,
+              ),
+              decoration: BoxDecoration(
+                color: AppTheme.grey50,
+                borderRadius: BorderRadius.circular(AppTheme.radius20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _selectedMode == 'agent' 
+                        ? Icons.smart_toy_outlined 
+                        : Icons.dashboard_customize_outlined,
+                    size: 16,
+                    color: AppTheme.grey600,
+                  ),
+                  const SizedBox(width: AppTheme.space6),
+                  Text(
+                    _selectedMode == 'agent' ? 'Agent 模式' : 'Canvas 模式',
+                    style: const TextStyle(
+                      fontSize: AppTheme.fontSize13,
+                      color: AppTheme.grey600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-    );
-  }
-
-  /// 消息气泡
-  Widget _buildMessageBubble(_ChatMessage msg) {
-    if (msg.isUser) {
-      return _UserBubble(message: msg.message ?? '');
-    }
-    return _AssistantBubble(
-      message: msg.message,
-      thinking: msg.thinking,
-      action: msg.action,
-      isSuccess: msg.isSuccess,
-      thinkingLabel: _getStr('thinking'),
     );
   }
 
@@ -662,8 +800,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       await HistoryRepository.instance.saveSession(newSession);
     }
     
+    // 添加用户消息
     setState(() {
-      _messages.add(_ChatMessage(isUser: true, message: task));
+      _chatItems.add(_ChatItem(isUser: true, message: task));
     });
     
     await _saveMessageToHistory(MessageItem(
@@ -675,19 +814,72 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     _taskController.clear();
     _focusNode.unfocus();
+    
+    // Agent 模式：创建任务执行卡片
+    if (_selectedMode == 'agent') {
+      final executionId = const Uuid().v4();
+      _currentExecution = TaskExecution(
+        taskId: executionId,
+        taskDescription: task,
+        status: TaskStatus.running,
+        actions: [],
+        startTime: DateTime.now(),
+      );
+      
+      setState(() {
+        _chatItems.add(_ChatItem(
+          isUser: false,
+          execution: _currentExecution,
+        ));
+      });
+    }
+    
     _scrollToBottom();
     
     try {
       await _agent.run(task);
+      
+      // 任务完成
+      if (_currentExecution != null) {
+        setState(() {
+          _currentExecution = _currentExecution!.copyWith(
+            status: TaskStatus.completed,
+            endTime: DateTime.now(),
+          );
+          // 更新聊天项
+          for (var i = 0; i < _chatItems.length; i++) {
+            if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+              _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+            }
+          }
+        });
+      }
     } catch (e) {
       final errorMsg = 'Error: $e';
-      setState(() {
-        _messages.add(_ChatMessage(
-          isUser: false,
-          message: errorMsg,
-          isSuccess: false,
-        ));
-      });
+      
+      if (_currentExecution != null) {
+        setState(() {
+          _currentExecution = _currentExecution!.copyWith(
+            status: TaskStatus.failed,
+            errorMessage: errorMsg,
+            endTime: DateTime.now(),
+          );
+          // 更新聊天项
+          for (var i = 0; i < _chatItems.length; i++) {
+            if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+              _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+            }
+          }
+        });
+      } else {
+        setState(() {
+          _chatItems.add(_ChatItem(
+            isUser: false,
+            message: errorMsg,
+            isSuccess: false,
+          ));
+        });
+      }
       
       await _saveMessageToHistory(MessageItem(
         id: const Uuid().v4(),
@@ -720,11 +912,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (!mounted) return;
 
     setState(() {
-      _messages.add(_ChatMessage(
-        isUser: false,
-        message: _getStr('taskStopped'),
-        isSuccess: false,
-      ));
+      if (_currentExecution != null) {
+        _currentExecution = _currentExecution!.copyWith(
+          status: TaskStatus.failed,
+          errorMessage: _getStr('taskStopped'),
+          endTime: DateTime.now(),
+        );
+        // 更新聊天项
+        for (var i = 0; i < _chatItems.length; i++) {
+          if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+            _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+          }
+        }
+      }
     });
     _scrollToBottom();
   }
@@ -739,9 +939,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     _agent.reset();
     _currentSessionId = null;
+    _currentExecution = null;
     
     setState(() {
-      _messages.clear();
+      _chatItems.clear();
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -761,6 +962,47 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _scrollController.dispose();
     _focusNode.dispose();
     super.dispose();
+  }
+}
+
+// ============================================
+// 数据类
+// ============================================
+
+/// 聊天项 - 可以是用户消息、AI消息或任务执行卡片
+class _ChatItem {
+  final bool isUser;
+  final String? message;
+  final String? thinking;
+  final String? action;
+  final bool? isSuccess;
+  final TaskExecution? execution;
+
+  _ChatItem({
+    required this.isUser,
+    this.message,
+    this.thinking,
+    this.action,
+    this.isSuccess,
+    this.execution,
+  });
+
+  _ChatItem copyWith({
+    bool? isUser,
+    String? message,
+    String? thinking,
+    String? action,
+    bool? isSuccess,
+    TaskExecution? execution,
+  }) {
+    return _ChatItem(
+      isUser: isUser ?? this.isUser,
+      message: message ?? this.message,
+      thinking: thinking ?? this.thinking,
+      action: action ?? this.action,
+      isSuccess: isSuccess ?? this.isSuccess,
+      execution: execution ?? this.execution,
+    );
   }
 }
 
@@ -1478,24 +1720,4 @@ class _HistorySheet extends StatelessWidget {
       ),
     );
   }
-}
-
-// ============================================
-// 数据类
-// ============================================
-
-class _ChatMessage {
-  final bool isUser;
-  final String? message;
-  final String? thinking;
-  final String? action;
-  final bool? isSuccess;
-
-  _ChatMessage({
-    required this.isUser,
-    this.message,
-    this.thinking,
-    this.action,
-    this.isSuccess,
-  });
 }
