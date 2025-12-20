@@ -1,74 +1,124 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import '../../data/repositories/task_history_repository.dart';
+import '../../data/models/task_info.dart';
 import '../theme/app_theme.dart';
-import '../../services/history_service.dart';
-import '../../data/models/task_record.dart';
 
 /// 任务历史页面
 class TaskHistoryPage extends StatefulWidget {
-  /// 选择任务的回调
-  final void Function(String task)? onTaskSelected;
-
-  const TaskHistoryPage({super.key, this.onTaskSelected});
+  const TaskHistoryPage({super.key});
 
   @override
   State<TaskHistoryPage> createState() => _TaskHistoryPageState();
 }
 
 class _TaskHistoryPageState extends State<TaskHistoryPage> {
-  final HistoryService _historyService = HistoryService();
-  List<TaskRecord> _records = [];
+  List<TaskHistory> _histories = [];
   bool _isLoading = true;
+  String _filter = 'all'; // all, success, failed
 
   @override
   void initState() {
     super.initState();
-    _loadHistory();
+    _loadHistories();
   }
 
-  Future<void> _loadHistory() async {
-    setState(() => _isLoading = true);
-    try {
-      final records = await _historyService.getAllRecords();
-      if (mounted) {
-        setState(() {
-          _records = records;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  Future<void> _loadHistories() async {
+    await TaskHistoryRepository.instance.init();
+    setState(() {
+      _histories = TaskHistoryRepository.instance.getAll();
+      _isLoading = false;
+    });
+  }
+
+  List<TaskHistory> get _filteredHistories {
+    switch (_filter) {
+      case 'success':
+        return _histories.where((h) => h.isSuccess).toList();
+      case 'failed':
+        return _histories.where((h) => !h.isSuccess).toList();
+      default:
+        return _histories;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.scaffoldBackgroundColor,
+      backgroundColor: AppTheme.grey50,
       appBar: AppBar(
-        title:
-            const Text('任务历史', style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
+        backgroundColor: AppTheme.white,
         elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.textPrimary,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: AppTheme.grey900),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          '任务历史',
+          style: TextStyle(
+            color: AppTheme.grey900,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         actions: [
-          if (_records.isNotEmpty)
+          if (_histories.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.delete_sweep_outlined),
-              onPressed: _confirmClear,
-              tooltip: '清除历史',
+              icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.grey500),
+              onPressed: _showClearConfirmDialog,
             ),
         ],
       ),
-      body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryBlack))
-          : _records.isEmpty
-              ? _buildEmptyState()
-              : _buildHistoryList(),
+      body: Column(
+        children: [
+          // 筛选栏
+          _buildFilterBar(),
+          
+          // 历史列表
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredHistories.isEmpty
+                    ? _buildEmptyState()
+                    : _buildHistoryList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: AppTheme.white,
+      child: Row(
+        children: [
+          _FilterChip(
+            label: '全部',
+            isSelected: _filter == 'all',
+            onTap: () => setState(() => _filter = 'all'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: '成功',
+            isSelected: _filter == 'success',
+            onTap: () => setState(() => _filter = 'success'),
+          ),
+          const SizedBox(width: 8),
+          _FilterChip(
+            label: '失败',
+            isSelected: _filter == 'failed',
+            onTap: () => setState(() => _filter = 'failed'),
+          ),
+          const Spacer(),
+          Text(
+            '${_filteredHistories.length} 条记录',
+            style: const TextStyle(
+              fontSize: 13,
+              color: AppTheme.grey400,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -77,26 +127,33 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.history_toggle_off_outlined,
-            size: 80,
-            color: AppTheme.textHint.withOpacity(0.5),
-          ),
-          const SizedBox(height: AppTheme.spacingMD),
-          const Text(
-            '没有历史记录',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppTheme.grey100,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.history_rounded,
+              size: 40,
+              color: AppTheme.grey400,
             ),
           ),
-          const SizedBox(height: AppTheme.spacingSM),
+          const SizedBox(height: 16),
           const Text(
-            '执行完的任务会显示在这里',
+            '暂无历史记录',
             style: TextStyle(
-              color: AppTheme.textHint,
+              fontSize: 16,
+              color: AppTheme.grey500,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '执行的任务会显示在这里',
+            style: TextStyle(
               fontSize: 14,
+              color: AppTheme.grey400,
             ),
           ),
         ],
@@ -105,312 +162,449 @@ class _TaskHistoryPageState extends State<TaskHistoryPage> {
   }
 
   Widget _buildHistoryList() {
-    return RefreshIndicator(
-      onRefresh: _loadHistory,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppTheme.spacingMD,
-          vertical: AppTheme.spacingSM,
-        ),
-        itemCount: _records.length,
-        itemBuilder: (context, index) {
-          final record = _records[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppTheme.spacingMD),
-            child: _buildTaskCard(record),
-          );
-        },
-      ),
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _filteredHistories.length,
+      itemBuilder: (context, index) {
+        final history = _filteredHistories[index];
+        return _HistoryCard(
+          history: history,
+          onTap: () => _showHistoryDetail(history),
+          onDelete: () => _deleteHistory(history),
+        );
+      },
     );
   }
 
-  Widget _buildTaskCard(TaskRecord record) {
-    final isCompleted = record.status == 'completed';
-    final duration = record.duration;
-    final durationStr = '${duration.inMinutes}m ${duration.inSeconds % 60}s';
-    final dateStr = DateFormat('MM-dd HH:mm').format(
-      DateTime.fromMillisecondsSinceEpoch(record.startTime),
+  void _showHistoryDetail(TaskHistory history) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _HistoryDetailSheet(history: history),
     );
+  }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.grey200),
+  Future<void> _deleteHistory(TaskHistory history) async {
+    await TaskHistoryRepository.instance.delete(history.id);
+    _loadHistories();
+  }
+
+  void _showClearConfirmDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('清空历史'),
+        content: const Text('确定要清空所有任务历史吗？此操作不可撤销。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await TaskHistoryRepository.instance.clear();
+              _loadHistories();
+            },
+            child: const Text('清空', style: TextStyle(color: Colors.red)),
+          ),
+        ],
       ),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: () => _showTaskDetails(record),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+}
+
+/// 筛选芯片
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.grey900 : AppTheme.grey100,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: isSelected ? AppTheme.white : AppTheme.grey600,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 历史记录卡片
+class _HistoryCard extends StatelessWidget {
+  final TaskHistory history;
+  final VoidCallback onTap;
+  final VoidCallback onDelete;
+
+  const _HistoryCard({
+    required this.history,
+    required this.onTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    // 状态点
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: isCompleted ? AppTheme.success : AppTheme.error,
-                        shape: BoxShape.circle,
+                // 状态图标
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: history.isSuccess
+                        ? Colors.green.withOpacity(0.1)
+                        : Colors.red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    history.isSuccess
+                        ? Icons.check_circle_rounded
+                        : Icons.error_rounded,
+                    color: history.isSuccess ? Colors.green : Colors.red,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                
+                // 任务描述
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        history.taskDescription,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.grey900,
+                        ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${history.formattedDate} · ${history.stepCount}步 · ${history.formattedDuration}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.grey400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // 删除按钮
+                IconButton(
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    size: 18,
+                    color: AppTheme.grey300,
+                  ),
+                  onPressed: onDelete,
+                ),
+              ],
+            ),
+            
+            // 错误信息
+            if (!history.isSuccess && history.errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 16,
+                      color: Colors.red,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      dateStr,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.grey50,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+                    Expanded(
                       child: Text(
-                        durationStr,
+                        history.errorMessage!,
                         style: const TextStyle(
-                          color: AppTheme.textHint,
-                          fontSize: 11,
-                          fontFamily: 'monospace',
+                          fontSize: 12,
+                          color: Colors.red,
                         ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  record.prompt,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                    height: 1.4,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 历史详情底部弹窗
+class _HistoryDetailSheet extends StatelessWidget {
+  final TaskHistory history;
+
+  const _HistoryDetailSheet({required this.history});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              // 拖动指示条
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.grey200,
+                  borderRadius: BorderRadius.circular(2),
                 ),
-                if (record.errorMessage != null) ...[
+              ),
+              
+              // 标题
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: history.isSuccess
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.red.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            history.isSuccess ? '成功' : '失败',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: history.isSuccess ? Colors.green : Colors.red,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          history.formattedDate,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.grey400,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      history.taskDescription,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.grey900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '执行了 ${history.stepCount} 步，耗时 ${history.formattedDuration}',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppTheme.grey500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Divider(height: 1),
+              
+              // 步骤列表
+              Expanded(
+                child: history.steps.isEmpty
+                    ? const Center(
+                        child: Text(
+                          '暂无步骤详情',
+                          style: TextStyle(color: AppTheme.grey400),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.all(20),
+                        itemCount: history.steps.length,
+                        itemBuilder: (context, index) {
+                          final step = history.steps[index];
+                          return _StepItem(
+                            step: step,
+                            index: index + 1,
+                            isLast: index == history.steps.length - 1,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// 步骤项
+class _StepItem extends StatelessWidget {
+  final TaskHistoryStep step;
+  final int index;
+  final bool isLast;
+
+  const _StepItem({
+    required this.step,
+    required this.index,
+    required this.isLast,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 时间线
+        Column(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: step.isSuccess
+                    ? AppTheme.grey900
+                    : Colors.red.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  '$index',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: step.isSuccess ? AppTheme.white : Colors.red,
+                  ),
+                ),
+              ),
+            ),
+            if (!isLast)
+              Container(
+                width: 2,
+                height: 40,
+                color: AppTheme.grey200,
+              ),
+          ],
+        ),
+        const SizedBox(width: 12),
+        
+        // 内容
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  step.description,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.grey900,
+                  ),
+                ),
+                if (step.thinking != null) ...[
                   const SizedBox(height: 8),
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: AppTheme.error.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(4),
+                      color: AppTheme.grey50,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.error_outline,
-                            size: 14, color: AppTheme.error),
+                        const Icon(
+                          Icons.psychology_rounded,
+                          size: 14,
+                          color: AppTheme.grey400,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            record.errorMessage!,
-                            style: TextStyle(
+                            step.thinking!,
+                            style: const TextStyle(
                               fontSize: 12,
-                              color: AppTheme.error.withOpacity(0.9),
+                              color: AppTheme.grey500,
+                              height: 1.4,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ],
-                const SizedBox(height: 12),
-                const Divider(height: 1, color: AppTheme.grey100),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    if (widget.onTaskSelected != null)
-                      TextButton.icon(
-                        onPressed: () {
-                          if (widget.onTaskSelected != null) {
-                            widget.onTaskSelected!(record.prompt);
-                            Navigator.pop(context);
-                          }
-                        },
-                        icon: const Icon(Icons.refresh, size: 14),
-                        label: const Text('重试'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppTheme.primaryBlack,
-                          textStyle: const TextStyle(fontSize: 13),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                    const SizedBox(width: 16),
-                    TextButton.icon(
-                      onPressed: () => _showTaskDetails(record),
-                      icon: const Icon(Icons.article_outlined, size: 14),
-                      label: const Text('日志'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.textSecondary,
-                        textStyle: const TextStyle(fontSize: 13),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 4),
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  void _showTaskDetails(TaskRecord record) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => Container(
-          decoration: const BoxDecoration(
-            color: AppTheme.surfaceWhite,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: AppTheme.warmBeige)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '执行详情',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            DateFormat('yyyy-MM-dd HH:mm:ss').format(
-                              DateTime.fromMillisecondsSinceEpoch(
-                                  record.startTime),
-                            ),
-                            style: const TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ),
-              ),
-
-              // prompt
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.backgroundLight,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    record.prompt,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
-
-              const Divider(height: 1),
-
-              // logs
-              Expanded(
-                child: ListView.separated(
-                  controller: scrollController,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: record.logs.length,
-                  separatorBuilder: (context, index) => const Divider(),
-                  itemBuilder: (context, index) {
-                    return SelectableText(
-                      record.logs[index],
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontFamily: 'monospace',
-                        height: 1.5,
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _confirmClear() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('清除历史'),
-        content: const Text('确定要清除所有任务历史吗？'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              await _historyService.clearHistory();
-              setState(() {
-                _records.clear();
-              });
-              if (mounted) {
-                Navigator.pop(context);
-              }
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppTheme.error,
-            ),
-            child: const Text('清除'),
-          ),
-        ],
-      ),
+      ],
     );
   }
 }
