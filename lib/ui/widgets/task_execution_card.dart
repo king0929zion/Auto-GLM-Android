@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../../services/device/device_controller.dart';
 
 /// 任务执行状态
 enum TaskStatus {
@@ -17,7 +20,7 @@ class ActionRecord {
   final String actionType;     // tap, swipe, type, scroll, open_app 等
   final String description;    // 人类可读描述，如 "点击登录按钮"
   final String? thinking;      // AI 思考过程
-  final String? screenshotPath; // 执行时的截图路径
+  final String? screenshotBase64; // 执行时的截图 (Base64)
   final DateTime timestamp;
   final bool isSuccess;
   final Map<String, dynamic>? params; // 动作参数
@@ -27,7 +30,7 @@ class ActionRecord {
     required this.actionType,
     required this.description,
     this.thinking,
-    this.screenshotPath,
+    this.screenshotBase64,
     required this.timestamp,
     this.isSuccess = true,
     this.params,
@@ -628,9 +631,64 @@ class VirtualScreenPreviewPage extends StatefulWidget {
 
 class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   int? _expandedActionIndex;
+  final DeviceController _deviceController = DeviceController();
+  
+  // 虚拟屏幕帧
+  Uint8List? _currentFrame;
+  Timer? _frameTimer;
+  bool _isLoadingFrame = false;
+  
+  @override
+  void initState() {
+    super.initState();
+    _initVirtualScreen();
+  }
+  
+  Future<void> _initVirtualScreen() async {
+    // 创建虚拟屏幕
+    await _deviceController.createVirtualScreen();
+    
+    // 开始定时获取帧
+    _startFrameCapture();
+  }
+  
+  void _startFrameCapture() {
+    _frameTimer?.cancel();
+    _frameTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      _captureFrame();
+    });
+  }
+  
+  Future<void> _captureFrame() async {
+    if (_isLoadingFrame) return;
+    
+    _isLoadingFrame = true;
+    try {
+      final frame = await _deviceController.getVirtualScreenFrame();
+      if (frame.base64Data.isNotEmpty && mounted) {
+        setState(() {
+          _currentFrame = base64Decode(frame.base64Data);
+        });
+      }
+    } catch (e) {
+      debugPrint('Frame capture error: $e');
+    } finally {
+      _isLoadingFrame = false;
+    }
+  }
+  
+  @override
+  void dispose() {
+    _frameTimer?.cancel();
+    _deviceController.releaseVirtualScreen();
+    super.dispose();
+  }
   
   @override
   Widget build(BuildContext context) {
+    // 判断是横屏还是竖屏
+    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -639,23 +697,42 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
             // 顶部控制栏
             _buildTopBar(),
             
-            // 主内容区：左侧动作列表 + 右侧虚拟屏幕
+            // 主内容区
             Expanded(
-              child: Row(
-                children: [
-                  // 左侧动作列表面板
-                  Container(
-                    width: 280,
-                    color: const Color(0xFF0D0D0D),
-                    child: _buildActionsList(),
-                  ),
-                  
-                  // 右侧虚拟屏幕预览
-                  Expanded(
-                    child: _buildVirtualScreen(),
-                  ),
-                ],
-              ),
+              child: isLandscape
+                  ? Row(
+                      children: [
+                        // 左侧动作列表面板
+                        Container(
+                          width: 280,
+                          color: const Color(0xFF0D0D0D),
+                          child: _buildActionsList(),
+                        ),
+                        
+                        // 右侧虚拟屏幕预览
+                        Expanded(
+                          child: _buildVirtualScreen(),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        // 上部虚拟屏幕
+                        Expanded(
+                          flex: 2,
+                          child: _buildVirtualScreen(),
+                        ),
+                        
+                        // 下部动作列表
+                        Expanded(
+                          flex: 1,
+                          child: Container(
+                            color: const Color(0xFF0D0D0D),
+                            child: _buildActionsList(),
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ],
         ),
@@ -700,9 +777,9 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   '任务执行',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
@@ -719,6 +796,25 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
               ],
             ),
           ),
+          
+          // 刷新按钮
+          GestureDetector(
+            onTap: _captureFrame,
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                Icons.refresh_rounded,
+                size: 20,
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           
           // 控制按钮
           if (widget.execution.isRunning) ...[
@@ -749,13 +845,25 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
         // 标题
         Padding(
           padding: const EdgeInsets.all(16),
-          child: Text(
-            '执行步骤',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Colors.white.withOpacity(0.7),
-            ),
+          child: Row(
+            children: [
+              Text(
+                '执行步骤',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white.withOpacity(0.7),
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '${actions.length} 步',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.white.withOpacity(0.4),
+                ),
+              ),
+            ],
           ),
         ),
         
@@ -763,11 +871,22 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
         Expanded(
           child: actions.isEmpty
               ? Center(
-                  child: Text(
-                    '等待执行...',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.hourglass_empty_rounded,
+                        size: 32,
+                        color: Colors.white.withOpacity(0.2),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '等待执行...',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                        ),
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
@@ -798,7 +917,7 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   Widget _buildVirtualScreen() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: AspectRatio(
           aspectRatio: 9 / 19, // 手机屏幕比例
           child: Container(
@@ -817,52 +936,62 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
                 ),
               ],
             ),
-            child: Column(
-              children: [
-                // 顶部刘海区域
-                Container(
-                  padding: const EdgeInsets.only(top: 12, bottom: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // 听筒
-                      Container(
-                        width: 60,
-                        height: 6,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(29),
+              child: Column(
+                children: [
+                  // 顶部刘海区域
+                  Container(
+                    padding: const EdgeInsets.only(top: 8, bottom: 4),
+                    color: const Color(0xFF1A1A1A),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // 听筒
+                        Container(
+                          width: 60,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // 屏幕内容区
+                  Expanded(
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F0F0F),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: _buildScreenContent(),
+                      ),
+                    ),
+                  ),
+                  
+                  // 底部导航条
+                  Container(
+                    padding: const EdgeInsets.only(bottom: 8, top: 4),
+                    color: const Color(0xFF1A1A1A),
+                    child: Center(
+                      child: Container(
+                        width: 100,
+                        height: 5,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withOpacity(0.3),
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                    ],
-                  ),
-                ),
-                
-                // 屏幕内容区
-                Expanded(
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0F0F0F),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: _buildScreenContent(),
-                  ),
-                ),
-                
-                // 底部导航条
-                Container(
-                  padding: const EdgeInsets.only(bottom: 12, top: 8),
-                  child: Container(
-                    width: 100,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -873,6 +1002,43 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   Widget _buildScreenContent() {
     final exec = widget.execution;
     
+    // 如果有虚拟屏幕帧，显示它
+    if (_currentFrame != null && _currentFrame!.isNotEmpty) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          // 屏幕帧
+          Image.memory(
+            _currentFrame!,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+            errorBuilder: (_, __, ___) => _buildPlaceholderContent(exec),
+          ),
+          
+          // 状态指示
+          Positioned(
+            top: 12,
+            right: 12,
+            child: _buildLiveIndicator(exec),
+          ),
+          
+          // 当前动作覆盖层
+          if (exec.isRunning && exec.lastAction != null)
+            Positioned(
+              bottom: 16,
+              left: 16,
+              right: 16,
+              child: _buildCurrentActionOverlay(exec.lastAction!),
+            ),
+        ],
+      );
+    }
+    
+    // 占位内容
+    return _buildPlaceholderContent(exec);
+  }
+  
+  Widget _buildPlaceholderContent(TaskExecution exec) {
     if (!exec.isRunning && exec.actions.isEmpty) {
       return Center(
         child: Column(
@@ -950,43 +1116,120 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
         
         // 状态指示
         Positioned(
-          top: 16,
-          right: 16,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          top: 12,
+          right: 12,
+          child: _buildLiveIndicator(exec),
+        ),
+      ],
+    );
+  }
+  
+  Widget _buildLiveIndicator(TaskExecution exec) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: exec.isRunning 
+            ? Colors.green.withOpacity(0.2)
+            : exec.status == TaskStatus.completed
+                ? Colors.blue.withOpacity(0.2)
+                : Colors.white.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
             decoration: BoxDecoration(
+              shape: BoxShape.circle,
               color: exec.isRunning 
-                  ? Colors.green.withOpacity(0.2)
-                  : Colors.white.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+                  ? Colors.greenAccent 
+                  : exec.status == TaskStatus.completed
+                      ? Colors.blueAccent
+                      : Colors.grey,
             ),
-            child: Row(
+          ),
+          const SizedBox(width: 6),
+          Text(
+            exec.isRunning 
+                ? 'LIVE' 
+                : exec.status == TaskStatus.completed 
+                    ? 'DONE' 
+                    : 'IDLE',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: exec.isRunning 
+                  ? Colors.greenAccent 
+                  : exec.status == TaskStatus.completed
+                      ? Colors.blueAccent
+                      : Colors.white.withOpacity(0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildCurrentActionOverlay(ActionRecord action) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withOpacity(0.1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              action.icon,
+              size: 16,
+              color: Colors.white.withOpacity(0.8),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: exec.isRunning ? Colors.greenAccent : Colors.grey,
-                  ),
-                ),
-                const SizedBox(width: 6),
                 Text(
-                  exec.isRunning ? 'LIVE' : 'DONE',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: exec.isRunning 
-                        ? Colors.greenAccent 
-                        : Colors.white.withOpacity(0.5),
+                  action.description,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
                   ),
                 ),
+                if (action.thinking != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    action.thinking!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1107,28 +1350,32 @@ class _ActionListItem extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 
-                // 动作图标
-                Icon(
-                  action.icon,
-                  size: 16,
-                  color: Colors.white.withOpacity(0.5),
-                ),
-                const SizedBox(width: 8),
-                
-                // 描述
+                // 动作图标和描述
                 Expanded(
-                  child: Text(
-                    action.description,
-                    maxLines: isExpanded ? 3 : 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        action.icon,
+                        size: 16,
+                        color: Colors.white.withOpacity(0.5),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          action.description,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 
-                // 展开指示
+                // 展开指示器
                 Icon(
                   isExpanded 
                       ? Icons.keyboard_arrow_up_rounded
@@ -1143,7 +1390,7 @@ class _ActionListItem extends StatelessWidget {
             if (isExpanded && action.thinking != null) ...[
               const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(8),
@@ -1175,10 +1422,22 @@ class _ActionListItem extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         height: 1.5,
-                        color: Colors.white.withOpacity(0.6),
+                        color: Colors.white.withOpacity(0.7),
                       ),
                     ),
                   ],
+                ),
+              ),
+            ],
+            
+            // 状态时间戳
+            if (isExpanded) ...[
+              const SizedBox(height: 8),
+              Text(
+                _formatTime(action.timestamp),
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.white.withOpacity(0.3),
                 ),
               ),
             ],
@@ -1186,5 +1445,9 @@ class _ActionListItem extends StatelessWidget {
         ),
       ),
     );
+  }
+  
+  String _formatTime(DateTime time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}:${time.second.toString().padLeft(2, '0')}';
   }
 }
