@@ -13,11 +13,11 @@ void main() async {
   await SettingsRepository.instance.init();
   await HistoryRepository.instance.init();
   
-  // 设置状态栏样式
+  // 设置状态栏样式 - 极简透明
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
-    systemNavigationBarColor: AppTheme.surfaceWhite,
+    systemNavigationBarColor: Colors.white,
     systemNavigationBarIconBrightness: Brightness.dark,
   ));
   
