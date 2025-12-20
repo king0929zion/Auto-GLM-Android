@@ -153,30 +153,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (action == null) return result.message ?? '执行中...';
     
     final name = action.actionName;
-    final params = action.params;
     
     switch (name) {
+      case 'Tap':
       case 'tap':
       case 'click':
-        return '点击 ${params?['element'] ?? '元素'}';
+        final element = action.element;
+        return '点击 ${element != null ? "[${element[0]}, ${element[1]}]" : "元素"}';
+      case 'Swipe':
       case 'swipe':
-        return '滑动 ${params?['direction'] ?? '屏幕'}';
+        return '滑动屏幕';
       case 'scroll':
-        return '滚动 ${params?['direction'] ?? '列表'}';
+        return '滚动列表';
+      case 'Type':
       case 'type':
       case 'input':
-        return '输入文本';
+        return '输入 "${action.text ?? "文本"}"';
+      case 'Launch':
       case 'open_app':
       case 'launch':
-        return '打开 ${params?['app'] ?? '应用'}';
+        return '打开 ${action.app ?? "应用"}';
+      case 'Back':
       case 'back':
         return '返回上一页';
+      case 'Home':
       case 'home':
         return '返回主屏幕';
       case 'screenshot':
         return '截取屏幕';
+      case 'Wait':
       case 'wait':
-        return '等待中...';
+        return '等待 ${action.duration ?? ""}';
       default:
         return result.message ?? name;
     }

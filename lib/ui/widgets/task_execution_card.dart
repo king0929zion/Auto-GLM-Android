@@ -4,15 +4,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../../services/device/device_controller.dart';
+import '../../data/models/task_info.dart';
 
-/// 任务执行状态
-enum TaskStatus {
-  pending,    // 等待开始
-  running,    // 执行中
-  paused,     // 已暂停
-  completed,  // 已完成
-  failed,     // 失败
-}
+// TaskStatus 从 task_info.dart 导入
 
 /// 单个动作记录
 class ActionRecord {

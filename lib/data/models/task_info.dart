@@ -2,6 +2,7 @@ import 'action_data.dart';
 
 /// 任务执行状态
 enum TaskStatus {
+  pending,     // 等待开始
   idle,        // 空闲
   running,     // 运行中
   paused,      // 暂停
