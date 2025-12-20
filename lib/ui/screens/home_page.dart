@@ -1079,74 +1079,6 @@ class _HeaderIconButton extends StatelessWidget {
   }
 }
 
-/// 输入栏工具按钮
-class _InputToolButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _InputToolButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: const BoxDecoration(
-          shape: BoxShape.circle,
-        ),
-        child: Icon(
-          icon,
-          size: 22,
-          color: Colors.white.withOpacity(0.6),
-        ),
-      ),
-    );
-  }
-}
-
-/// 模式选择芯片
-class _ModeChip extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _ModeChip({
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 8,
-        ),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.white.withOpacity(0.2),
-            width: 1,
-          ),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: Colors.white.withOpacity(0.7),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// 模式选项
 class _ModeOptionTile extends StatelessWidget {
   final IconData icon;
@@ -1756,6 +1688,8 @@ class _HistorySheet extends StatelessWidget {
                           size: 20,
                           color: AppTheme.grey300,
                         ),
+                        onTap: () => onSelect(session),
+                      );
                     },
                   ),
           ),
