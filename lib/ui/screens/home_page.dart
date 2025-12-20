@@ -278,9 +278,57 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ),
       child: Row(
         children: [
-          // 模型选择器
-          GestureDetector(
-            onTap: () => _showModelSelector(),
+          // 模型选择器 - 使用下拉菜单
+          PopupMenuButton<String>(
+            offset: const Offset(0, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            color: AppTheme.white,
+            elevation: 8,
+            enabled: !_agent.isRunning,
+            onSelected: (provider) async {
+              await SettingsRepository.instance.setSelectedProvider(provider);
+              _initializeAgent();
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'autoglm',
+                child: Row(
+                  children: [
+                    Icon(
+                      SettingsRepository.instance.selectedProvider == 'autoglm'
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      size: 18,
+                      color: SettingsRepository.instance.selectedProvider == 'autoglm'
+                          ? AppTheme.grey900
+                          : AppTheme.grey400,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(_getStr('modelAutoGLM')),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'doubao',
+                child: Row(
+                  children: [
+                    Icon(
+                      SettingsRepository.instance.selectedProvider == 'doubao'
+                          ? Icons.check_circle
+                          : Icons.circle_outlined,
+                      size: 18,
+                      color: SettingsRepository.instance.selectedProvider == 'doubao'
+                          ? AppTheme.grey900
+                          : AppTheme.grey400,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(_getStr('modelDoubao')),
+                  ],
+                ),
+              ),
+            ],
             child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppTheme.space12,
@@ -484,58 +532,54 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// Gemini 风格输入栏 - 深色圆角卡片
+  /// Gemini 风格输入栏 - 贴底深色设计
   Widget _buildGeminiInputBar() {
     final isRunning = _agent.isRunning;
     final hasText = _taskController.text.isNotEmpty;
     
     return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppTheme.space16,
-        AppTheme.space8,
-        AppTheme.space16,
-        AppTheme.space16,
-      ),
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E), // 深色背景
-          borderRadius: BorderRadius.circular(28),
-        ),
+      color: AppTheme.grey100, // 使用柔和的浅灰背景
+      child: SafeArea(
+        top: false,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // 输入区域
-            TextField(
-              controller: _taskController,
-              focusNode: _focusNode,
-              enabled: _isInitialized && !isRunning,
-              maxLines: 4,
-              minLines: 1,
-              textInputAction: TextInputAction.newline,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(
-                fontSize: AppTheme.fontSize16,
-                color: Colors.white,
-                height: 1.5,
-              ),
-              decoration: InputDecoration(
-                hintText: isRunning 
-                    ? _getStr('working') 
-                    : 'Ask AutoZi',
-                hintStyle: TextStyle(
-                  color: Colors.white.withOpacity(0.5),
-                  fontSize: AppTheme.fontSize16,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: TextField(
+                controller: _taskController,
+                focusNode: _focusNode,
+                enabled: _isInitialized && !isRunning,
+                maxLines: 4,
+                minLines: 1,
+                textInputAction: TextInputAction.newline,
+                onChanged: (_) => setState(() {}),
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: AppTheme.grey900,
+                  height: 1.5,
                 ),
-                filled: false,
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+                decoration: InputDecoration(
+                  hintText: isRunning 
+                      ? _getStr('working') 
+                      : 'Ask AutoZi',
+                  hintStyle: const TextStyle(
+                    color: AppTheme.grey400,
+                    fontSize: 16,
+                  ),
+                  filled: false,
+                  border: InputBorder.none,
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                cursorColor: AppTheme.grey900,
               ),
-              cursorColor: Colors.white,
             ),
             
-            // 工具栏
+            // 工具栏 - 无分割线
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
               child: Row(
                 children: [
                   // 添加按钮
@@ -547,7 +591,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ),
                   const SizedBox(width: 4),
                   
-                  // 功能选择器
+                  // 设置按钮
                   _InputToolButton(
                     icon: Icons.tune_rounded,
                     onTap: _showModeSelector,
@@ -561,43 +605,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     isActive: true,
                     onTap: _showModeSelector,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 12),
                   
-                  // 语音按钮
-                  _InputToolButton(
-                    icon: Icons.mic_none_rounded,
-                    onTap: () {
-                      // TODO: 语音输入
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  
-                  // 发送按钮
+                  // 发送按钮 - 树叶图标
                   GestureDetector(
                     onTap: isRunning ? _stopTask : (hasText ? _startTask : null),
                     child: AnimatedContainer(
                       duration: AppTheme.durationFast,
-                      width: 44,
-                      height: 44,
+                      width: 40,
+                      height: 40,
                       decoration: BoxDecoration(
                         color: isRunning 
                             ? Colors.red.withOpacity(0.2)
                             : hasText 
-                                ? const Color(0xFF3D3D3D)
-                                : const Color(0xFF2A2A2A),
+                                ? AppTheme.grey900
+                                : AppTheme.grey200,
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        isRunning 
-                            ? Icons.stop_rounded 
-                            : Icons.graphic_eq_rounded,
-                        color: isRunning 
-                            ? Colors.red
-                            : hasText 
-                                ? Colors.white 
-                                : Colors.white.withOpacity(0.4),
-                        size: 22,
-                      ),
+                      child: isRunning
+                          ? const Icon(
+                              Icons.stop_rounded,
+                              color: Colors.red,
+                              size: 20,
+                            )
+                          : CustomPaint(
+                              size: const Size(40, 40),
+                              painter: _LeafIconPainter(
+                                color: hasText 
+                                    ? AppTheme.white 
+                                    : AppTheme.grey400,
+                              ),
+                            ),
                     ),
                   ),
                 ],
@@ -1718,13 +1756,132 @@ class _HistorySheet extends StatelessWidget {
                           size: 20,
                           color: AppTheme.grey300,
                         ),
-                        onTap: () => onSelect(session),
-                      );
                     },
                   ),
           ),
         ],
       ),
     );
+  }
+}
+
+/// 输入栏工具按钮
+class _InputToolButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  
+  const _InputToolButton({
+    required this.icon,
+    this.onTap,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: AppTheme.grey200,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: AppTheme.grey600,
+        ),
+      ),
+    );
+  }
+}
+
+/// 模式指示标签
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback? onTap;
+  
+  const _ModeChip({
+    required this.label,
+    required this.isActive,
+    this.onTap,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.grey200 : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: isActive ? AppTheme.grey800 : AppTheme.grey500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 树叶图标绘制器 - 圆形内的树叶设计
+class _LeafIconPainter extends CustomPainter {
+  final Color color;
+  
+  _LeafIconPainter({required this.color});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+    
+    final center = Offset(size.width / 2, size.height / 2);
+    final leafSize = size.width * 0.28;
+    
+    // 绘制树叶形状 - 使用贝塞尔曲线
+    final path = Path();
+    
+    // 树叶主体
+    path.moveTo(center.dx, center.dy - leafSize);
+    path.quadraticBezierTo(
+      center.dx + leafSize * 1.2, center.dy - leafSize * 0.3,
+      center.dx + leafSize * 0.3, center.dy + leafSize * 0.8,
+    );
+    path.quadraticBezierTo(
+      center.dx, center.dy + leafSize * 0.5,
+      center.dx - leafSize * 0.3, center.dy + leafSize * 0.8,
+    );
+    path.quadraticBezierTo(
+      center.dx - leafSize * 1.2, center.dy - leafSize * 0.3,
+      center.dx, center.dy - leafSize,
+    );
+    path.close();
+    
+    canvas.drawPath(path, paint);
+    
+    // 中间叶脉
+    final veinPaint = Paint()
+      ..color = color.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    
+    canvas.drawLine(
+      Offset(center.dx, center.dy - leafSize * 0.8),
+      Offset(center.dx, center.dy + leafSize * 0.6),
+      veinPaint,
+    );
+  }
+  
+  @override
+  bool shouldRepaint(covariant _LeafIconPainter oldDelegate) {
+    return color != oldDelegate.color;
   }
 }
