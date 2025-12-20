@@ -62,11 +62,8 @@ class AutoZiApp extends StatelessWidget {
       // 自定义路由（带参数）
       onGenerateRoute: (settings) {
         if (settings.name == '/history') {
-          final onTaskSelected = settings.arguments as void Function(String)?;
           return MaterialPageRoute(
-            builder: (context) => TaskHistoryPage(
-              onTaskSelected: onTaskSelected,
-            ),
+            builder: (context) => const TaskHistoryPage(),
           );
         }
         return null;

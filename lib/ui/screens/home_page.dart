@@ -452,7 +452,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// 空状态 - Gemini 风格欢迎
+  /// 获取时间问候语
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    final nickname = SettingsRepository.instance.getNickname() ?? 'there';
+    
+    if (hour < 12) {
+      return 'Good morning, $nickname';
+    } else if (hour < 18) {
+      return 'Good afternoon, $nickname';
+    } else {
+      return 'Good evening, $nickname';
+    }
+  }
+
+  /// 空状态 - 简洁欢迎
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -460,71 +474,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 渐变星星图标
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AppTheme.grey200,
-                    AppTheme.grey100,
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.auto_awesome_rounded,
-                size: 32,
-                color: AppTheme.grey600,
-              ),
-            ),
-            const SizedBox(height: AppTheme.space24),
-            
             Text(
-              _getStr('helpPrompt'),
+              _getGreeting(),
               style: const TextStyle(
-                fontSize: AppTheme.fontSize18,
-                fontWeight: FontWeight.w500,
-                color: AppTheme.grey800,
+                fontSize: 28,
+                fontWeight: FontWeight.w300,
+                color: AppTheme.grey700,
+                letterSpacing: -0.5,
               ),
               textAlign: TextAlign.center,
-            ),
-            
-            const SizedBox(height: AppTheme.space16),
-            
-            // 模式指示
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.space16,
-                vertical: AppTheme.space8,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.grey50,
-                borderRadius: BorderRadius.circular(AppTheme.radius20),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _selectedMode == 'agent' 
-                        ? Icons.smart_toy_outlined 
-                        : Icons.dashboard_customize_outlined,
-                    size: 16,
-                    color: AppTheme.grey600,
-                  ),
-                  const SizedBox(width: AppTheme.space6),
-                  Text(
-                    _selectedMode == 'agent' ? 'Agent 模式' : 'Canvas 模式',
-                    style: const TextStyle(
-                      fontSize: AppTheme.fontSize13,
-                      color: AppTheme.grey600,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -532,116 +490,243 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// Gemini 风格输入栏 - 贴底深色设计
+  /// Gemini 风格输入栏 - 统一背景设计
   Widget _buildGeminiInputBar() {
     final isRunning = _agent.isRunning;
     final hasText = _taskController.text.isNotEmpty;
+    final isAgentMode = _selectedMode == 'agent';
+    
+    // 棕色主题色
+    const accentColor = Color(0xFF8B7355);
     
     return Container(
-      color: AppTheme.grey100, // 使用柔和的浅灰背景
+      color: AppTheme.grey100,
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // 输入区域
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-              child: TextField(
-                controller: _taskController,
-                focusNode: _focusNode,
-                enabled: _isInitialized && !isRunning,
-                maxLines: 4,
-                minLines: 1,
-                textInputAction: TextInputAction.newline,
-                onChanged: (_) => setState(() {}),
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: AppTheme.grey900,
-                  height: 1.5,
+        child: Container(
+          color: AppTheme.grey100,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 输入区域 - 更高
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.white,
+                  borderRadius: BorderRadius.circular(24),
                 ),
-                decoration: InputDecoration(
-                  hintText: isRunning 
-                      ? _getStr('working') 
-                      : 'Ask AutoZi',
-                  hintStyle: const TextStyle(
-                    color: AppTheme.grey400,
+                child: TextField(
+                  controller: _taskController,
+                  focusNode: _focusNode,
+                  enabled: _isInitialized && !isRunning,
+                  maxLines: 5,
+                  minLines: 2,
+                  textInputAction: TextInputAction.newline,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(
                     fontSize: 16,
+                    color: AppTheme.grey900,
+                    height: 1.5,
                   ),
-                  filled: false,
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: EdgeInsets.zero,
+                  decoration: InputDecoration(
+                    hintText: isRunning 
+                        ? _getStr('working') 
+                        : 'Ask AutoZi',
+                    hintStyle: const TextStyle(
+                      color: AppTheme.grey400,
+                      fontSize: 16,
+                    ),
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  cursorColor: accentColor,
                 ),
-                cursorColor: AppTheme.grey900,
               ),
-            ),
-            
-            // 工具栏 - 无分割线
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              child: Row(
-                children: [
-                  // 添加按钮
-                  _InputToolButton(
-                    icon: Icons.add,
-                    onTap: () {
-                      // TODO: 添加附件
-                    },
-                  ),
-                  const SizedBox(width: 4),
-                  
-                  // 设置按钮
-                  _InputToolButton(
-                    icon: Icons.tune_rounded,
-                    onTap: _showModeSelector,
-                  ),
-                  
-                  const Spacer(),
-                  
-                  // 当前模式指示
-                  _ModeChip(
-                    label: _selectedMode == 'agent' ? 'Agent' : 'Canvas',
-                    isActive: true,
-                    onTap: _showModeSelector,
-                  ),
-                  const SizedBox(width: 12),
-                  
-                  // 发送按钮 - 树叶图标
-                  GestureDetector(
-                    onTap: isRunning ? _stopTask : (hasText ? _startTask : null),
-                    child: AnimatedContainer(
-                      duration: AppTheme.durationFast,
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isRunning 
-                            ? Colors.red.withOpacity(0.2)
-                            : hasText 
-                                ? AppTheme.grey900
-                                : AppTheme.grey200,
-                        shape: BoxShape.circle,
-                      ),
-                      child: isRunning
-                          ? const Icon(
-                              Icons.stop_rounded,
-                              color: Colors.red,
-                              size: 20,
-                            )
-                          : CustomPaint(
-                              size: const Size(40, 40),
-                              painter: _LeafIconPainter(
-                                color: hasText 
-                                    ? AppTheme.white 
-                                    : AppTheme.grey400,
+              
+              // 工具栏
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                child: Row(
+                  children: [
+                    // 添加按钮 - 上传图片/拍照/文档
+                    _InputToolButton(
+                      icon: Icons.add,
+                      onTap: _showAttachmentMenu,
+                    ),
+                    const SizedBox(width: 4),
+                    
+                    // 功能模块选择器
+                    _InputToolButton(
+                      icon: Icons.dashboard_customize_outlined,
+                      onTap: _showModeSelector,
+                    ),
+                    
+                    const Spacer(),
+                    
+                    // Agent 开关按钮
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedMode = isAgentMode ? 'chat' : 'agent';
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isAgentMode ? accentColor.withOpacity(0.15) : AppTheme.grey200,
+                          borderRadius: BorderRadius.circular(20),
+                          border: isAgentMode ? Border.all(
+                            color: accentColor.withOpacity(0.3),
+                            width: 1,
+                          ) : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              isAgentMode ? Icons.auto_awesome : Icons.chat_bubble_outline,
+                              size: 16,
+                              color: isAgentMode ? accentColor : AppTheme.grey500,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isAgentMode ? 'Agent' : 'Chat',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: isAgentMode ? accentColor : AppTheme.grey600,
                               ),
                             ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    
+                    // 发送按钮 - 棕色主题
+                    GestureDetector(
+                      onTap: isRunning ? _stopTask : (hasText ? _startTask : null),
+                      child: AnimatedContainer(
+                        duration: AppTheme.durationFast,
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: isRunning 
+                              ? Colors.red.withOpacity(0.15)
+                              : hasText 
+                                  ? accentColor
+                                  : AppTheme.grey200,
+                          shape: BoxShape.circle,
+                        ),
+                        child: isRunning
+                            ? const Icon(
+                                Icons.stop_rounded,
+                                color: Colors.red,
+                                size: 20,
+                              )
+                            : CustomPaint(
+                                size: const Size(40, 40),
+                                painter: _LeafIconPainter(
+                                  color: hasText 
+                                      ? AppTheme.white 
+                                      : AppTheme.grey400,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 显示附件菜单
+  void _showAttachmentMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: AppTheme.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.grey200,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library_outlined, color: Colors.blue),
+                ),
+                title: const Text('从相册选择'),
+                subtitle: const Text('选择图片或视频'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // TODO: 实现相册选择
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.camera_alt_outlined, color: Colors.green),
+                ),
+                title: const Text('拍照'),
+                subtitle: const Text('拍摄新照片'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // TODO: 实现拍照
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.folder_outlined, color: Colors.orange),
+                ),
+                title: const Text('选择文档'),
+                subtitle: const Text('PDF、Word、Excel 等'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // TODO: 实现文档选择
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

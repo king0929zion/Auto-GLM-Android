@@ -167,4 +167,16 @@ class SettingsRepository {
   Future<void> setShizukuWarningShown() async {
     await prefs.setBool(_keyShizukuWarned, true);
   }
+  
+  // ===== 用户昵称 =====
+  
+  static const String _keyNickname = 'user_nickname';
+  
+  /// 获取用户昵称
+  String? getNickname() => prefs.getString(_keyNickname);
+  
+  /// 设置用户昵称
+  Future<void> setNickname(String nickname) async {
+    await prefs.setString(_keyNickname, nickname);
+  }
 }
