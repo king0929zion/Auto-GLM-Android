@@ -418,6 +418,87 @@ class DeviceController {
     }
   }
   
+  // ========================================
+  // 虚拟屏幕相关方法
+  // ========================================
+  
+  /// 创建虚拟屏幕
+  /// 返回虚拟屏幕的信息
+  Future<VirtualScreenInfo?> createVirtualScreen() async {
+    try {
+      final result = await _channel.invokeMethod<Map>('createVirtualScreen');
+      if (result == null) return null;
+      
+      return VirtualScreenInfo(
+        displayId: result['displayId'] as int? ?? 0,
+        width: result['width'] as int? ?? _screenWidth,
+        height: result['height'] as int? ?? _screenHeight,
+        density: result['density'] as int? ?? 420,
+      );
+    } on PlatformException {
+      return null;
+    }
+  }
+  
+  /// 释放虚拟屏幕
+  Future<bool> releaseVirtualScreen() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('releaseVirtualScreen');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 获取虚拟屏幕最新帧
+  Future<ScreenshotData> getVirtualScreenFrame() async {
+    try {
+      final result = await _channel.invokeMethod<Map>('getVirtualScreenFrame');
+      
+      if (result == null || (result['base64'] as String?)?.isEmpty == true) {
+        return ScreenshotData.placeholder(
+          width: _screenWidth,
+          height: _screenHeight,
+        );
+      }
+      
+      return ScreenshotData(
+        base64Data: result['base64'] as String? ?? '',
+        width: result['width'] as int? ?? _screenWidth,
+        height: result['height'] as int? ?? _screenHeight,
+        isSensitive: false,
+        timestamp: DateTime.now(),
+      );
+    } on PlatformException {
+      return ScreenshotData.placeholder(
+        width: _screenWidth,
+        height: _screenHeight,
+      );
+    }
+  }
+  
+  /// 在虚拟屏幕上启动应用
+  Future<bool> launchAppOnVirtualScreen(String packageName) async {
+    try {
+      final result = await _channel.invokeMethod<bool>('launchAppOnVirtualScreen', {
+        'package': packageName,
+      });
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 检查虚拟屏幕是否激活
+  Future<bool> isVirtualScreenActive() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isVirtualScreenActive');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 释放资源
   void dispose() {
     // 清理资源

@@ -88,6 +88,12 @@ class MainActivity : FlutterActivity() {
             "stopKeepAliveService" -> stopKeepAliveService(result)
             "isAutoZiImeEnabled" -> isAutoZiImeEnabled(result)
             "openInputMethodSettings" -> openInputMethodSettings(result)
+            // 虚拟屏幕相关
+            "createVirtualScreen" -> createVirtualScreen(result)
+            "releaseVirtualScreen" -> releaseVirtualScreen(result)
+            "getVirtualScreenFrame" -> getVirtualScreenFrame(result)
+            "launchAppOnVirtualScreen" -> launchAppOnVirtualScreen(call, result)
+            "isVirtualScreenActive" -> isVirtualScreenActive(result)
             else -> result.notImplemented()
         }
     }
@@ -608,7 +614,120 @@ class MainActivity : FlutterActivity() {
         }
     }
     
+    // ========================================
+    // 虚拟屏幕相关方法
+    // ========================================
+    
+    /**
+     * 创建虚拟屏幕
+     */
+    private fun createVirtualScreen(result: MethodChannel.Result) {
+        try {
+            val manager = VirtualScreenManager.getInstance(this)
+            val displayId = manager.createVirtualDisplay()
+            
+            if (displayId != null) {
+                val (width, height) = manager.getScreenSize()
+                result.success(mapOf(
+                    "displayId" to displayId,
+                    "width" to width,
+                    "height" to height,
+                    "density" to manager.getScreenDensity()
+                ))
+            } else {
+                result.error("CREATE_ERROR", "Failed to create virtual display", null)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Create virtual screen error: ${e.message}")
+            result.error("CREATE_ERROR", e.message, null)
+        }
+    }
+    
+    /**
+     * 释放虚拟屏幕
+     */
+    private fun releaseVirtualScreen(result: MethodChannel.Result) {
+        try {
+            VirtualScreenManager.getInstance(this).release()
+            result.success(true)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Release virtual screen error: ${e.message}")
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 获取虚拟屏幕最新帧
+     */
+    private fun getVirtualScreenFrame(result: MethodChannel.Result) {
+        try {
+            val manager = VirtualScreenManager.getInstance(this)
+            val frameBytes = manager.getLatestFrameAsJpeg(85)
+            
+            if (frameBytes != null) {
+                val base64 = Base64.encodeToString(frameBytes, Base64.NO_WRAP)
+                val (width, height) = manager.getScreenSize()
+                result.success(mapOf(
+                    "base64" to base64,
+                    "width" to width,
+                    "height" to height
+                ))
+            } else {
+                result.success(mapOf(
+                    "base64" to "",
+                    "width" to 0,
+                    "height" to 0
+                ))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Get virtual screen frame error: ${e.message}")
+            result.success(mapOf(
+                "base64" to "",
+                "width" to 0,
+                "height" to 0
+            ))
+        }
+    }
+    
+    /**
+     * 在虚拟屏幕上启动应用
+     */
+    private fun launchAppOnVirtualScreen(call: MethodCall, result: MethodChannel.Result) {
+        val packageName = call.argument<String>("package") ?: ""
+        
+        try {
+            val manager = VirtualScreenManager.getInstance(this)
+            
+            // 确保虚拟屏幕已创建
+            if (!manager.isActive()) {
+                manager.createVirtualDisplay()
+            }
+            
+            val success = manager.launchAppOnVirtualDisplay(packageName)
+            result.success(success)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Launch app on virtual screen error: ${e.message}")
+            result.success(false)
+        }
+    }
+    
+    /**
+     * 检查虚拟屏幕是否激活
+     */
+    private fun isVirtualScreenActive(result: MethodChannel.Result) {
+        try {
+            result.success(VirtualScreenManager.getInstance(this).isActive())
+        } catch (e: Exception) {
+            result.success(false)
+        }
+    }
+    
     override fun onDestroy() {
+        // 释放虚拟屏幕资源
+        try {
+            VirtualScreenManager.getInstance(this).release()
+        } catch (_: Exception) {}
+        
         deviceController?.release()
         super.onDestroy()
     }
