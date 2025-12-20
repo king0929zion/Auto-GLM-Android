@@ -11,7 +11,7 @@ import '../theme/app_theme.dart';
 import '../../l10n/app_strings.dart';
 import '../../config/app_config.dart';
 
-/// 主页面 - 极简聊天界面
+/// 主页面 - Gemini 风格聊天界面
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -31,6 +31,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String? _errorMessage;
   String? _currentSessionId;
   String _language = AppConfig.defaultLanguage;
+  
+  // 当前选择的能力模式
+  String _selectedMode = 'agent'; // agent, canvas
   
   late AnimationController _pulseController;
 
@@ -138,7 +141,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      barrierColor: AppTheme.black.withOpacity(0.5),
+      barrierColor: AppTheme.black.withOpacity(0.6),
       builder: (context) => _MinimalDialog(
         title: _getStr('confirmAction'),
         content: message,
@@ -153,7 +156,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      barrierColor: AppTheme.black.withOpacity(0.5),
+      barrierColor: AppTheme.black.withOpacity(0.6),
       builder: (context) => _MinimalDialog(
         title: _getStr('manualIntervention'),
         content: message,
@@ -182,14 +185,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ? _buildErrorView() 
                   : _buildChatArea(),
             ),
-            _buildInputBar(),
+            _buildGeminiInputBar(),
           ],
         ),
       ),
     );
   }
 
-  /// 极简头部
+  /// 顶部导航栏 - 极简风格
   Widget _buildHeader() {
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -207,7 +210,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 vertical: AppTheme.space8,
               ),
               decoration: BoxDecoration(
-                color: AppTheme.grey50,
+                color: AppTheme.grey100,
                 borderRadius: BorderRadius.circular(AppTheme.radiusFull),
               ),
               child: Row(
@@ -224,7 +227,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   const SizedBox(width: AppTheme.space4),
                   const Icon(
                     Icons.keyboard_arrow_down_rounded,
-                    size: 16,
+                    size: 18,
                     color: AppTheme.grey500,
                   ),
                 ],
@@ -235,17 +238,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           const Spacer(),
           
           // 操作按钮组
-          _HeaderButton(
+          _HeaderIconButton(
             icon: Icons.history_rounded,
             onTap: _showHistorySheet,
           ),
           const SizedBox(width: AppTheme.space8),
-          _HeaderButton(
+          _HeaderIconButton(
             icon: Icons.add_rounded,
             onTap: _startNewConversation,
           ),
           const SizedBox(width: AppTheme.space8),
-          _HeaderButton(
+          _HeaderIconButton(
             icon: Icons.settings_rounded,
             onTap: () async {
               await Navigator.pushNamed(context, '/settings');
@@ -276,7 +279,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// 空状态 - 极简引导
+  /// 空状态 - Gemini 风格欢迎
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -284,39 +287,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 极简图标
+            // 渐变星星图标
             Container(
-              width: 80,
-              height: 80,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
-                color: AppTheme.grey50,
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.grey200,
+                    AppTheme.grey100,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.auto_awesome_rounded,
-                size: 36,
-                color: AppTheme.grey400,
+                size: 32,
+                color: AppTheme.grey600,
               ),
             ),
-            const SizedBox(height: AppTheme.space32),
+            const SizedBox(height: AppTheme.space24),
             
             Text(
               _getStr('helpPrompt'),
               style: const TextStyle(
-                fontSize: AppTheme.fontSize20,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.grey900,
-                letterSpacing: -0.3,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppTheme.space12),
-            
-            Text(
-              _getStr('tryAsk'),
-              style: const TextStyle(
-                fontSize: AppTheme.fontSize14,
-                color: AppTheme.grey500,
+                fontSize: AppTheme.fontSize18,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.grey800,
               ),
               textAlign: TextAlign.center,
             ),
@@ -340,9 +339,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  /// 极简输入栏
-  Widget _buildInputBar() {
+  /// Gemini 风格输入栏 - 深色圆角卡片
+  Widget _buildGeminiInputBar() {
     final isRunning = _agent.isRunning;
+    final hasText = _taskController.text.isNotEmpty;
     
     return Container(
       padding: const EdgeInsets.fromLTRB(
@@ -353,65 +353,172 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ),
       child: Container(
         decoration: BoxDecoration(
-          color: AppTheme.grey50,
-          borderRadius: BorderRadius.circular(AppTheme.radius24),
+          color: const Color(0xFF1E1E1E), // 深色背景
+          borderRadius: BorderRadius.circular(28),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _taskController,
-                focusNode: _focusNode,
-                enabled: _isInitialized && !isRunning,
-                maxLines: 4,
-                minLines: 1,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _startTask(),
-                style: const TextStyle(
-                  fontSize: AppTheme.fontSize15,
-                  color: AppTheme.grey900,
-                  height: 1.4,
-                ),
-                decoration: InputDecoration(
-                  hintText: isRunning ? _getStr('working') : _getStr('askHint'),
-                  hintStyle: const TextStyle(
-                    color: AppTheme.grey400,
-                    fontSize: AppTheme.fontSize15,
-                  ),
-                  filled: false,
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppTheme.space20,
-                    vertical: AppTheme.space14,
-                  ),
-                ),
-                cursorColor: AppTheme.grey900,
+            // 输入区域
+            TextField(
+              controller: _taskController,
+              focusNode: _focusNode,
+              enabled: _isInitialized && !isRunning,
+              maxLines: 4,
+              minLines: 1,
+              textInputAction: TextInputAction.newline,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(
+                fontSize: AppTheme.fontSize16,
+                color: Colors.white,
+                height: 1.5,
               ),
+              decoration: InputDecoration(
+                hintText: isRunning 
+                    ? _getStr('working') 
+                    : 'Ask AutoZi',
+                hintStyle: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: AppTheme.fontSize16,
+                ),
+                filled: false,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+              ),
+              cursorColor: Colors.white,
             ),
             
-            // 发送按钮
+            // 工具栏
             Padding(
-              padding: const EdgeInsets.all(AppTheme.space6),
-              child: GestureDetector(
-                onTap: isRunning ? _stopTask : _startTask,
-                child: AnimatedContainer(
-                  duration: AppTheme.durationFast,
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: isRunning ? AppTheme.grey200 : AppTheme.black,
-                    shape: BoxShape.circle,
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+              child: Row(
+                children: [
+                  // 添加按钮
+                  _InputToolButton(
+                    icon: Icons.add,
+                    onTap: () {
+                      // TODO: 添加附件
+                    },
                   ),
-                  child: Icon(
-                    isRunning ? Icons.stop_rounded : Icons.arrow_upward_rounded,
-                    color: isRunning ? AppTheme.grey600 : AppTheme.white,
-                    size: 20,
+                  const SizedBox(width: 4),
+                  
+                  // 功能选择器
+                  _InputToolButton(
+                    icon: Icons.tune_rounded,
+                    onTap: _showModeSelector,
                   ),
-                ),
+                  
+                  const Spacer(),
+                  
+                  // 当前模式指示
+                  _ModeChip(
+                    label: _selectedMode == 'agent' ? 'Agent' : 'Canvas',
+                    isActive: true,
+                    onTap: _showModeSelector,
+                  ),
+                  const SizedBox(width: 8),
+                  
+                  // 语音按钮
+                  _InputToolButton(
+                    icon: Icons.mic_none_rounded,
+                    onTap: () {
+                      // TODO: 语音输入
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                  
+                  // 发送按钮
+                  GestureDetector(
+                    onTap: isRunning ? _stopTask : (hasText ? _startTask : null),
+                    child: AnimatedContainer(
+                      duration: AppTheme.durationFast,
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isRunning 
+                            ? Colors.red.withOpacity(0.2)
+                            : hasText 
+                                ? const Color(0xFF3D3D3D)
+                                : const Color(0xFF2A2A2A),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isRunning 
+                            ? Icons.stop_rounded 
+                            : Icons.graphic_eq_rounded,
+                        color: isRunning 
+                            ? Colors.red
+                            : hasText 
+                                ? Colors.white 
+                                : Colors.white.withOpacity(0.4),
+                        size: 22,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// 显示模式选择器
+  void _showModeSelector() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(24),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // 拖动指示条
+              Container(
+                margin: const EdgeInsets.only(top: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
+              // Agent 模式
+              _ModeOptionTile(
+                icon: Icons.smart_toy_outlined,
+                title: 'Agent',
+                subtitle: _language == 'cn' ? '智能代理模式，自动执行手机操作' : 'AI agent for phone automation',
+                isSelected: _selectedMode == 'agent',
+                onTap: () {
+                  setState(() => _selectedMode = 'agent');
+                  Navigator.pop(context);
+                },
+              ),
+              
+              // Canvas 模式
+              _ModeOptionTile(
+                icon: Icons.dashboard_customize_outlined,
+                title: 'Canvas',
+                subtitle: _language == 'cn' ? '画布模式，实时编辑和协作' : 'Real-time editing and collaboration',
+                isSelected: _selectedMode == 'canvas',
+                onTap: () {
+                  setState(() => _selectedMode = 'canvas');
+                  Navigator.pop(context);
+                },
+              ),
+              
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );
@@ -499,7 +606,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         },
         onSelect: (session) {
           Navigator.pop(context);
-          // TODO: Load session
         },
       ),
     );
@@ -513,7 +619,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierColor: AppTheme.black.withOpacity(0.5),
+      barrierColor: AppTheme.black.withOpacity(0.6),
       builder: (context) => _PermissionDialog(
         title: _getStr('permissionNotReady'),
         description: _getStr('permissionGuide'),
@@ -598,7 +704,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      barrierColor: AppTheme.black.withOpacity(0.5),
+      barrierColor: AppTheme.black.withOpacity(0.6),
       builder: (context) => _MinimalDialog(
         title: _getStr('stopTask'),
         content: _getStr('confirmStop'),
@@ -662,12 +768,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 // 组件
 // ============================================
 
-/// 头部按钮
-class _HeaderButton extends StatelessWidget {
+/// 头部图标按钮
+class _HeaderIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
 
-  const _HeaderButton({required this.icon, required this.onTap});
+  const _HeaderIconButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -677,10 +783,147 @@ class _HeaderButton extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: AppTheme.grey50,
+          color: AppTheme.grey100,
           shape: BoxShape.circle,
         ),
         child: Icon(icon, size: 20, color: AppTheme.grey700),
+      ),
+    );
+  }
+}
+
+/// 输入栏工具按钮
+class _InputToolButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _InputToolButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          icon,
+          size: 22,
+          color: Colors.white.withOpacity(0.6),
+        ),
+      ),
+    );
+  }
+}
+
+/// 模式选择芯片
+class _ModeChip extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ModeChip({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 8,
+        ),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: Colors.white.withOpacity(0.2),
+            width: 1,
+          ),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Colors.white.withOpacity(0.7),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 模式选项
+class _ModeOptionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _ModeOptionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 24,
+          vertical: 16,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 26,
+              color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : Colors.white.withOpacity(0.8),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected)
+              Icon(
+                Icons.check_circle_rounded,
+                size: 22,
+                color: Colors.white,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1147,7 +1390,6 @@ class _HistorySheet extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.all(AppTheme.space20),
             child: Row(
@@ -1175,8 +1417,6 @@ class _HistorySheet extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          
-          // List
           Expanded(
             child: sessions.isEmpty
                 ? Center(
