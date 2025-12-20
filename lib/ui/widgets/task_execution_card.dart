@@ -293,6 +293,7 @@ class _TaskExecutionCardState extends State<TaskExecutionCard>
   String _getStatusText(TaskStatus status) {
     switch (status) {
       case TaskStatus.pending:
+      case TaskStatus.idle:
         return '准备中...';
       case TaskStatus.running:
         return '执行中';
@@ -302,6 +303,12 @@ class _TaskExecutionCardState extends State<TaskExecutionCard>
         return '已完成';
       case TaskStatus.failed:
         return '执行失败';
+      case TaskStatus.cancelled:
+        return '已取消';
+      case TaskStatus.waitingConfirmation:
+        return '等待确认';
+      case TaskStatus.waitingTakeover:
+        return '需要接管';
     }
   }
   
