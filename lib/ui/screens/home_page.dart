@@ -15,6 +15,13 @@ import '../widgets/task_execution_card.dart';
 import '../../l10n/app_strings.dart';
 import '../../config/app_config.dart';
 
+enum _ToolOption {
+  none,
+  agent,
+  canvas,
+  buildApp,
+}
+
 /// 主页面 - Gemini 风格聊天界面
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -38,9 +45,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String? _currentSessionId;
   String _language = AppConfig.defaultLanguage;
   bool _isChatRunning = false;
-  
-  // 当前选择的能力模式
-  String _selectedMode = 'agent'; // agent, chat
+  _ToolOption _selectedTool = _ToolOption.none;
   
   // 当前任务执行状态
   TaskExecution? _currentExecution;
@@ -285,9 +290,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           children: [
             _buildHeader(),
             Expanded(
-              child: _errorMessage != null 
-                  ? _buildErrorView() 
-                  : _buildChatArea(),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: AppTheme.grey50,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                  child: _errorMessage != null 
+                      ? _buildErrorView() 
+                      : _buildChatArea(),
+                ),
+              ),
             ),
             _buildGeminiInputBar(),
           ],
@@ -305,12 +323,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ),
       child: Row(
         children: [
-          // 设置按钮
+          // 历史记录按钮
           IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppTheme.grey700),
+            icon: const Icon(Icons.history_rounded, color: AppTheme.grey700),
             onPressed: () {
               _focusNode.unfocus();
-              Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
+              Navigator.pushNamed(context, '/history');
             },
           ),
           
@@ -341,13 +359,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
             ),
           ),
-          
-          // 历史记录按钮
           IconButton(
-            icon: const Icon(Icons.history_rounded, color: AppTheme.grey700),
+            icon: const Icon(Icons.add_rounded, color: AppTheme.grey700),
+            onPressed: _startNewConversation,
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: AppTheme.grey700),
             onPressed: () {
               _focusNode.unfocus();
-              Navigator.pushNamed(context, '/history');
+              Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
             },
           ),
         ],
@@ -493,157 +513,116 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   /// Gemini 风格输入栏 - 统一背景设计
   Widget _buildGeminiInputBar() {
-    final isAgentMode = _selectedMode == 'agent';
     final agentRunning = _agent.isRunning;
     final chatRunning = _isChatRunning;
     final isBusy = agentRunning || chatRunning;
     final showStop = agentRunning;
     final hasText = _taskController.text.isNotEmpty;
+    final isAgentToolSelected = _selectedTool == _ToolOption.agent;
     
     // 棕色主题色
     const accentColor = Color(0xFF8B7355);
     
     return Container(
-      color: AppTheme.grey100,
+      color: AppTheme.grey50,
       child: SafeArea(
         top: false,
-        child: Container(
-          color: AppTheme.grey100,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              // 输入区域 - 统一背景色
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppTheme.grey100,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: TextField(
-                  controller: _taskController,
-                  focusNode: _focusNode,
-                  enabled: _isInitialized && !isBusy,
-                  maxLines: 5,
-                  minLines: 2,
-                  textInputAction: TextInputAction.newline,
-                  onChanged: (_) => setState(() {}),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppTheme.grey900,
-                    height: 1.5,
+              _InputIconButton(
+                icon: Icons.add_photo_alternate_outlined,
+                onTap: isBusy ? null : _showImageMenu,
+              ),
+              const SizedBox(width: 6),
+              _InputIconButton(
+                icon: Icons.handyman_outlined,
+                onTap: isBusy ? null : _showToolSelector,
+                isActive: isAgentToolSelected,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppTheme.grey200),
                   ),
-                  decoration: InputDecoration(
-                    hintText: isBusy
-                        ? _getStr('working')
-                        : 'Ask AutoZi',
-                    hintStyle: const TextStyle(
-                      color: AppTheme.grey400,
-                      fontSize: 16,
+                  child: TextField(
+                    controller: _taskController,
+                    focusNode: _focusNode,
+                    enabled: _isInitialized && !isBusy,
+                    maxLines: 4,
+                    minLines: 1,
+                    textInputAction: TextInputAction.newline,
+                    onChanged: (_) => setState(() {}),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: AppTheme.grey900,
+                      height: 1.4,
                     ),
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
+                    decoration: InputDecoration(
+                      hintText: isBusy
+                          ? _getStr('working')
+                          : 'Ask AutoZi',
+                      hintStyle: const TextStyle(
+                        color: AppTheme.grey400,
+                        fontSize: 15,
+                      ),
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    cursorColor: AppTheme.accent,
                   ),
-                  cursorColor: AppTheme.accent,
                 ),
               ),
-              
-              // 工具栏
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
-                child: Row(
-                  children: [
-                    const Spacer(),
-                    
-                    // Agent 开关按钮
-                    GestureDetector(
-                      onTap: isBusy
-                          ? null
-                          : () {
-                              setState(() {
-                                _selectedMode = isAgentMode ? 'chat' : 'agent';
-                              });
-                            },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: isAgentMode ? accentColor.withOpacity(0.15) : AppTheme.grey200,
-                          borderRadius: BorderRadius.circular(20),
-                          border: isAgentMode ? Border.all(
-                            color: accentColor.withOpacity(0.3),
-                            width: 1,
-                          ) : null,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isAgentMode ? Icons.auto_awesome : Icons.chat_bubble_outline,
-                              size: 16,
-                              color: isAgentMode ? accentColor : AppTheme.grey500,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              isAgentMode ? 'Agent' : 'Chat',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: isAgentMode ? accentColor : AppTheme.grey600,
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: showStop
+                    ? _stopTask
+                    : (hasText && !isBusy ? _startTask : null),
+                child: AnimatedContainer(
+                  duration: AppTheme.durationFast,
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: showStop
+                        ? Colors.red.withOpacity(0.15)
+                        : hasText && !isBusy
+                            ? accentColor
+                            : AppTheme.grey200,
+                    shape: BoxShape.circle,
+                  ),
+                  child: showStop
+                      ? const Icon(
+                          Icons.stop_rounded,
+                          color: Colors.red,
+                          size: 20,
+                        )
+                      : isBusy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: AppTheme.grey500,
+                              ),
+                            )
+                          : CustomPaint(
+                              size: const Size(40, 40),
+                              painter: _LeafIconPainter(
+                                color: hasText
+                                    ? AppTheme.white
+                                    : AppTheme.grey400,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    
-                    // 发送按钮 - 棕色主题
-                    GestureDetector(
-                      onTap: showStop
-                          ? _stopTask
-                          : (hasText && !isBusy ? _startTask : null),
-                      child: AnimatedContainer(
-                        duration: AppTheme.durationFast,
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: showStop
-                              ? Colors.red.withOpacity(0.15)
-                              : hasText && !isBusy
-                                  ? accentColor
-                                  : AppTheme.grey200,
-                          shape: BoxShape.circle,
-                        ),
-                        child: showStop
-                            ? const Icon(
-                                Icons.stop_rounded,
-                                color: Colors.red,
-                                size: 20,
-                              )
-                            : isBusy
-                                ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: AppTheme.grey500,
-                                    ),
-                                  )
-                                : CustomPaint(
-                                    size: const Size(40, 40),
-                                    painter: _LeafIconPainter(
-                                      color: hasText 
-                                          ? AppTheme.white 
-                                          : AppTheme.grey400,
-                                    ),
-                                  ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -696,6 +675,237 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  void _showComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$feature 功能暂未开放')),
+    );
+  }
+
+  void _showImageMenu() {
+    if (_agent.isRunning || _isChatRunning) return;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.grey200,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    '添加图片',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.grey900,
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text('上传图片'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon('上传图片');
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: const Text('拍照'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showComingSoon('拍照');
+                  },
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showToolSelector() {
+    if (_agent.isRunning || _isChatRunning) return;
+    final tools = [
+      _ToolOption.none,
+      _ToolOption.agent,
+      _ToolOption.canvas,
+      _ToolOption.buildApp,
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: AppTheme.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 8),
+                Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.grey200,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    '选择工具',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.grey900,
+                    ),
+                  ),
+                ),
+                ...tools.map((tool) {
+                  final supported = tool == _ToolOption.none || tool == _ToolOption.agent;
+                  final selected = tool == _selectedTool;
+                  return ListTile(
+                    leading: Icon(_toolIcon(tool)),
+                    title: Text(_toolLabel(tool)),
+                    subtitle: supported ? null : const Text('即将开放'),
+                    trailing: selected
+                        ? const Icon(Icons.check_rounded, color: AppTheme.grey900)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (!supported) {
+                        _showComingSoon(_toolLabel(tool));
+                        return;
+                      }
+                      setState(() {
+                        _selectedTool = tool;
+                      });
+                    },
+                  );
+                }),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _toolLabel(_ToolOption tool) {
+    switch (tool) {
+      case _ToolOption.none:
+        return '不使用工具';
+      case _ToolOption.agent:
+        return 'Agent';
+      case _ToolOption.canvas:
+        return 'Canvas';
+      case _ToolOption.buildApp:
+        return 'Build App';
+    }
+  }
+
+  IconData _toolIcon(_ToolOption tool) {
+    switch (tool) {
+      case _ToolOption.none:
+        return Icons.chat_bubble_outline;
+      case _ToolOption.agent:
+        return Icons.auto_awesome_outlined;
+      case _ToolOption.canvas:
+        return Icons.brush_outlined;
+      case _ToolOption.buildApp:
+        return Icons.auto_fix_high_outlined;
+    }
+  }
+
+  Future<String> _buildAgentInstruction(String task) async {
+    const systemPrompt =
+        '你是任务转写器，请把用户需求整理成一句清晰、可执行的手机操作任务，'
+        '给 AutoGLM 执行。仅输出任务描述，不要解释。';
+    final messages = [
+      MessageBuilder.createSystemMessage(systemPrompt),
+      {'role': 'user', 'content': task},
+    ];
+    final response = await ModelClient().request(messages);
+    return response.rawContent.trim();
+  }
+
+  Future<String> _summarizeAgentResult({
+    required String task,
+    required String agentInstruction,
+    required String agentResult,
+    TaskStatus? status,
+  }) async {
+    const systemPrompt =
+        '你是主对话助手，请根据 AutoGLM 的执行结果向用户反馈。'
+        '要求：简洁、明确说明是否完成、关键结果或失败原因。';
+    final statusText = _formatTaskStatus(status);
+    final errorMessage = _currentExecution?.errorMessage;
+    final content = [
+      '用户任务：$task',
+      'AutoGLM 指令：$agentInstruction',
+      '执行状态：$statusText',
+      if (errorMessage != null && errorMessage.isNotEmpty) '错误信息：$errorMessage',
+      '执行结果：$agentResult',
+    ].join('\n');
+
+    final messages = [
+      MessageBuilder.createSystemMessage(systemPrompt),
+      {'role': 'user', 'content': content},
+    ];
+    final response = await ModelClient().request(messages);
+    return response.rawContent.trim();
+  }
+
+  String _formatTaskStatus(TaskStatus? status) {
+    switch (status) {
+      case TaskStatus.completed:
+        return '已完成';
+      case TaskStatus.failed:
+        return '执行失败';
+      case TaskStatus.cancelled:
+        return '已取消';
+      case TaskStatus.paused:
+        return '已暂停';
+      case TaskStatus.running:
+        return '执行中';
+      case TaskStatus.waitingConfirmation:
+        return '等待确认';
+      case TaskStatus.waitingTakeover:
+        return '需要接管';
+      case TaskStatus.pending:
+      case TaskStatus.idle:
+      default:
+        return '准备中';
+    }
   }
 
   void _showModelSelector() {
@@ -752,20 +962,30 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final task = _taskController.text.trim();
     if (task.isEmpty) return;
 
-    final isAgentMode = _selectedMode == 'agent';
-
-    if (isAgentMode && _agent.isRunning) {
+    if (_agent.isRunning || _isChatRunning) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_getStr('waitCurrentTask'))),
       );
       return;
     }
 
-    if (!isAgentMode && _isChatRunning) {
+    if (_selectedTool != _ToolOption.none && _selectedTool != _ToolOption.agent) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('该工具暂未支持')),
+      );
       return;
     }
 
-    if (isAgentMode) {
+    if (_modelRepo.activeModel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_getStr('noModelSelected'))),
+      );
+      return;
+    }
+
+    final useAgentTool = _selectedTool == _ToolOption.agent;
+
+    if (useAgentTool) {
       if (!_modelRepo.autoglmConfig.isConfigured) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(_getStr('agentNotConfigured'))),
@@ -775,11 +995,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
       final permissionsOk = await _ensureRequiredPermissions();
       if (!permissionsOk) return;
-    } else if (_modelRepo.activeModel == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_getStr('noModelSelected'))),
-      );
-      return;
     }
     
     if (_currentSessionId == null) {
@@ -806,11 +1021,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       timestamp: DateTime.now(),
     ));
 
+    _chatContext.add({'role': 'user', 'content': task});
+
     _taskController.clear();
     _focusNode.unfocus();
     
-    // Agent 模式：创建任务执行卡片
-    if (isAgentMode) {
+    // Agent 工具：创建任务执行卡片
+    if (useAgentTool) {
       final executionId = const Uuid().v4();
       _currentExecution = TaskExecution(
         taskId: executionId,
@@ -830,10 +1047,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     _scrollToBottom();
     
-    if (isAgentMode) {
+    if (useAgentTool) {
+      final placeholderIndex = _chatItems.length;
+      setState(() {
+        _chatItems.add(_ChatItem(isUser: false, message: _getStr('thinking')));
+        _isChatRunning = true;
+      });
+      _scrollToBottom();
+
       try {
-        await _agent.run(task);
-        
+        final agentInstruction = await _buildAgentInstruction(task);
+        final normalizedInstruction =
+            agentInstruction.trim().isEmpty ? task : agentInstruction.trim();
+        final agentResult = await _agent.run(normalizedInstruction);
         final taskStatus = _agent.currentTask?.status;
         if (_currentExecution != null && taskStatus != null) {
           setState(() {
@@ -845,7 +1071,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   ? DateTime.now()
                   : null,
             );
-            // 更新聊天项
             for (var i = 0; i < _chatItems.length; i++) {
               if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
                 _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
@@ -853,9 +1078,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             }
           });
         }
+        final finalReply = await _summarizeAgentResult(
+          task: task,
+          agentInstruction: normalizedInstruction,
+          agentResult: agentResult,
+          status: _agent.currentTask?.status,
+        );
+
+        setState(() {
+          _chatItems[placeholderIndex] = _ChatItem(
+            isUser: false,
+            message: finalReply,
+            isSuccess: _agent.currentTask?.status == TaskStatus.completed,
+          );
+        });
+        _scrollToBottom();
+
+        _chatContext.add({'role': 'assistant', 'content': finalReply});
+        await _saveMessageToHistory(MessageItem(
+          id: const Uuid().v4(),
+          isUser: false,
+          content: finalReply,
+          timestamp: DateTime.now(),
+        ));
       } catch (e) {
         final errorMsg = 'Error: $e';
-        
         if (_currentExecution != null) {
           setState(() {
             _currentExecution = _currentExecution!.copyWith(
@@ -863,23 +1110,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               errorMessage: errorMsg,
               endTime: DateTime.now(),
             );
-            // 更新聊天项
             for (var i = 0; i < _chatItems.length; i++) {
               if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
                 _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
               }
             }
           });
-        } else {
-          setState(() {
-            _chatItems.add(_ChatItem(
-              isUser: false,
-              message: errorMsg,
-              isSuccess: false,
-            ));
-          });
         }
-        
+        setState(() {
+          _chatItems[placeholderIndex] = _ChatItem(
+            isUser: false,
+            message: errorMsg,
+            isSuccess: false,
+          );
+        });
         await _saveMessageToHistory(MessageItem(
           id: const Uuid().v4(),
           isUser: false,
@@ -887,6 +1131,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           isSuccess: false,
           timestamp: DateTime.now(),
         ));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isChatRunning = false;
+          });
+        } else {
+          _isChatRunning = false;
+        }
       }
     } else {
       final placeholderIndex = _chatItems.length;
@@ -897,7 +1149,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _scrollToBottom();
 
       try {
-        _chatContext.add({'role': 'user', 'content': task});
         final response = await ModelClient().request(_chatContext);
         final reply = response.rawContent.trim();
         _chatContext.add({'role': 'assistant', 'content': reply});
@@ -1064,6 +1315,51 @@ class _ChatItem {
 // ============================================
 // 组件
 // ============================================
+
+class _InputIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+  final bool isActive;
+
+  const _InputIconButton({
+    required this.icon,
+    this.onTap,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = onTap != null;
+    final backgroundColor = isActive
+        ? AppTheme.grey900
+        : enabled
+            ? AppTheme.grey200
+            : AppTheme.grey150;
+    final iconColor = isActive
+        ? AppTheme.white
+        : enabled
+            ? AppTheme.grey600
+            : AppTheme.grey400;
+
+    return Material(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 18,
+            color: iconColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// 用户消息气泡
 class _UserBubble extends StatelessWidget {
