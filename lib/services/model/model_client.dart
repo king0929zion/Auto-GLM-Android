@@ -92,6 +92,8 @@ class ModelClient {
     
     // 创建 Dio
     final dio = _createDio(baseUrl, apiKey);
+
+    final endpoint = _buildChatCompletionsPath(baseUrl);
     
     final body = {
       'model': modelName,
@@ -100,36 +102,17 @@ class ModelClient {
       'stream': false,
     };
 
-    // Debug log
-    print('=== API Request ===');
-    print('URL: $baseUrl/chat/completions');
-    print('Model: $modelName');
-    print('API Key: ${apiKey.length > 10 ? apiKey.substring(0, 10) : apiKey}...');
-
     try {
       final response = await dio.post(
-        '/chat/completions',
+        endpoint,
         data: body,
         cancelToken: token,
       );
 
-      print('=== API Response ===');
-      print('Status: ${response.statusCode}');
-
-      final data = response.data;
-      final rawContent = data['choices'][0]['message']['content'] as String;
-
-      print('=== Model Raw Response ===');
-      print(rawContent);
-      print('=' * 50);
+      final rawContent = _extractChatCompletionContent(response.data);
 
       // 解析思考和动作
       final (thinking, action) = _parseResponse(rawContent);
-      
-      print('=== Parsed Result ===');
-      print('Thinking: $thinking');
-      print('Action: $action');
-      print('=' * 50);
 
       return ModelResponse(
         thinking: thinking,
@@ -140,11 +123,6 @@ class ModelClient {
       if (CancelToken.isCancel(e)) {
         throw const ModelClientCancelledException('请求已取消');
       }
-      print('=== API Error ===');
-      print('Type: ${e.type}');
-      print('Message: ${e.message}');
-      print('Response: ${e.response?.data}');
-      print('Status Code: ${e.response?.statusCode}');
       
       String errorMsg;
       if (e.type == DioExceptionType.connectionError) {
@@ -179,19 +157,55 @@ class ModelClient {
       } else {
         errorMsg = '请求失败: ${e.message ?? e.type.name}';
       }
+
+      // 常见错误：baseUrl 没有包含 /v1，但请求路径却从根开始，导致 404/重定向。
+      // 这里补充提示，帮助定位。
+      if (e.response?.statusCode == 404) {
+        errorMsg = '$errorMsg（请检查 Base URL 是否包含 /v1，例如 https://api.openai.com/v1）';
+      }
       throw ModelClientException(
         errorMsg,
         statusCode: e.response?.statusCode,
       );
     } catch (e) {
-      print('=== Unknown Error ===');
-      print('$e');
       throw ModelClientException('未知错误: $e');
     } finally {
       if (identical(_activeCancelToken, token)) {
         _activeCancelToken = null;
       }
     }
+  }
+
+  String _buildChatCompletionsPath(String baseUrl) {
+    // Dio 的 path 如果以 "/" 开头，会覆盖 baseUrl 里已有的 path（例如 /v1）。
+    // 因此这里统一使用相对路径。
+    final normalized = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+    if (normalized.endsWith('/v1') || normalized.contains('/v1/')) {
+      return 'chat/completions';
+    }
+    return 'v1/chat/completions';
+  }
+
+  String _extractChatCompletionContent(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      final error = data['error'];
+      if (error is Map && error['message'] != null) {
+        throw ModelClientException('API错误: ${error['message']}');
+      }
+
+      final choices = data['choices'];
+      if (choices is List && choices.isNotEmpty) {
+        final first = choices.first;
+        if (first is Map) {
+          final message = first['message'];
+          if (message is Map && message['content'] != null) {
+            final content = message['content'];
+            if (content is String) return content;
+          }
+        }
+      }
+    }
+    throw const ModelClientException('响应格式不兼容：未找到 choices[0].message.content');
   }
 
   /// 解析模型响应
@@ -239,11 +253,6 @@ class ModelClient {
         action = content.trim();
       }
     }
-    
-    print('=== Parsed Response ===');
-    print('Thinking: ${thinking.length > 100 ? thinking.substring(0, 100) + "..." : thinking}');
-    print('Action: $action');
-    
     return (thinking, action);
   }
   

@@ -292,18 +292,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             Expanded(
               child: Container(
                 decoration: const BoxDecoration(
-                  color: AppTheme.grey50,
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(24),
+                  color: AppTheme.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border(
+                    top: BorderSide(color: AppTheme.grey150, width: 1),
                   ),
                 ),
                 child: ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(24),
-                  ),
-                  child: _errorMessage != null 
-                      ? _buildErrorView() 
-                      : _buildChatArea(),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                  child: _errorMessage != null ? _buildErrorView() : _buildChatArea(),
                 ),
               ),
             ),
@@ -337,24 +334,31 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: Center(
               child: GestureDetector(
                 onTap: _showModelSelector,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      _getModelDisplayName(),
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.grey900,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 240),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _getModelDisplayName(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.grey900,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 20,
-                      color: AppTheme.grey500,
-                    ),
-                  ],
+                      const SizedBox(width: 2),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: AppTheme.grey500,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -524,105 +528,109 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     const accentColor = Color(0xFF8B7355);
     
     return Container(
-      color: AppTheme.grey50,
+      color: AppTheme.grey100,
       child: SafeArea(
         top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+        child: Container(
+          color: AppTheme.grey100,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _InputIconButton(
-                icon: Icons.add_photo_alternate_outlined,
-                onTap: isBusy ? null : _showImageMenu,
-              ),
-              const SizedBox(width: 6),
-              _InputIconButton(
-                icon: Icons.handyman_outlined,
-                onTap: isBusy ? null : _showToolSelector,
-                isActive: isAgentToolSelected,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: AppTheme.grey200),
+              // 输入区域 - 统一背景色（保持旧样式）
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppTheme.grey100,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: TextField(
+                  controller: _taskController,
+                  focusNode: _focusNode,
+                  enabled: _isInitialized && !isBusy,
+                  maxLines: 5,
+                  minLines: 2,
+                  textInputAction: TextInputAction.newline,
+                  onChanged: (_) => setState(() {}),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: AppTheme.grey900,
+                    height: 1.5,
                   ),
-                  child: TextField(
-                    controller: _taskController,
-                    focusNode: _focusNode,
-                    enabled: _isInitialized && !isBusy,
-                    maxLines: 4,
-                    minLines: 1,
-                    textInputAction: TextInputAction.newline,
-                    onChanged: (_) => setState(() {}),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: AppTheme.grey900,
-                      height: 1.4,
+                  decoration: InputDecoration(
+                    hintText: isBusy ? _getStr('working') : 'Ask AutoZi',
+                    hintStyle: const TextStyle(
+                      color: AppTheme.grey400,
+                      fontSize: 16,
                     ),
-                    decoration: InputDecoration(
-                      hintText: isBusy
-                          ? _getStr('working')
-                          : 'Ask AutoZi',
-                      hintStyle: const TextStyle(
-                        color: AppTheme.grey400,
-                        fontSize: 15,
-                      ),
-                      filled: false,
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    cursorColor: AppTheme.accent,
+                    filled: false,
+                    border: InputBorder.none,
+                    enabledBorder: InputBorder.none,
+                    focusedBorder: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
                   ),
+                  cursorColor: AppTheme.accent,
                 ),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: showStop
-                    ? _stopTask
-                    : (hasText && !isBusy ? _startTask : null),
-                child: AnimatedContainer(
-                  duration: AppTheme.durationFast,
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: showStop
-                        ? Colors.red.withOpacity(0.15)
-                        : hasText && !isBusy
-                            ? accentColor
-                            : AppTheme.grey200,
-                    shape: BoxShape.circle,
-                  ),
-                  child: showStop
-                      ? const Icon(
-                          Icons.stop_rounded,
-                          color: Colors.red,
-                          size: 20,
-                        )
-                      : isBusy
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: AppTheme.grey500,
-                              ),
-                            )
-                          : CustomPaint(
-                              size: const Size(40, 40),
-                              painter: _LeafIconPainter(
-                                color: hasText
-                                    ? AppTheme.white
-                                    : AppTheme.grey400,
-                              ),
-                            ),
+
+              // 工具栏：左侧图片/工具，右侧发送/停止
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                child: Row(
+                  children: [
+                    _InputIconButton(
+                      icon: Icons.add_photo_alternate_outlined,
+                      onTap: isBusy ? null : _showImageMenu,
+                      isActive: false,
+                    ),
+                    const SizedBox(width: 8),
+                    _InputIconButton(
+                      icon: Icons.handyman_outlined,
+                      onTap: isBusy ? null : _showToolSelector,
+                      isActive: isAgentToolSelected,
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: showStop
+                          ? _stopTask
+                          : (hasText && !isBusy ? _startTask : null),
+                      child: AnimatedContainer(
+                        duration: AppTheme.durationFast,
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: showStop
+                              ? Colors.red.withOpacity(0.15)
+                              : hasText && !isBusy
+                                  ? accentColor
+                                  : AppTheme.grey200,
+                          shape: BoxShape.circle,
+                        ),
+                        child: showStop
+                            ? const Icon(
+                                Icons.stop_rounded,
+                                color: Colors.red,
+                                size: 20,
+                              )
+                            : isBusy
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.grey500,
+                                    ),
+                                  )
+                                : CustomPaint(
+                                    size: const Size(40, 40),
+                                    painter: _LeafIconPainter(
+                                      color: hasText ? AppTheme.white : AppTheme.grey400,
+                                    ),
+                                  ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -926,6 +934,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         },
         onSelect: (model) async {
           Navigator.pop(context);
+          if (model.modelId.toLowerCase().contains('autoglm')) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('不建议将 AutoGLM 作为主对话模型，请在 AutoGLM 配置页单独配置')),
+            );
+            return;
+          }
           await _modelRepo.setActiveModel(model.id);
           if (mounted) setState(() {});
         },

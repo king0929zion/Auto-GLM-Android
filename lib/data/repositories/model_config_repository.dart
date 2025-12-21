@@ -136,6 +136,100 @@ class ModelConfigRepository {
       await _saveProviders();
     }
   }
+
+  String _normalizeModelDisplayName(String modelId, String? displayName) {
+    final trimmed = (displayName ?? '').trim();
+    if (trimmed.isNotEmpty) return trimmed;
+    return modelId.contains('/') ? modelId.split('/').last : modelId;
+  }
+
+  /// 手动添加模型（用于 OpenAI 兼容供应商）
+  Future<void> addManualModel(
+    String providerId, {
+    required String modelId,
+    String? displayName,
+  }) async {
+    final trimmedModelId = modelId.trim();
+    if (trimmedModelId.isEmpty) {
+      throw ArgumentError('modelId 不能为空');
+    }
+
+    final index = _providers.indexWhere((p) => p.id == providerId);
+    if (index == -1) return;
+
+    final provider = _providers[index];
+    final exists = provider.models.any((m) => m.modelId == trimmedModelId);
+    if (exists) {
+      throw StateError('模型已存在');
+    }
+
+    final model = Model(
+      id: const Uuid().v4(),
+      modelId: trimmedModelId,
+      displayName: _normalizeModelDisplayName(trimmedModelId, displayName),
+      providerId: providerId,
+    );
+
+    _providers[index] = provider.copyWith(models: [...provider.models, model]);
+    await _saveProviders();
+  }
+
+  /// 编辑模型（修改 modelId / 显示名）
+  Future<void> updateModel(
+    String providerId, {
+    required String modelUuid,
+    required String modelId,
+    String? displayName,
+  }) async {
+    final trimmedModelId = modelId.trim();
+    if (trimmedModelId.isEmpty) {
+      throw ArgumentError('modelId 不能为空');
+    }
+
+    final providerIndex = _providers.indexWhere((p) => p.id == providerId);
+    if (providerIndex == -1) return;
+
+    final provider = _providers[providerIndex];
+    final targetIndex = provider.models.indexWhere((m) => m.id == modelUuid);
+    if (targetIndex == -1) return;
+
+    final conflict = provider.models.any((m) => m.id != modelUuid && m.modelId == trimmedModelId);
+    if (conflict) {
+      throw StateError('该 modelId 已存在');
+    }
+
+    final old = provider.models[targetIndex];
+    final updated = old.copyWith(
+      modelId: trimmedModelId,
+      displayName: _normalizeModelDisplayName(trimmedModelId, displayName),
+    );
+
+    final newModels = [...provider.models];
+    newModels[targetIndex] = updated;
+    _providers[providerIndex] = provider.copyWith(models: newModels);
+    await _saveProviders();
+  }
+
+  /// 删除模型
+  Future<void> deleteModel(String providerId, String modelUuid) async {
+    final providerIndex = _providers.indexWhere((p) => p.id == providerId);
+    if (providerIndex == -1) return;
+
+    final provider = _providers[providerIndex];
+    final existed = provider.models.any((m) => m.id == modelUuid);
+    if (!existed) return;
+
+    final newModels = provider.models.where((m) => m.id != modelUuid).toList();
+    _providers[providerIndex] = provider.copyWith(models: newModels);
+
+    _selectedModelIds.removeWhere((id) => id == modelUuid);
+    if (_activeModelId == modelUuid) {
+      _activeModelId = _selectedModelIds.isNotEmpty ? _selectedModelIds.first : null;
+    }
+
+    await _saveProviders();
+    await _saveSelectedModels();
+  }
   
   /// 添加自定义供应商
   Future<void> addCustomProvider(String name, String baseUrl) async {
@@ -227,7 +321,11 @@ class ModelConfigRepository {
     ));
     
     try {
-      final response = await dio.get('/models');
+      // 使用相对路径，避免覆盖 baseUrl 中已有的 /v1 路径
+      final baseUrl = provider.baseUrl;
+      final normalized = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
+      final path = (normalized.endsWith('/v1') || normalized.contains('/v1/')) ? 'models' : 'v1/models';
+      final response = await dio.get(path);
       final data = response.data;
       
       List<dynamic> modelList;

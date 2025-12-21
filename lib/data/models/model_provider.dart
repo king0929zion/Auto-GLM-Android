@@ -106,10 +106,13 @@ class Model {
   };
   
   factory Model.fromJson(Map<String, dynamic> json) {
+    final modelId = json['modelId'] as String;
+    final rawDisplay = (json['displayName'] as String?)?.trim();
+    final fallbackName = modelId.contains('/') ? modelId.split('/').last : modelId;
     return Model(
       id: json['id'] as String,
-      modelId: json['modelId'] as String,
-      displayName: json['displayName'] as String? ?? json['modelId'] as String,
+      modelId: modelId,
+      displayName: (rawDisplay != null && rawDisplay.isNotEmpty) ? rawDisplay : fallbackName,
       providerId: json['providerId'] as String,
       isSelected: json['isSelected'] as bool? ?? false,
     );
@@ -117,11 +120,14 @@ class Model {
   
   /// 从 API 响应创建
   factory Model.fromApiResponse(Map<String, dynamic> json, String providerId) {
-    final modelId = json['id'] as String;
+    final modelId = (json['id'] as String?)?.trim() ?? '';
+    final displayFromApi =
+        (json['display_name'] as String?)?.trim() ?? (json['displayName'] as String?)?.trim();
+    final fallbackName = modelId.contains('/') ? modelId.split('/').last : modelId;
     return Model(
       id: const Uuid().v4(),
       modelId: modelId,
-      displayName: modelId,
+      displayName: (displayFromApi != null && displayFromApi.isNotEmpty) ? displayFromApi : fallbackName,
       providerId: providerId,
     );
   }

@@ -18,7 +18,6 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
   late TextEditingController _apiKeyController;
   
   ModelProvider? _provider;
-  bool _isLoading = false;
   bool _isFetching = false;
   String? _errorMessage;
   
@@ -61,11 +60,16 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           _provider!.name,
           style: const TextStyle(
             color: AppTheme.grey900,
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: FontWeight.w500,
           ),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded, color: AppTheme.grey700),
+            onPressed: _showAddModelDialog,
+            tooltip: '添加模型',
+          ),
           if (!_provider!.isBuiltIn)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: AppTheme.error),
@@ -215,23 +219,216 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
             ? Border.all(color: AppTheme.accent.withOpacity(0.3))
             : null,
       ),
-      child: CheckboxListTile(
-        value: isSelected,
-        onChanged: (value) => _toggleModel(model),
-        activeColor: AppTheme.accent,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        title: Text(
-          model.displayName,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            color: isSelected ? AppTheme.accent : AppTheme.grey800,
+      child: Row(
+        children: [
+          Checkbox(
+            value: isSelected,
+            onChanged: (value) => _toggleModel(model),
+            activeColor: AppTheme.accent,
           ),
+          Expanded(
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => _toggleModel(model),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      model.displayName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: isSelected ? AppTheme.accent : AppTheme.grey800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      model.modelId,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: AppTheme.grey500),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 20, color: AppTheme.grey600),
+            onPressed: () => _showEditModelDialog(model),
+            tooltip: '编辑',
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20, color: AppTheme.grey600),
+            onPressed: () => _confirmDeleteModel(model),
+            tooltip: '删除',
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddModelDialog() {
+    final modelIdController = TextEditingController();
+    final displayNameController = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('添加模型'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: modelIdController,
+              decoration: const InputDecoration(
+                labelText: 'Model ID',
+                hintText: '例如：gpt-4o',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: displayNameController,
+              decoration: const InputDecoration(
+                labelText: '显示名称（可选）',
+                hintText: '不填则默认使用 modelId（会自动去掉 / 前缀）',
+              ),
+            ),
+          ],
         ),
-        subtitle: Text(
-          model.modelId,
-          style: const TextStyle(fontSize: 12, color: AppTheme.grey500),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消', style: TextStyle(color: AppTheme.grey600)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final modelId = modelIdController.text.trim();
+              final displayName = displayNameController.text.trim();
+              try {
+                await _repo.addManualModel(
+                  widget.providerId,
+                  modelId: modelId,
+                  displayName: displayName.isEmpty ? null : displayName,
+                );
+                if (!mounted) return;
+                Navigator.of(this.context).pop();
+                _loadProvider();
+                if (mounted) setState(() {});
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(content: Text('添加失败：$e')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accent,
+              foregroundColor: AppTheme.white,
+            ),
+            child: const Text('添加'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditModelDialog(Model model) {
+    final modelIdController = TextEditingController(text: model.modelId);
+    final displayNameController = TextEditingController(text: model.displayName);
+
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('编辑模型'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: modelIdController,
+              decoration: const InputDecoration(
+                labelText: 'Model ID',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: displayNameController,
+              decoration: const InputDecoration(
+                labelText: '显示名称（可选）',
+                hintText: '不填则自动从 modelId 生成',
+              ),
+            ),
+          ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消', style: TextStyle(color: AppTheme.grey600)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final modelId = modelIdController.text.trim();
+              final displayName = displayNameController.text.trim();
+              try {
+                await _repo.updateModel(
+                  widget.providerId,
+                  modelUuid: model.id,
+                  modelId: modelId,
+                  displayName: displayName.isEmpty ? null : displayName,
+                );
+                if (!mounted) return;
+                Navigator.of(this.context).pop();
+                _loadProvider();
+                if (mounted) setState(() {});
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  SnackBar(content: Text('保存失败：$e')),
+                );
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.accent,
+              foregroundColor: AppTheme.white,
+            ),
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteModel(Model model) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('删除模型'),
+        content: Text('确定要删除 ${model.displayName} 吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消', style: TextStyle(color: AppTheme.grey600)),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _repo.deleteModel(widget.providerId, model.id);
+              _loadProvider();
+              if (mounted) setState(() {});
+            },
+            child: const Text('删除', style: TextStyle(color: AppTheme.error)),
+          ),
+        ],
       ),
     );
   }
@@ -277,6 +474,13 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
   }
 
   Future<void> _toggleModel(Model model) async {
+    if (model.modelId.toLowerCase().contains('autoglm')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('不建议将 AutoGLM 作为主对话模型，请使用 Agent 配置页单独配置 AutoGLM')),
+      );
+      return;
+    }
     final success = await _repo.toggleModelSelection(model.id);
     if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
