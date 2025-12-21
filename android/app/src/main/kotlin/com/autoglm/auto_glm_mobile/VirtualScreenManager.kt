@@ -73,15 +73,21 @@ class VirtualScreenManager private constructor(private val context: Context) {
             val display = windowManager.defaultDisplay
             val metrics = DisplayMetrics()
             display.getRealMetrics(metrics)
-            
+            val statusBarHeight = getStatusBarHeight()
+
             screenWidth = metrics.widthPixels
-            screenHeight = metrics.heightPixels
+            screenHeight = (metrics.heightPixels - statusBarHeight).coerceAtLeast(1)
             screenDensity = metrics.densityDpi
             
             Log.d(TAG, "Screen size: ${screenWidth}x${screenHeight}, density: $screenDensity")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get display metrics", e)
         }
+    }
+
+    private fun getStatusBarHeight(): Int {
+        val resourceId = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        return if (resourceId > 0) context.resources.getDimensionPixelSize(resourceId) else 0
     }
 
     /**

@@ -384,15 +384,135 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     if (_chatItems.isEmpty) {
       return _buildEmptyState();
     }
-    
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.space20,
-        vertical: AppTheme.space16,
+
+    return Column(
+      children: [
+        if (_buildAgentBanner() != null) _buildAgentBanner()!,
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppTheme.space20,
+              vertical: AppTheme.space16,
+            ),
+            itemCount: _chatItems.length,
+            itemBuilder: (context, index) => _buildChatItem(_chatItems[index]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget? _buildAgentBanner() {
+    final exec = _currentExecution;
+    if (exec == null) return null;
+    final show = exec.status == TaskStatus.running ||
+        exec.status == TaskStatus.paused ||
+        exec.status == TaskStatus.waitingConfirmation ||
+        exec.status == TaskStatus.waitingTakeover;
+    if (!show) return null;
+
+    final statusText = () {
+      switch (exec.status) {
+        case TaskStatus.running:
+          return 'Agent 执行中';
+        case TaskStatus.paused:
+          return 'Agent 已暂停';
+        case TaskStatus.waitingConfirmation:
+          return '等待确认';
+        case TaskStatus.waitingTakeover:
+          return '需要接管';
+        default:
+          return '任务中';
+      }
+    }();
+
+    final statusColor = () {
+      switch (exec.status) {
+        case TaskStatus.running:
+          return AppTheme.success;
+        case TaskStatus.paused:
+          return AppTheme.warning;
+        case TaskStatus.waitingConfirmation:
+        case TaskStatus.waitingTakeover:
+          return AppTheme.grey900;
+        default:
+          return AppTheme.grey700;
+      }
+    }();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppTheme.space20, 12, AppTheme.space20, 0),
+      child: GestureDetector(
+        onTap: () => _openVirtualScreenPreview(exec),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppTheme.grey50,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppTheme.grey150),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      statusText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.grey900,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${exec.currentStep} 步 · ${exec.formattedDuration} · 点击查看虚拟屏幕',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12, color: AppTheme.grey500),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (exec.status == TaskStatus.running)
+                IconButton(
+                  onPressed: _pauseTask,
+                  icon: const Icon(Icons.pause_rounded, size: 20),
+                  color: AppTheme.grey700,
+                  tooltip: '暂停',
+                )
+              else if (exec.status == TaskStatus.paused)
+                IconButton(
+                  onPressed: _resumeTask,
+                  icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                  color: AppTheme.grey700,
+                  tooltip: '继续',
+                ),
+              IconButton(
+                onPressed: _stopTask,
+                icon: const Icon(Icons.stop_rounded, size: 20),
+                color: AppTheme.error,
+                tooltip: '停止',
+              ),
+              const Icon(Icons.chevron_right_rounded, color: AppTheme.grey400),
+            ],
+          ),
+        ),
       ),
-      itemCount: _chatItems.length,
-      itemBuilder: (context, index) => _buildChatItem(_chatItems[index]),
     );
   }
 

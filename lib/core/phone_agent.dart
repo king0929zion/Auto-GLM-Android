@@ -73,6 +73,11 @@ class PhoneAgent extends ChangeNotifier {
   /// 虚拟屏幕 ID
   int? _virtualScreenId;
   
+  // 系统悬浮窗指示（参考 Operit 的运行指示器）
+  bool _floatingEnabled = false;
+  bool _floatingVisible = false;
+  DateTime? _lastFloatingUpdateAt;
+  
 
 
   bool _stopRequested = false;
@@ -105,6 +110,10 @@ class PhoneAgent extends ChangeNotifier {
         return true;
       },
       takeoverCallback: (msg) async {
+        await _ensureFloatingPermission();
+        if (_floatingEnabled) {
+          await _deviceController.showTakeover(msg);
+        }
         if (onTakeoverRequired != null) {
           await onTakeoverRequired!(msg);
         }
@@ -131,6 +140,67 @@ class PhoneAgent extends ChangeNotifier {
   /// 初始化Agent
   Future<void> initialize() async {
     await _deviceController.initialize();
+    await _ensureFloatingPermission();
+  }
+
+  Future<void> _ensureFloatingPermission() async {
+    if (_floatingEnabled) return;
+    try {
+      _floatingEnabled = await _deviceController.checkOverlayPermission();
+    } catch (_) {
+      _floatingEnabled = false;
+    }
+  }
+
+  String _buildFloatingStatusText() {
+    final status = _currentTask?.status;
+    final step = _stepCount;
+    final total = agentConfig.maxSteps;
+    switch (status) {
+      case TaskStatus.paused:
+        return 'Agent 已暂停 · $step/$total';
+      case TaskStatus.waitingTakeover:
+        return '需要接管 · $step/$total';
+      case TaskStatus.waitingConfirmation:
+        return '等待确认 · $step/$total';
+      case TaskStatus.cancelled:
+        return '已取消';
+      case TaskStatus.failed:
+        return '执行失败';
+      case TaskStatus.completed:
+        return '已完成';
+      case TaskStatus.running:
+      default:
+        return 'Agent 执行中 · $step/$total';
+    }
+  }
+
+  Future<void> _showFloatingIndicator() async {
+    await _ensureFloatingPermission();
+    if (!_floatingEnabled || _floatingVisible) return;
+    final ok = await _deviceController.showFloatingWindow(_buildFloatingStatusText());
+    if (ok) _floatingVisible = true;
+  }
+
+  Future<void> _updateFloatingIndicator({bool force = false}) async {
+    await _ensureFloatingPermission();
+    if (!_floatingEnabled || !_floatingVisible) return;
+    final now = DateTime.now();
+    if (!force && _lastFloatingUpdateAt != null) {
+      final diff = now.difference(_lastFloatingUpdateAt!);
+      if (diff < const Duration(milliseconds: 400)) return;
+    }
+    _lastFloatingUpdateAt = now;
+    await _deviceController.updateFloatingWindow(_buildFloatingStatusText());
+  }
+
+  Future<void> _hideFloatingIndicator() async {
+    if (!_floatingVisible) return;
+    try {
+      await _deviceController.hideTakeover();
+      await _deviceController.hideFloatingWindow();
+    } catch (_) {}
+    _floatingVisible = false;
   }
 
   Future<void> _prepareModelClient() async {
@@ -203,6 +273,8 @@ class PhoneAgent extends ChangeNotifier {
       startTime: DateTime.now(),
     );
     notifyListeners();
+    unawaited(_showFloatingIndicator());
+    unawaited(_updateFloatingIndicator(force: true));
     
 
      
@@ -223,6 +295,7 @@ class PhoneAgent extends ChangeNotifier {
       if (_currentTask?.status != TaskStatus.paused) {
         await _releaseVirtualScreen();
       }
+      await _hideFloatingIndicator();
       notifyListeners();
     }
   }
@@ -247,6 +320,7 @@ class PhoneAgent extends ChangeNotifier {
   /// 暂停任务
   void pause() {
     _shouldPause = true;
+    unawaited(_updateFloatingIndicator(force: true));
   }
 
   /// 继续任务
@@ -269,6 +343,8 @@ class PhoneAgent extends ChangeNotifier {
     _stopReason = null;
     _currentTask = _currentTask?.copyWith(status: TaskStatus.running);
     notifyListeners();
+    unawaited(_showFloatingIndicator());
+    unawaited(_updateFloatingIndicator(force: true));
 
     try {
       final result = await _runLoop();
@@ -285,6 +361,7 @@ class PhoneAgent extends ChangeNotifier {
       if (_currentTask?.status != TaskStatus.paused) {
         await _releaseVirtualScreen();
       }
+      await _hideFloatingIndicator();
       notifyListeners();
     }
   }
@@ -297,6 +374,7 @@ class PhoneAgent extends ChangeNotifier {
     _shouldPause = true;
     _currentTask = _currentTask?.copyWith(status: TaskStatus.cancelled);
     _modelClient.cancelActiveRequest(reason);
+    unawaited(_updateFloatingIndicator(force: true));
     notifyListeners();
   }
 
@@ -348,6 +426,7 @@ class PhoneAgent extends ChangeNotifier {
     if (_shouldPause) {
       _currentTask = _currentTask?.copyWith(status: TaskStatus.paused);
       notifyListeners();
+      unawaited(_updateFloatingIndicator(force: true));
       return 'Task paused';
     }
      
@@ -366,6 +445,7 @@ class PhoneAgent extends ChangeNotifier {
       status: TaskStatus.running,
     );
     notifyListeners();
+    unawaited(_updateFloatingIndicator(force: true));
     
     // 捕获屏幕状态
     ScreenshotData screenshot;

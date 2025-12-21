@@ -440,13 +440,94 @@ class _ControlButton extends StatelessWidget {
 }
 
 /// 迷你手机预览
-class _MiniPhonePreview extends StatelessWidget {
+class _MiniPhonePreview extends StatefulWidget {
   final TaskExecution execution;
-  
+
   const _MiniPhonePreview({required this.execution});
-  
+
+  @override
+  State<_MiniPhonePreview> createState() => _MiniPhonePreviewState();
+}
+
+class _MiniPhonePreviewState extends State<_MiniPhonePreview> {
+  final DeviceController _deviceController = DeviceController();
+  Timer? _timer;
+  Uint8List? _frameBytes;
+  bool _virtualScreenAvailable = true;
+  bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAndStart();
+  }
+
+  @override
+  void didUpdateWidget(covariant _MiniPhonePreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.execution.status != widget.execution.status) {
+      _restartTimerIfNeeded();
+    }
+  }
+
+  Future<void> _initAndStart() async {
+    final isActive = await _deviceController.isVirtualScreenActive();
+    if (!isActive) {
+      if (mounted) {
+        setState(() {
+          _virtualScreenAvailable = false;
+        });
+      } else {
+        _virtualScreenAvailable = false;
+      }
+      return;
+    }
+    _virtualScreenAvailable = true;
+    _restartTimerIfNeeded();
+  }
+
+  void _restartTimerIfNeeded() {
+    _timer?.cancel();
+    if (!widget.execution.isRunning && widget.execution.status != TaskStatus.paused) {
+      return;
+    }
+    _timer = Timer.periodic(const Duration(milliseconds: 800), (_) => _captureFrame());
+    _captureFrame();
+  }
+
+  Future<void> _captureFrame() async {
+    if (_loading) return;
+    if (!_virtualScreenAvailable) return;
+
+    _loading = true;
+    try {
+      final frame = await _deviceController.getVirtualScreenFrame();
+      if (frame.base64Data.isNotEmpty && mounted) {
+        setState(() {
+          _frameBytes = base64Decode(frame.base64Data);
+        });
+      }
+    } catch (_) {
+    } finally {
+      _loading = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final exec = widget.execution;
+    final borderColor = exec.isRunning
+        ? Colors.greenAccent.withOpacity(0.7)
+        : exec.status == TaskStatus.paused
+            ? Colors.orangeAccent.withOpacity(0.7)
+            : Colors.white.withOpacity(0.2);
+
     return Container(
       width: 60,
       height: 100,
@@ -454,7 +535,7 @@ class _MiniPhonePreview extends StatelessWidget {
         color: Colors.black,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: Colors.white.withOpacity(0.2),
+          color: borderColor,
           width: 2,
         ),
       ),
@@ -470,7 +551,7 @@ class _MiniPhonePreview extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // 屏幕区域
           Expanded(
             child: Container(
@@ -479,18 +560,27 @@ class _MiniPhonePreview extends StatelessWidget {
                 color: const Color(0xFF2A2A2A),
                 borderRadius: BorderRadius.circular(4),
               ),
-              child: Center(
-                child: execution.isRunning
-                    ? const _PulsingDot()
-                    : Icon(
-                        _getStatusIcon(),
-                        size: 20,
-                        color: Colors.white.withOpacity(0.4),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: _frameBytes != null
+                    ? Image.memory(
+                        _frameBytes!,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                      )
+                    : Center(
+                        child: _virtualScreenAvailable && exec.isRunning
+                            ? const _PulsingDot()
+                            : Icon(
+                                _getStatusIcon(exec.status),
+                                size: 20,
+                                color: Colors.white.withOpacity(0.4),
+                              ),
                       ),
               ),
             ),
           ),
-          
+
           // 底部横条
           Container(
             margin: const EdgeInsets.only(bottom: 4),
@@ -505,9 +595,9 @@ class _MiniPhonePreview extends StatelessWidget {
       ),
     );
   }
-  
-  IconData _getStatusIcon() {
-    switch (execution.status) {
+
+  IconData _getStatusIcon(TaskStatus status) {
+    switch (status) {
       case TaskStatus.completed:
         return Icons.check_rounded;
       case TaskStatus.failed:
@@ -671,6 +761,19 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
     }
     
     _startFrameCapture();
+  }
+
+  Future<void> _retryInit() async {
+    if (mounted) {
+      setState(() {
+        _virtualScreenAvailable = true;
+        _currentFrame = null;
+      });
+    } else {
+      _virtualScreenAvailable = true;
+      _currentFrame = null;
+    }
+    await _initVirtualScreen();
   }
   
   void _startFrameCapture() {
@@ -1251,6 +1354,17 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
               color: Colors.white.withOpacity(0.5),
               fontSize: 13,
             ),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: _retryInit,
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.white,
+              backgroundColor: Colors.white.withOpacity(0.08),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('重试'),
           ),
         ],
       ),

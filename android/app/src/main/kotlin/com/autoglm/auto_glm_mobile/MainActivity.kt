@@ -707,7 +707,7 @@ class MainActivity : FlutterActivity() {
         try {
             val manager = VirtualScreenManager.getInstance(this)
             
-            if (manager.getDisplayId() == -1) {
+            if (manager.getDisplayId() == null) {
                 result.error("NO_DISPLAY", "Virtual display not created", null)
                 return
             }
