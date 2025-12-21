@@ -68,6 +68,14 @@ class _ProviderConfigPageState extends State<ProviderConfigPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 默认模型
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+          child: _DefaultModelCard(
+            model: _repo.activeModel,
+            onTap: _showDefaultModelPicker,
+          ),
+        ),
         // 已选模型数量提示
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -105,6 +113,30 @@ class _ProviderConfigPageState extends State<ProviderConfigPage> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showDefaultModelPicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => _DefaultModelPickerSheet(
+        models: _repo.selectedModels,
+        activeModelId: _repo.activeModelId,
+        onSelect: (model) async {
+          Navigator.pop(context);
+          if (model.modelId.toLowerCase().contains('autoglm')) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(this.context).showSnackBar(
+              const SnackBar(content: Text('不建议将 AutoGLM 作为主对话模型，请在 AutoGLM 配置页单独配置')),
+            );
+            return;
+          }
+          await _repo.setActiveModel(model.id);
+          if (mounted) setState(() {});
+        },
+      ),
     );
   }
 
@@ -286,6 +318,251 @@ class _ProviderConfigPageState extends State<ProviderConfigPage> {
             child: const Text('添加'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DefaultModelCard extends StatelessWidget {
+  final Model? model;
+  final VoidCallback onTap;
+
+  const _DefaultModelCard({
+    required this.model,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final title = model?.displayName ?? '未设置默认模型';
+    final subtitle = model?.modelId ?? '点击选择默认模型';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.grey50,
+          borderRadius: BorderRadius.circular(12),
+          border: const Border.fromBorderSide(BorderSide(color: AppTheme.grey150, width: 1)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppTheme.grey100,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.star_rounded, color: AppTheme.grey700, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '默认模型',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.grey500,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.grey900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 12, color: AppTheme.grey500),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppTheme.grey400),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DefaultModelPickerSheet extends StatefulWidget {
+  final List<Model> models;
+  final String? activeModelId;
+  final ValueChanged<Model> onSelect;
+
+  const _DefaultModelPickerSheet({
+    required this.models,
+    required this.activeModelId,
+    required this.onSelect,
+  });
+
+  @override
+  State<_DefaultModelPickerSheet> createState() => _DefaultModelPickerSheetState();
+}
+
+class _DefaultModelPickerSheetState extends State<_DefaultModelPickerSheet> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<Model> _filtered() {
+    final keyword = _searchController.text.trim().toLowerCase();
+    if (keyword.isEmpty) return widget.models;
+    return widget.models.where((m) {
+      return m.displayName.toLowerCase().contains(keyword) ||
+          m.modelId.toLowerCase().contains(keyword);
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final models = _filtered();
+
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.grey200,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                '选择默认模型',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.grey900),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText: '搜索模型',
+                    filled: true,
+                    fillColor: AppTheme.grey50,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.grey500),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close_rounded, color: AppTheme.grey500),
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() {});
+                            },
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (models.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text('未找到匹配的模型', style: TextStyle(color: AppTheme.grey500)),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: models.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (context, index) {
+                      final model = models[index];
+                      final selected = model.id == widget.activeModelId;
+                      return Material(
+                        color: selected ? AppTheme.grey50 : AppTheme.white,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => widget.onSelect(model),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selected ? AppTheme.accent.withOpacity(0.3) : AppTheme.grey150,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        model.displayName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppTheme.grey900,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        model.modelId,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12, color: AppTheme.grey500),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (selected)
+                                  const Icon(Icons.check_rounded, color: AppTheme.accent)
+                                else
+                                  const Icon(Icons.chevron_right_rounded, color: AppTheme.grey400),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

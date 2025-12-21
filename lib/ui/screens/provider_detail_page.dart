@@ -16,6 +16,7 @@ class ProviderDetailPage extends StatefulWidget {
 class _ProviderDetailPageState extends State<ProviderDetailPage> {
   final ModelConfigRepository _repo = ModelConfigRepository.instance;
   late TextEditingController _apiKeyController;
+  final TextEditingController _searchController = TextEditingController();
   
   ModelProvider? _provider;
   bool _isFetching = false;
@@ -31,6 +32,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
   @override
   void dispose() {
     _apiKeyController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
   
@@ -141,9 +143,36 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
           ],
           
           const SizedBox(height: 16),
+
+          // 搜索模型
+          TextField(
+            controller: _searchController,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: '搜索模型（名称或 Model ID）',
+              filled: true,
+              fillColor: AppTheme.grey50,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.grey500),
+              suffixIcon: _searchController.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close_rounded, color: AppTheme.grey500),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                      },
+                    ),
+            ),
+          ),
+          
+          const SizedBox(height: 12),
           
           // 模型列表
-          if (_provider!.models.isEmpty)
+          if (_filteredModels().isEmpty)
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
@@ -155,19 +184,19 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
                   Icon(Icons.cloud_off, size: 40, color: AppTheme.grey300),
                   const SizedBox(height: 8),
                   Text(
-                    '暂无模型',
+                    _provider!.models.isEmpty ? '暂无模型' : '未找到匹配的模型',
                     style: TextStyle(color: AppTheme.grey500),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '请先配置 API Key 并获取模型列表',
+                    _provider!.models.isEmpty ? '请先配置 API Key 并获取模型列表' : '换个关键词试试',
                     style: TextStyle(color: AppTheme.grey400, fontSize: 13),
                   ),
                 ],
               ),
             )
           else
-            ..._provider!.models.map((model) => _buildModelItem(model)),
+            ..._filteredModels().map((model) => _buildModelItem(model)),
           
           const SizedBox(height: 24),
           
@@ -209,6 +238,7 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
 
   Widget _buildModelItem(Model model) {
     final isSelected = _repo.selectedModelIds.contains(model.id);
+    final isDefault = _repo.activeModelId == model.id;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -258,6 +288,15 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
             ),
           ),
           IconButton(
+            icon: Icon(
+              isDefault ? Icons.star_rounded : Icons.star_outline_rounded,
+              size: 20,
+              color: isDefault ? AppTheme.accent : AppTheme.grey600,
+            ),
+            onPressed: () => _setAsDefaultModel(model),
+            tooltip: '设为默认',
+          ),
+          IconButton(
             icon: const Icon(Icons.edit_outlined, size: 20, color: AppTheme.grey600),
             onPressed: () => _showEditModelDialog(model),
             tooltip: '编辑',
@@ -270,6 +309,19 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
         ],
       ),
     );
+  }
+
+  List<Model> _filteredModels() {
+    final provider = _provider;
+    if (provider == null) return const [];
+
+    final keyword = _searchController.text.trim().toLowerCase();
+    if (keyword.isEmpty) return provider.models;
+
+    return provider.models.where((m) {
+      return m.displayName.toLowerCase().contains(keyword) ||
+          m.modelId.toLowerCase().contains(keyword);
+    }).toList();
   }
 
   void _showAddModelDialog() {
@@ -492,6 +544,35 @@ class _ProviderDetailPageState extends State<ProviderDetailPage> {
     }
     _loadProvider();
     setState(() {});
+  }
+
+  Future<void> _setAsDefaultModel(Model model) async {
+    if (model.modelId.toLowerCase().contains('autoglm')) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('不建议将 AutoGLM 作为主对话模型，请在 AutoGLM 配置页单独配置')),
+      );
+      return;
+    }
+
+    final isSelected = _repo.selectedModelIds.contains(model.id);
+    if (!isSelected) {
+      final success = await _repo.toggleModelSelection(model.id);
+      if (!success) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('已达到最大选择数量 (5个)'),
+            backgroundColor: AppTheme.warning,
+          ),
+        );
+        return;
+      }
+    }
+
+    await _repo.setActiveModel(model.id);
+    _loadProvider();
+    if (mounted) setState(() {});
   }
 
   void _deleteProvider() {
