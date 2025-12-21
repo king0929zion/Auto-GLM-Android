@@ -494,12 +494,12 @@ class DeviceController(private val context: Context) {
      */
     fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, 
               duration: Int, delay: Int, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
-        // Show visual feedback
-        if (displayId == -1 || displayId == 0) {
-            mainHandler.post {
-                FloatingWindowService.showSwipeFeedback(startX, startY, endX, endY)
-            }
-        }
+        // Visual feedback (disabled - method not implemented)
+        // if (displayId == -1 || displayId == 0) {
+        //     mainHandler.post {
+        //         FloatingWindowService.showSwipeFeedback(startX, startY, endX, endY)
+        //     }
+        // }
 
         executor.execute {
             if (displayId != -1 && displayId != 0) {
@@ -559,16 +559,15 @@ class DeviceController(private val context: Context) {
                 if (shizukuAvailable) {
                     android.util.Log.d("DeviceController", "Shizuku available, trying shell methods")
                     
-                    // 对于虚拟屏幕，跳过 ADB Keyboard，直接尝试 Shell 命令
-                    if (displayId == -1 || displayId == 0) {
-                        // 方法1: 尝试使用ADB Keyboard (支持中文)
-                        val adbKeyboardResult = tryAdbKeyboardInput(text)
-                        if (adbKeyboardResult) {
-                            android.util.Log.d("DeviceController", "ADB Keyboard input success")
-                            callback(true, null)
-                            return@execute
-                        }
-                    }
+                    // ADB Keyboard method disabled - method not implemented
+                    // if (displayId == -1 || displayId == 0) {
+                    //     val adbKeyboardResult = tryAdbKeyboardInput(text)
+                    //     if (adbKeyboardResult) {
+                    //         android.util.Log.d("DeviceController", "ADB Keyboard input success")
+                    //         callback(true, null)
+                    //         return@execute
+                    //     }
+                    // }
                     
                     // 方法2: 使用input text命令 (仅支持ASCII)
                     val inputTextResult = tryInputTextCommand(text, displayId)
