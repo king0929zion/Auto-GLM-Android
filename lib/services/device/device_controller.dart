@@ -202,6 +202,26 @@ class DeviceController {
     }
   }
   
+  /// 检查通知权限
+  Future<bool> isNotificationEnabled() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('isNotificationEnabled');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
+  /// 请求通知权限
+  Future<bool> requestNotificationPermission() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('requestNotificationPermission');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 获取截图
   Future<ScreenshotData> getScreenshot({int timeoutMs = 10000}) async {
     try {

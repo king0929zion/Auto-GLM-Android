@@ -16,11 +16,13 @@ class _PermissionsPageState extends State<PermissionsPage> with WidgetsBindingOb
   Timer? _checkTimer;
   
   bool _accessibilityEnabled = false;
+  bool _overlayPermission = false;
+  bool _autoZiImeEnabled = false;
   bool _shizukuInstalled = false;
   bool _shizukuRunning = false;
   bool _shizukuAuthorized = false;
   bool _batteryOptimizationIgnored = false;
-  bool _autoZiImeEnabled = false;
+  bool _notificationEnabled = false;
 
   @override
   void initState() {
@@ -49,11 +51,13 @@ class _PermissionsPageState extends State<PermissionsPage> with WidgetsBindingOb
   Future<void> _checkAllPermissions() async {
     try {
       _accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
+      _overlayPermission = await _deviceController.checkOverlayPermission();
+      _autoZiImeEnabled = await _deviceController.isAutoZiImeEnabled();
       _shizukuInstalled = await _deviceController.isShizukuInstalled();
       _shizukuRunning = await _deviceController.isShizukuRunning();
       _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
       _batteryOptimizationIgnored = await _deviceController.isIgnoringBatteryOptimizations();
-      _autoZiImeEnabled = await _deviceController.isAutoZiImeEnabled();
+      _notificationEnabled = await _deviceController.isNotificationEnabled();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
@@ -94,11 +98,27 @@ class _PermissionsPageState extends State<PermissionsPage> with WidgetsBindingOb
           ),
           const SizedBox(height: 12),
           _buildPermissionCard(
+            title: '悬浮窗权限',
+            subtitle: '用于显示虚拟屏幕',
+            isEnabled: _overlayPermission,
+            isRequired: true,
+            onTap: () => _deviceController.requestOverlayPermission(),
+          ),
+          const SizedBox(height: 12),
+          _buildPermissionCard(
             title: 'AutoZi 输入法',
-            subtitle: '用于输入文字',
+            subtitle: '用于输入文字（支持中文）',
             isEnabled: _autoZiImeEnabled,
             isRequired: true,
             onTap: () => _deviceController.openInputMethodSettings(),
+          ),
+          const SizedBox(height: 12),
+          _buildPermissionCard(
+            title: '通知权限',
+            subtitle: '显示任务状态通知',
+            isEnabled: _notificationEnabled,
+            isRequired: true,
+            onTap: () => _deviceController.requestNotificationPermission(),
           ),
           
           const SizedBox(height: 24),
