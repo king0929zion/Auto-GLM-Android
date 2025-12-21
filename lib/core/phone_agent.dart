@@ -509,7 +509,6 @@ class PhoneAgent extends ChangeNotifier {
   /// 释放资源
   @override
   void dispose() {
-    _modelClient.dispose();
     _deviceController.dispose();
     super.dispose();
   }

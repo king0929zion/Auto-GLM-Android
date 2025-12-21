@@ -332,7 +332,28 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           // 中间标题 / 模型选择器
           Expanded(
             child: Center(
-              child: _buildModelSelector(),
+              child: GestureDetector(
+                onTap: _showModelSelector,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'AutoZi',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.grey900,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: AppTheme.grey500,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           
