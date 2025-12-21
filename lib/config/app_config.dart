@@ -6,50 +6,11 @@ class AppConfig {
   /// 应用版本
   static const String appVersion = '1.0.0';
   
-  /// 默认API配置 - 智谱 BigModel
-  static const String defaultBaseUrl = 'https://open.bigmodel.cn/api/paas/v4';
-  static const String defaultApiKey = '';  // 用户必须在设置中配置API Key
-  static const String defaultModelName = 'autoglm-phone';
-
-  /// 豆包模型配置
-  static const String doubaoBaseUrl = 'https://ark.cn-beijing.volces.com/api/v3';
-  static const String defaultDoubaoModel = 'doubao-seed-1-8-251215'; // Default or placeholder
-  
-  /// 模型参数默认值
-  static const int defaultMaxTokens = 3000;
-  static const double defaultTemperature = 0.0;
-  static const double defaultTopP = 0.85;
-  static const double defaultFrequencyPenalty = 0.2;
-  
   /// Agent 配置
   static const int maxSteps = 200;
-  static const int httpTimeoutSeconds = 30;
-  static const int screenshotTimeoutMs = 10000;
-  
-  /// 设备操作延迟（毫秒）
-  static const int tapDelayMs = 1000;
-  static const int swipeDelayMs = 1000;
-  static const int typeDelayMs = 1000;
-  static const int longPressDelayMs = 1000;
-  static const int longPressDurationMs = 3000;
-  
-  /// 屏幕坐标系统范围
-  static const int coordinateSystemMax = 1000;
-  
   /// SharedPreferences 键名
-  static const String keyBaseUrl = 'base_url';
-  static const String keyApiKey = 'api_key';
-  static const String keyModelName = 'model_name';
   static const String keyLanguage = 'language';
   static const String keyMaxSteps = 'max_steps';
-
-  // New keys for multi-model support
-  static const String keySelectedProvider = 'selected_provider'; // 'autoglm' or 'doubao'
-  
-  static const String keyAutoglmApiKey = 'autoglm_api_key';
-  
-  static const String keyDoubaoApiKey = 'doubao_api_key';
-  static const String keyDoubaoModelName = 'doubao_model_name';
   
   /// 支持的语言
   static const List<String> supportedLanguages = ['cn', 'en'];

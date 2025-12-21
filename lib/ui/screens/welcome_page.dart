@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/app_theme.dart';
 import '../../config/settings_repository.dart';
+import '../../data/repositories/model_config_repository.dart';
 import '../../services/device/device_controller.dart';
 
 /// 欢迎页面 - 极简引导流程
@@ -469,7 +470,8 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   Future<void> _saveApiKeyAndNext() async {
     final apiKey = _apiKeyController.text.trim();
     if (apiKey.isNotEmpty) {
-      await SettingsRepository.instance.setAutoglmApiKey(apiKey);
+      final repo = ModelConfigRepository.instance;
+      await repo.updateAutoGLMConfig(repo.autoglmConfig.copyWith(apiKey: apiKey));
     }
     _nextPage();
   }
@@ -530,7 +532,8 @@ class _WelcomePageState extends State<WelcomePage> with WidgetsBindingObserver {
   void _complete() async {
     final apiKey = _apiKeyController.text.trim();
     if (apiKey.isNotEmpty) {
-      await SettingsRepository.instance.setAutoglmApiKey(apiKey);
+      final repo = ModelConfigRepository.instance;
+      await repo.updateAutoGLMConfig(repo.autoglmConfig.copyWith(apiKey: apiKey));
     }
 
     await SettingsRepository.instance.setFirstRunCompleted();

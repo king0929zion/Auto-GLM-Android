@@ -17,26 +17,14 @@ dependencies:
   # HTTP client for API requests
   dio: ^5.4.0
   
-  # State management
-  provider: ^6.1.1
-  
-  # Image handling
-  image: ^4.1.7
-  
   # Local storage
   shared_preferences: ^2.2.2
-  
-  # Platform channels support
-  flutter_riverpod: ^2.4.9
   
   # JSON serialization
   json_annotation: ^4.8.1
   
   # Intl for date formatting
   intl: ^0.19.0
-  path_provider: ^2.1.5
-  animations: ^2.1.1
-  google_fonts: ^6.3.3
   uuid: ^4.5.2
   url_launcher: ^6.2.5
 

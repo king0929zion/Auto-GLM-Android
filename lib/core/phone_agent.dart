@@ -5,10 +5,8 @@ import '../config/i18n.dart';
 import '../services/model/model_client.dart';
 import '../services/device/device_controller.dart';
 import '../services/device/action_handler.dart';
-import '../services/history_service.dart';
-import '../data/models/task_record.dart';
+import '../data/repositories/task_history_repository.dart';
 import '../data/repositories/model_config_repository.dart';
-import 'package:uuid/uuid.dart';
 
 /// PhoneAgent 配置
 class AgentConfig {
@@ -49,22 +47,13 @@ class PhoneAgent extends ChangeNotifier {
   final AgentConfig agentConfig;
   
   /// 模型客户端
-  late final ModelClient _modelClient;
+  late ModelClient _modelClient;
   
   /// 设备控制器
   late final DeviceController _deviceController;
   
   /// 动作处理器
   late final ActionHandler _actionHandler;
-  
-  /// 历史记录服务
-  final HistoryService _historyService = HistoryService();
-  
-  /// 当前任务日志
-  final List<String> _currentTaskLogs = [];
-  
-  /// 任务开始时间
-  int _taskStartTime = 0;
   
   /// 对话上下文
   final List<Map<String, dynamic>> _context = [];
@@ -144,6 +133,39 @@ class PhoneAgent extends ChangeNotifier {
     await _deviceController.initialize();
   }
 
+  Future<void> _prepareModelClient() async {
+    final repo = ModelConfigRepository.instance;
+    if (!repo.initialized) {
+      await repo.init();
+    }
+
+    final config = repo.autoglmConfig;
+    if (!config.isConfigured) {
+      throw StateError('AutoGLM 配置未完成，请在设置中配置 API Key');
+    }
+
+    _modelClient = ModelClient(
+      overrideBaseUrl: config.baseUrl,
+      overrideApiKey: config.apiKey,
+      overrideModelName: config.modelName,
+    );
+  }
+
+  Future<void> _ensureVirtualScreen() async {
+    if (_virtualScreenId != null) return;
+    final info = await _deviceController.createVirtualScreen();
+    if (info == null) {
+      throw StateError('无法创建虚拟屏幕，请检查系统权限或设备兼容性');
+    }
+    _virtualScreenId = info.displayId;
+  }
+
+  Future<void> _releaseVirtualScreen() async {
+    if (_virtualScreenId == null) return;
+    await _deviceController.releaseVirtualScreen();
+    _virtualScreenId = null;
+  }
+
   Future<void> _ensureRequiredPermissions() async {
     final accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
     if (accessibilityEnabled) return;
@@ -161,6 +183,8 @@ class PhoneAgent extends ChangeNotifier {
     }
 
     await _ensureRequiredPermissions();
+    await _prepareModelClient();
+    await _ensureVirtualScreen();
      
     _isRunning = true;
     _shouldPause = false;
@@ -168,8 +192,6 @@ class PhoneAgent extends ChangeNotifier {
     _stopReason = null;
     _hasFinishedTask = false;
     _context.clear();
-    _currentTaskLogs.clear();
-    _taskStartTime = DateTime.now().millisecondsSinceEpoch;
     _stepCount = 0;
     
     // 创建任务
@@ -185,43 +207,9 @@ class PhoneAgent extends ChangeNotifier {
 
      
     try {
-      // 第一步
-      var result = await _executeStep(userPrompt: task, isFirst: true);
+      final result = await _runLoop(initialPrompt: task);
        
-      if (result.finished) {
-        _finishTask(
-          result.success ? TaskStatus.completed : TaskStatus.failed,
-          result.message,
-        );
-        return result.message ?? 'Task completed';
-      }
-       
-      // 继续执行直到完成或达到最大步骤
-      while (_stepCount < agentConfig.maxSteps && !_shouldPause) {
-        result = await _executeStep(userPrompt: null, isFirst: false);
-         
-        if (result.finished) {
-          _finishTask(
-            result.success ? TaskStatus.completed : TaskStatus.failed,
-            result.message,
-          );
-          return result.message ?? 'Task completed';
-        }
-      }
-       
-      if (_stopRequested) {
-        _finishTask(TaskStatus.cancelled, _stopReason ?? '任务已停止');
-        return _stopReason ?? 'Task stopped';
-      }
-
-      if (_shouldPause) {
-        _currentTask = _currentTask?.copyWith(status: TaskStatus.paused);
-        notifyListeners();
-        return 'Task paused';
-      }
-       
-      _finishTask(TaskStatus.failed, 'Max steps reached');
-      return 'Max steps reached';
+      return result;
        
     } catch (e) {
       if (_stopRequested || e is ModelClientCancelledException) {
@@ -232,6 +220,9 @@ class PhoneAgent extends ChangeNotifier {
       rethrow;
     } finally {
       _isRunning = false;
+      if (_currentTask?.status != TaskStatus.paused) {
+        await _releaseVirtualScreen();
+      }
       notifyListeners();
     }
   }
@@ -246,6 +237,8 @@ class PhoneAgent extends ChangeNotifier {
 
     if (isFirst) {
       await _ensureRequiredPermissions();
+      await _prepareModelClient();
+      await _ensureVirtualScreen();
     }
     
     return await _executeStep(userPrompt: task, isFirst: isFirst);
@@ -254,6 +247,46 @@ class PhoneAgent extends ChangeNotifier {
   /// 暂停任务
   void pause() {
     _shouldPause = true;
+  }
+
+  /// 继续任务
+  Future<String> resume() async {
+    if (_isRunning) {
+      return 'Agent is already running';
+    }
+
+    if (_currentTask == null || _currentTask?.status != TaskStatus.paused) {
+      return 'Task is not paused';
+    }
+
+    await _ensureRequiredPermissions();
+    await _prepareModelClient();
+    await _ensureVirtualScreen();
+
+    _isRunning = true;
+    _shouldPause = false;
+    _stopRequested = false;
+    _stopReason = null;
+    _currentTask = _currentTask?.copyWith(status: TaskStatus.running);
+    notifyListeners();
+
+    try {
+      final result = await _runLoop();
+      return result;
+    } catch (e) {
+      if (_stopRequested || e is ModelClientCancelledException) {
+        _finishTask(TaskStatus.cancelled, _stopReason ?? '任务已停止');
+        return _stopReason ?? 'Task stopped';
+      }
+      _finishTask(TaskStatus.failed, 'Error: $e');
+      rethrow;
+    } finally {
+      _isRunning = false;
+      if (_currentTask?.status != TaskStatus.paused) {
+        await _releaseVirtualScreen();
+      }
+      notifyListeners();
+    }
   }
 
   /// 停止任务（立即取消模型请求，并尽快结束当前流程）
@@ -278,8 +311,48 @@ class PhoneAgent extends ChangeNotifier {
     _stopRequested = false;
     _stopReason = null;
     _hasFinishedTask = false;
-    _currentTaskLogs.clear();  // 清除任务日志
+    unawaited(_releaseVirtualScreen());
     notifyListeners();
+  }
+
+  Future<String> _runLoop({String? initialPrompt}) async {
+    if (initialPrompt != null) {
+      final firstResult = await _executeStep(userPrompt: initialPrompt, isFirst: true);
+      if (firstResult.finished) {
+        _finishTask(
+          firstResult.success ? TaskStatus.completed : TaskStatus.failed,
+          firstResult.message,
+        );
+        return firstResult.message ?? 'Task completed';
+      }
+    }
+
+    // 继续执行直到完成或达到最大步骤
+    while (_stepCount < agentConfig.maxSteps && !_shouldPause) {
+      final result = await _executeStep(userPrompt: null, isFirst: false);
+       
+      if (result.finished) {
+        _finishTask(
+          result.success ? TaskStatus.completed : TaskStatus.failed,
+          result.message,
+        );
+        return result.message ?? 'Task completed';
+      }
+    }
+
+    if (_stopRequested) {
+      _finishTask(TaskStatus.cancelled, _stopReason ?? '任务已停止');
+      return _stopReason ?? 'Task stopped';
+    }
+
+    if (_shouldPause) {
+      _currentTask = _currentTask?.copyWith(status: TaskStatus.paused);
+      notifyListeners();
+      return 'Task paused';
+    }
+     
+    _finishTask(TaskStatus.failed, 'Max steps reached');
+    return 'Max steps reached';
   }
 
   /// 执行单步核心逻辑
@@ -434,10 +507,6 @@ class PhoneAgent extends ChangeNotifier {
     notifyListeners();
     
     // 记录详细日志
-    final logTime = DateTime.now().toIso8601String();
-    final stepLog = '[$logTime] Step $_stepCount:\nAction: ${action.type}\nThinking: ${response.thinking}\nParams: ${action.toJsonString()}\nResult: ${result.message}\n';
-    _currentTaskLogs.add(stepLog);
-    
     onStepCompleted?.call(result);
     
     return result;
@@ -466,28 +535,15 @@ class PhoneAgent extends ChangeNotifier {
   /// 保存历史记录
   Future<void> _saveHistory(TaskStatus status, String? message) async {
     if (_currentTask == null) return;
-     
-    String recordStatus;
-    if (status == TaskStatus.completed) {
-      recordStatus = 'completed';
-    } else if (status == TaskStatus.cancelled) {
-      recordStatus = 'stopped';
-    } else {
-      recordStatus = 'failed';
-    }
 
-    final record = TaskRecord(
-      id: const Uuid().v4(),
-      prompt: _currentTask!.task,
-      startTime: _taskStartTime,
-      endTime: DateTime.now().millisecondsSinceEpoch,
-      status: recordStatus,
-      logs: List.from(_currentTaskLogs),
-      errorMessage: status == TaskStatus.completed ? null : message,
-    );
-     
+    final repo = TaskHistoryRepository.instance;
     try {
-      await _historyService.saveRecord(record);
+      await repo.init();
+      final history = repo.createFromTaskInfo(
+        _currentTask!,
+        _currentTask?.history ?? const [],
+      );
+      await repo.add(history);
     } catch (e) {
       print('Failed to save history: $e');
     }

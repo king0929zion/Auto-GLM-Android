@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/repositories/model_config_repository.dart';
 import '../../data/models/model_provider.dart';
-import '../../config/default_providers.dart';
 import '../theme/app_theme.dart';
 import 'provider_detail_page.dart';
 

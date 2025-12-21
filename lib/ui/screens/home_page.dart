@@ -4,12 +4,12 @@ import 'package:uuid/uuid.dart';
 import '../../core/phone_agent.dart';
 import '../../data/models/models.dart';
 import '../../data/models/chat_history.dart';
-import 'package:flutter/services.dart';
 import '../../config/settings_repository.dart';
 import '../../data/repositories/history_repository.dart';
 import '../../services/device/device_controller.dart';
 import '../../data/repositories/model_config_repository.dart';
 import '../../data/models/model_provider.dart';
+import '../../services/model/model_client.dart';
 import '../theme/app_theme.dart';
 import '../widgets/task_execution_card.dart';
 import '../../l10n/app_strings.dart';
@@ -29,15 +29,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   final TextEditingController _taskController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final FocusNode _focusNode = FocusNode();
+  final ModelConfigRepository _modelRepo = ModelConfigRepository.instance;
   
   final List<_ChatItem> _chatItems = [];
+  final List<Map<String, dynamic>> _chatContext = [];
   bool _isInitialized = false;
   String? _errorMessage;
   String? _currentSessionId;
   String _language = AppConfig.defaultLanguage;
+  bool _isChatRunning = false;
   
   // 当前选择的能力模式
-  String _selectedMode = 'agent'; // agent, canvas
+  String _selectedMode = 'agent'; // agent, chat
   
   // 当前任务执行状态
   TaskExecution? _currentExecution;
@@ -51,6 +54,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     )..repeat(reverse: true);
+    _initModelConfig();
     _initializeAgent();
   }
 
@@ -92,8 +96,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       setState(() {
         // 更新当前任务执行状态
         if (_currentExecution != null) {
+          final status = _agent.currentTask?.status ?? _currentExecution!.status;
           _currentExecution = _currentExecution!.copyWith(
-            status: _agent.isRunning ? TaskStatus.running : TaskStatus.completed,
+            status: status,
+            endTime: status == TaskStatus.completed ||
+                    status == TaskStatus.failed ||
+                    status == TaskStatus.cancelled
+                ? (_currentExecution!.endTime ?? DateTime.now())
+                : null,
           );
           // 同步更新聊天项中的执行状态
           for (var i = 0; i < _chatItems.length; i++) {
@@ -108,38 +118,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   
   // 初始化模型配置
   Future<void> _initModelConfig() async {
-    await ModelConfigRepository.instance.init();
+    await _modelRepo.init();
+    if (_modelRepo.activeModelId == null && _modelRepo.selectedModelIds.isNotEmpty) {
+      await _modelRepo.setActiveModel(_modelRepo.selectedModelIds.first);
+    }
     if (mounted) setState(() {});
   }
   
   // 重新加载模型列表（当从设置页返回时调用）
   Future<void> _reloadModels() async {
-    await ModelConfigRepository.instance.init();
+    await _modelRepo.init();
     if (mounted) setState(() {});
   }
   
-  // 监听任务状态更新
-  void _onTaskUpdate(StepResult result) {
-    if (result.finished) {
-      // 任务结束，更新当前执行状态
-      final status = result.success ? TaskStatus.completed : TaskStatus.failed;
-      setState(() {
-        if (_currentExecution != null) {
-          _currentExecution = _currentExecution!.copyWith(
-            status: status,
-          );
-          // 同步更新聊天项中的执行状态
-          for (var i = 0; i < _chatItems.length; i++) {
-            if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
-              _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
-            }
-          }
-        }
-      });
-      _scrollToBottom();
-    }
-  }
-
   void _onStepCompleted(StepResult result) {
     final actionRecord = ActionRecord(
       id: const Uuid().v4(),
@@ -278,9 +269,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   String _getModelDisplayName() {
-    final provider = SettingsRepository.instance.selectedProvider;
-    if (provider == 'doubao') return _getStr('modelDoubao');
-    return _getStr('modelAutoGLM');
+    final activeModel = _modelRepo.activeModel;
+    if (activeModel != null) {
+      return activeModel.displayName;
+    }
+    return _getStr('selectModel');
   }
 
   @override
@@ -329,9 +322,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'AutoZi',
-                      style: TextStyle(
+                    Text(
+                      _getModelDisplayName(),
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         color: AppTheme.grey900,
@@ -386,11 +379,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     }
     
     // Agent 模式：显示任务执行卡片
-    if (_selectedMode == 'agent' && item.execution != null) {
+    if (item.execution != null) {
       return TaskExecutionCard(
         execution: item.execution!,
         onTap: () => _openVirtualScreenPreview(item.execution!),
         onPause: () => _pauseTask(),
+        onResume: () => _resumeTask(),
         onStop: () => _stopTask(),
       );
     }
@@ -413,6 +407,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         builder: (context) => VirtualScreenPreviewPage(
           execution: execution,
           onPause: () => _pauseTask(),
+          onResume: () => _resumeTask(),
           onStop: () => _stopTask(),
         ),
       ),
@@ -421,18 +416,41 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   /// 暂停任务
   void _pauseTask() {
-    // TODO: 实现暂停逻辑
+    if (!_agent.isRunning) return;
+    _agent.pause();
+    if (!mounted) return;
+
+    setState(() {
+      if (_currentExecution != null) {
+        _currentExecution = _currentExecution!.copyWith(
+          status: TaskStatus.paused,
+        );
+        for (var i = 0; i < _chatItems.length; i++) {
+          if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+            _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+          }
+        }
+      }
+    });
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('暂停功能开发中...')),
+      SnackBar(content: Text(_getStr('taskPaused'))),
     );
   }
 
-  /// 获取提供者名称
-  String _getProviderName(String providerId) {
-    if (ModelConfigRepository.instance.providers.any((p) => p.id == providerId)) {
-      return ModelConfigRepository.instance.providers.firstWhere((p) => p.id == providerId).name;
+  Future<void> _resumeTask() async {
+    if (_agent.isRunning) return;
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(_getStr('taskResumed'))),
+    );
+    try {
+      await _agent.resume();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
-    return '';
   }
 
   /// 获取时间问候语
@@ -475,9 +493,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   /// Gemini 风格输入栏 - 统一背景设计
   Widget _buildGeminiInputBar() {
-    final isRunning = _agent.isRunning;
-    final hasText = _taskController.text.isNotEmpty;
     final isAgentMode = _selectedMode == 'agent';
+    final agentRunning = _agent.isRunning;
+    final chatRunning = _isChatRunning;
+    final isBusy = agentRunning || chatRunning;
+    final showStop = agentRunning;
+    final hasText = _taskController.text.isNotEmpty;
     
     // 棕色主题色
     const accentColor = Color(0xFF8B7355);
@@ -502,7 +523,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 child: TextField(
                   controller: _taskController,
                   focusNode: _focusNode,
-                  enabled: _isInitialized && !isRunning,
+                  enabled: _isInitialized && !isBusy,
                   maxLines: 5,
                   minLines: 2,
                   textInputAction: TextInputAction.newline,
@@ -513,8 +534,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     height: 1.5,
                   ),
                   decoration: InputDecoration(
-                    hintText: isRunning 
-                        ? _getStr('working') 
+                    hintText: isBusy
+                        ? _getStr('working')
                         : 'Ask AutoZi',
                     hintStyle: const TextStyle(
                       color: AppTheme.grey400,
@@ -536,28 +557,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                 child: Row(
                   children: [
-                    // 添加按钮 - 上传图片/拍照/文档
-                    _InputToolButton(
-                      icon: Icons.add,
-                      onTap: _showAttachmentMenu,
-                    ),
-                    const SizedBox(width: 4),
-                    
-                    // 功能模块选择器
-                    _InputToolButton(
-                      icon: Icons.dashboard_customize_outlined,
-                      onTap: _showModeSelector,
-                    ),
-                    
                     const Spacer(),
                     
                     // Agent 开关按钮
                     GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedMode = isAgentMode ? 'chat' : 'agent';
-                        });
-                      },
+                      onTap: isBusy
+                          ? null
+                          : () {
+                              setState(() {
+                                _selectedMode = isAgentMode ? 'chat' : 'agent';
+                              });
+                            },
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
@@ -593,181 +603,49 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     
                     // 发送按钮 - 棕色主题
                     GestureDetector(
-                      onTap: isRunning ? _stopTask : (hasText ? _startTask : null),
+                      onTap: showStop
+                          ? _stopTask
+                          : (hasText && !isBusy ? _startTask : null),
                       child: AnimatedContainer(
                         duration: AppTheme.durationFast,
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: isRunning 
+                          color: showStop
                               ? Colors.red.withOpacity(0.15)
-                              : hasText 
+                              : hasText && !isBusy
                                   ? accentColor
                                   : AppTheme.grey200,
                           shape: BoxShape.circle,
                         ),
-                        child: isRunning
+                        child: showStop
                             ? const Icon(
                                 Icons.stop_rounded,
                                 color: Colors.red,
                                 size: 20,
                               )
-                            : CustomPaint(
-                                size: const Size(40, 40),
-                                painter: _LeafIconPainter(
-                                  color: hasText 
-                                      ? AppTheme.white 
-                                      : AppTheme.grey400,
-                                ),
-                              ),
+                            : isBusy
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: AppTheme.grey500,
+                                    ),
+                                  )
+                                : CustomPaint(
+                                    size: const Size(40, 40),
+                                    painter: _LeafIconPainter(
+                                      color: hasText 
+                                          ? AppTheme.white 
+                                          : AppTheme.grey400,
+                                    ),
+                                  ),
                       ),
                     ),
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 显示附件菜单
-  void _showAttachmentMenu() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.grey200,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.photo_library_outlined, color: Colors.blue),
-                ),
-                title: const Text('从相册选择'),
-                subtitle: const Text('选择图片或视频'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: 实现相册选择
-                },
-              ),
-              ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.camera_alt_outlined, color: Colors.green),
-                ),
-                title: const Text('拍照'),
-                subtitle: const Text('拍摄新照片'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: 实现拍照
-                },
-              ),
-              ListTile(
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.folder_outlined, color: Colors.orange),
-                ),
-                title: const Text('选择文档'),
-                subtitle: const Text('PDF、Word、Excel 等'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // TODO: 实现文档选择
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// 显示模式选择器
-  void _showModeSelector() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: BoxDecoration(
-          color: AppTheme.grey900,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(24),
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // 拖动指示条
-              Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.grey600,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Agent 模式
-              _ModeOptionTile(
-                icon: Icons.smart_toy_outlined,
-                title: 'Agent',
-                subtitle: _language == 'cn' ? '智能代理模式，自动执行手机操作' : 'AI agent for phone automation',
-                isSelected: _selectedMode == 'agent',
-                onTap: () {
-                  setState(() => _selectedMode = 'agent');
-                  Navigator.pop(context);
-                },
-              ),
-              
-              // Canvas 模式
-              _ModeOptionTile(
-                icon: Icons.dashboard_customize_outlined,
-                title: 'Canvas',
-                subtitle: _language == 'cn' ? '画布模式，实时编辑和协作' : 'Real-time editing and collaboration',
-                isSelected: _selectedMode == 'canvas',
-                onTap: () {
-                  setState(() => _selectedMode = 'canvas');
-                  Navigator.pop(context);
-                },
-              ),
-              
-              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -821,42 +699,25 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _showModelSelector() {
-    if (_agent.isRunning) return;
+    if (_agent.isRunning || _isChatRunning) return;
     
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (context) => _ModelSelectorSheet(
         title: _getStr('modelConfig'),
-        currentProvider: SettingsRepository.instance.selectedProvider,
-        autoglmLabel: _getStr('modelAutoGLM'),
-        doubaoLabel: _getStr('modelDoubao'),
-        onSelect: (provider) async {
+        models: _modelRepo.selectedModels,
+        activeModelId: _modelRepo.activeModelId,
+        emptyHint: _getStr('noModelSelected'),
+        manageLabel: _getStr('configure'),
+        onManage: () {
           Navigator.pop(context);
-          await SettingsRepository.instance.setSelectedProvider(provider);
-          _initializeAgent();
+          Navigator.pushNamed(context, '/provider-config');
         },
-      ),
-    );
-  }
-
-  void _showHistorySheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => _HistorySheet(
-        sessions: HistoryRepository.instance.getSessions(),
-        historyLabel: _getStr('history'),
-        clearLabel: _getStr('clearHistory'),
-        emptyLabel: _getStr('noHistory'),
-        onClear: () async {
-          await HistoryRepository.instance.clearAll();
+        onSelect: (model) async {
           Navigator.pop(context);
-          setState(() {});
-        },
-        onSelect: (session) {
-          Navigator.pop(context);
+          await _modelRepo.setActiveModel(model.id);
+          if (mounted) setState(() {});
         },
       ),
     );
@@ -891,15 +752,35 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final task = _taskController.text.trim();
     if (task.isEmpty) return;
 
-    if (_agent.isRunning) {
+    final isAgentMode = _selectedMode == 'agent';
+
+    if (isAgentMode && _agent.isRunning) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_getStr('waitCurrentTask'))),
       );
       return;
     }
 
-    final permissionsOk = await _ensureRequiredPermissions();
-    if (!permissionsOk) return;
+    if (!isAgentMode && _isChatRunning) {
+      return;
+    }
+
+    if (isAgentMode) {
+      if (!_modelRepo.autoglmConfig.isConfigured) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_getStr('agentNotConfigured'))),
+        );
+        return;
+      }
+
+      final permissionsOk = await _ensureRequiredPermissions();
+      if (!permissionsOk) return;
+    } else if (_modelRepo.activeModel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_getStr('noModelSelected'))),
+      );
+      return;
+    }
     
     if (_currentSessionId == null) {
       _currentSessionId = const Uuid().v4();
@@ -929,7 +810,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _focusNode.unfocus();
     
     // Agent 模式：创建任务执行卡片
-    if (_selectedMode == 'agent') {
+    if (isAgentMode) {
       final executionId = const Uuid().v4();
       _currentExecution = TaskExecution(
         taskId: executionId,
@@ -949,58 +830,117 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     
     _scrollToBottom();
     
-    try {
-      await _agent.run(task);
-      
-      // 任务完成
-      if (_currentExecution != null) {
-        setState(() {
-          _currentExecution = _currentExecution!.copyWith(
-            status: TaskStatus.completed,
-            endTime: DateTime.now(),
-          );
-          // 更新聊天项
-          for (var i = 0; i < _chatItems.length; i++) {
-            if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
-              _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+    if (isAgentMode) {
+      try {
+        await _agent.run(task);
+        
+        final taskStatus = _agent.currentTask?.status;
+        if (_currentExecution != null && taskStatus != null) {
+          setState(() {
+            _currentExecution = _currentExecution!.copyWith(
+              status: taskStatus,
+              endTime: taskStatus == TaskStatus.completed ||
+                      taskStatus == TaskStatus.failed ||
+                      taskStatus == TaskStatus.cancelled
+                  ? DateTime.now()
+                  : null,
+            );
+            // 更新聊天项
+            for (var i = 0; i < _chatItems.length; i++) {
+              if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+                _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+              }
             }
-          }
-        });
+          });
+        }
+      } catch (e) {
+        final errorMsg = 'Error: $e';
+        
+        if (_currentExecution != null) {
+          setState(() {
+            _currentExecution = _currentExecution!.copyWith(
+              status: TaskStatus.failed,
+              errorMessage: errorMsg,
+              endTime: DateTime.now(),
+            );
+            // 更新聊天项
+            for (var i = 0; i < _chatItems.length; i++) {
+              if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+                _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+              }
+            }
+          });
+        } else {
+          setState(() {
+            _chatItems.add(_ChatItem(
+              isUser: false,
+              message: errorMsg,
+              isSuccess: false,
+            ));
+          });
+        }
+        
+        await _saveMessageToHistory(MessageItem(
+          id: const Uuid().v4(),
+          isUser: false,
+          content: errorMsg,
+          isSuccess: false,
+          timestamp: DateTime.now(),
+        ));
       }
-    } catch (e) {
-      final errorMsg = 'Error: $e';
-      
-      if (_currentExecution != null) {
+    } else {
+      final placeholderIndex = _chatItems.length;
+      setState(() {
+        _chatItems.add(_ChatItem(isUser: false, message: _getStr('thinking')));
+        _isChatRunning = true;
+      });
+      _scrollToBottom();
+
+      try {
+        _chatContext.add({'role': 'user', 'content': task});
+        final response = await ModelClient().request(_chatContext);
+        final reply = response.rawContent.trim();
+        _chatContext.add({'role': 'assistant', 'content': reply});
+
         setState(() {
-          _currentExecution = _currentExecution!.copyWith(
-            status: TaskStatus.failed,
-            errorMessage: errorMsg,
-            endTime: DateTime.now(),
+          _chatItems[placeholderIndex] = _ChatItem(
+            isUser: false,
+            message: reply,
           );
-          // 更新聊天项
-          for (var i = 0; i < _chatItems.length; i++) {
-            if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
-              _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
-            }
-          }
         });
-      } else {
+        _scrollToBottom();
+
+        await _saveMessageToHistory(MessageItem(
+          id: const Uuid().v4(),
+          isUser: false,
+          content: reply,
+          timestamp: DateTime.now(),
+        ));
+      } catch (e) {
+        final errorMsg = 'Error: $e';
         setState(() {
-          _chatItems.add(_ChatItem(
+          _chatItems[placeholderIndex] = _ChatItem(
             isUser: false,
             message: errorMsg,
             isSuccess: false,
-          ));
+          );
         });
+        await _saveMessageToHistory(MessageItem(
+          id: const Uuid().v4(),
+          isUser: false,
+          content: errorMsg,
+          isSuccess: false,
+          timestamp: DateTime.now(),
+        ));
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isChatRunning = false;
+          });
+        } else {
+          _isChatRunning = false;
+        }
       }
-      
-      await _saveMessageToHistory(MessageItem(
-        id: const Uuid().v4(),
-        isUser: false,
-        content: errorMsg,
-        isSuccess: false,
-        timestamp: DateTime.now(),
-      ));
     }
   }
 
@@ -1021,13 +961,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     if (confirmed != true) return;
 
-    _agent.stop(_getStr('userStopped'));
+    _agent.stop(_getStr('taskStopped'));
     if (!mounted) return;
 
     setState(() {
       if (_currentExecution != null) {
         _currentExecution = _currentExecution!.copyWith(
-          status: TaskStatus.failed,
+          status: TaskStatus.cancelled,
           errorMessage: _getStr('taskStopped'),
           endTime: DateTime.now(),
         );
@@ -1043,7 +983,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _startNewConversation() {
-    if (_agent.isRunning) {
+    if (_agent.isRunning || _isChatRunning) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(_getStr('waitCurrentTask'))),
       );
@@ -1053,6 +993,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _agent.reset();
     _currentSessionId = null;
     _currentExecution = null;
+    _chatContext.clear();
+    _isChatRunning = false;
     
     setState(() {
       _chatItems.clear();
@@ -1122,99 +1064,6 @@ class _ChatItem {
 // ============================================
 // 组件
 // ============================================
-
-/// 头部图标按钮
-class _HeaderIconButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _HeaderIconButton({required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppTheme.grey100,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, size: 20, color: AppTheme.grey700),
-      ),
-    );
-  }
-}
-
-/// 模式选项
-class _ModeOptionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ModeOptionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 16,
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 26,
-              color: isSelected ? AppTheme.white : AppTheme.grey400,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? AppTheme.white : AppTheme.grey300,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.grey500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isSelected)
-              Icon(
-                Icons.check_circle_rounded,
-                size: 22,
-                color: AppTheme.accent,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 /// 用户消息气泡
 class _UserBubble extends StatelessWidget {
@@ -1555,16 +1404,20 @@ class _PermissionDialog extends StatelessWidget {
 /// 模型选择器
 class _ModelSelectorSheet extends StatelessWidget {
   final String title;
-  final String currentProvider;
-  final String autoglmLabel;
-  final String doubaoLabel;
-  final Function(String) onSelect;
+  final List<Model> models;
+  final String? activeModelId;
+  final String emptyHint;
+  final String manageLabel;
+  final VoidCallback onManage;
+  final ValueChanged<Model> onSelect;
 
   const _ModelSelectorSheet({
     required this.title,
-    required this.currentProvider,
-    required this.autoglmLabel,
-    required this.doubaoLabel,
+    required this.models,
+    required this.activeModelId,
+    required this.emptyHint,
+    required this.manageLabel,
+    required this.onManage,
     required this.onSelect,
   });
 
@@ -1588,17 +1441,35 @@ class _ModelSelectorSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppTheme.space16),
-            _ModelOption(
-              label: autoglmLabel,
-              isSelected: currentProvider == 'autoglm',
-              onTap: () => onSelect('autoglm'),
-            ),
-            _ModelOption(
-              label: doubaoLabel,
-              isSelected: currentProvider == 'doubao',
-              onTap: () => onSelect('doubao'),
-            ),
-            const SizedBox(height: AppTheme.space16),
+            if (models.isEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppTheme.space24,
+                  vertical: AppTheme.space12,
+                ),
+                child: Text(
+                  emptyHint,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: AppTheme.fontSize14,
+                    color: AppTheme.grey500,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppTheme.space8),
+              TextButton(
+                onPressed: onManage,
+                child: Text(manageLabel),
+              ),
+            ] else ...[
+              ...models.map((model) => _ModelOption(
+                    label: model.displayName,
+                    isSelected: model.id == activeModelId,
+                    onTap: () => onSelect(model),
+                  )),
+              const SizedBox(height: AppTheme.space16),
+            ],
           ],
         ),
       ),
@@ -1643,190 +1514,6 @@ class _ModelOption extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// 历史记录
-class _HistorySheet extends StatelessWidget {
-  final List sessions;
-  final String historyLabel;
-  final String clearLabel;
-  final String emptyLabel;
-  final VoidCallback onClear;
-  final Function(dynamic) onSelect;
-
-  const _HistorySheet({
-    required this.sessions,
-    required this.historyLabel,
-    required this.clearLabel,
-    required this.emptyLabel,
-    required this.onClear,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.6,
-      decoration: const BoxDecoration(
-        color: AppTheme.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radius20)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(AppTheme.space20),
-            child: Row(
-              children: [
-                Text(
-                  historyLabel,
-                  style: const TextStyle(
-                    fontSize: AppTheme.fontSize18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                if (sessions.isNotEmpty)
-                  TextButton(
-                    onPressed: onClear,
-                    child: Text(
-                      clearLabel,
-                      style: const TextStyle(
-                        color: AppTheme.error,
-                        fontSize: AppTheme.fontSize13,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: sessions.isEmpty
-                ? Center(
-                    child: Text(
-                      emptyLabel,
-                      style: const TextStyle(color: AppTheme.grey400),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: AppTheme.space8),
-                    itemCount: sessions.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, indent: 56),
-                    itemBuilder: (context, index) {
-                      final session = sessions[index];
-                      final date = session.lastUpdatedAt;
-                      final dateStr = '${date.month}/${date.day}';
-                      
-                      return ListTile(
-                        leading: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppTheme.grey50,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.chat_bubble_outline_rounded,
-                            size: 16,
-                            color: AppTheme.grey500,
-                          ),
-                        ),
-                        title: Text(
-                          session.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: AppTheme.fontSize14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        subtitle: Text(
-                          dateStr,
-                          style: const TextStyle(
-                            fontSize: AppTheme.fontSize12,
-                            color: AppTheme.grey400,
-                          ),
-                        ),
-                        trailing: const Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: AppTheme.grey300,
-                        ),
-                        onTap: () => onSelect(session),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// 输入栏工具按钮
-class _InputToolButton extends StatelessWidget {
-  final IconData icon;
-  final VoidCallback? onTap;
-  
-  const _InputToolButton({
-    required this.icon,
-    this.onTap,
-  });
-  
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: AppTheme.grey200,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: AppTheme.grey600,
-        ),
-      ),
-    );
-  }
-}
-
-/// 模式指示标签
-class _ModeChip extends StatelessWidget {
-  final String label;
-  final bool isActive;
-  final VoidCallback? onTap;
-  
-  const _ModeChip({
-    required this.label,
-    required this.isActive,
-    this.onTap,
-  });
-  
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: isActive ? AppTheme.grey200 : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: isActive ? AppTheme.grey800 : AppTheme.grey500,
-          ),
         ),
       ),
     );

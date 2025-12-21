@@ -255,6 +255,17 @@ class _TaskExecutionCardState extends State<TaskExecutionCard>
                       onTap: widget.onStop,
                       isDestructive: true,
                     ),
+                  ] else if (exec.status == TaskStatus.paused) ...[
+                    _ControlButton(
+                      icon: Icons.play_arrow_rounded,
+                      onTap: widget.onResume,
+                    ),
+                    const SizedBox(width: 4),
+                    _ControlButton(
+                      icon: Icons.stop_rounded,
+                      onTap: widget.onStop,
+                      isDestructive: true,
+                    ),
                   ],
                   
                   // 展开箭头
@@ -638,6 +649,7 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   Uint8List? _currentFrame;
   Timer? _frameTimer;
   bool _isLoadingFrame = false;
+  bool _virtualScreenAvailable = true;
   
   @override
   void initState() {
@@ -646,10 +658,18 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   }
   
   Future<void> _initVirtualScreen() async {
-    // 创建虚拟屏幕
-    await _deviceController.createVirtualScreen();
+    final isActive = await _deviceController.isVirtualScreenActive();
+    if (!isActive) {
+      if (mounted) {
+        setState(() {
+          _virtualScreenAvailable = false;
+        });
+      } else {
+        _virtualScreenAvailable = false;
+      }
+      return;
+    }
     
-    // 开始定时获取帧
     _startFrameCapture();
   }
   
@@ -662,6 +682,7 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   
   Future<void> _captureFrame() async {
     if (_isLoadingFrame) return;
+    if (!_virtualScreenAvailable) return;
     
     _isLoadingFrame = true;
     try {
@@ -681,7 +702,6 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   @override
   void dispose() {
     _frameTimer?.cancel();
-    _deviceController.releaseVirtualScreen();
     super.dispose();
   }
   
@@ -903,6 +923,19 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
               isDestructive: true,
               onTap: widget.onStop,
             ),
+          ] else if (widget.execution.status == TaskStatus.paused) ...[
+            _TopBarButton(
+              icon: Icons.play_arrow_rounded,
+              label: '继续',
+              onTap: widget.onResume,
+            ),
+            const SizedBox(width: 8),
+            _TopBarButton(
+              icon: Icons.stop_rounded,
+              label: '停止',
+              isDestructive: true,
+              onTap: widget.onStop,
+            ),
           ],
         ],
       ),
@@ -1074,6 +1107,10 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   
   Widget _buildScreenContent() {
     final exec = widget.execution;
+
+    if (!_virtualScreenAvailable) {
+      return _buildUnavailableContent();
+    }
     
     // 如果有虚拟屏幕帧，显示它
     if (_currentFrame != null && _currentFrame!.isNotEmpty) {
@@ -1194,6 +1231,29 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
           child: _buildLiveIndicator(exec),
         ),
       ],
+    );
+  }
+
+  Widget _buildUnavailableContent() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.tv_off_rounded,
+            size: 32,
+            color: Colors.white.withOpacity(0.2),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '虚拟屏幕未启动',
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
     );
   }
   

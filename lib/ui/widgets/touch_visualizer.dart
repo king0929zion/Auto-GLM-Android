@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// 触控点可视化组件 - 显示AI操作的位置和轨迹

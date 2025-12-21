@@ -21,7 +21,7 @@
 - **全面升级的 UI 设计 (Revamped UI)**: 全新极简黑白主题，融入微交互动画和高斯模糊效果，带来高级且流畅的视觉体验。
 - **多语言支持 (Multi-language Support)**: 完整支持 **简体中文** 和 **English**，可一键切换语言环境。
 - **智能对话模式 (Smart Chat)**: 类似 IM 的对话式任务交互，清晰展示 AI 思考过程 (Thinking) 和 执行步骤 (Action)。
-- **双模型支持 (Dual Model Support)**: 除了核心的 **AutoGLM**，现已初步集成 **豆包 (Doubao)** 模型配置，提供更多选择。
+- **OpenAI 兼容模型支持 (OpenAI-Compatible Models)**: 统一使用 OpenAI API 格式的模型供应商，配置更简单。
 - **视觉反馈系统 (Visual Feedback)**: 
   - **悬浮球 (Floating Ball)**: 动态展示 AI 状态（思考中、执行中、空闲），支持拖拽。
   - **点击反馈 (Touch Feedback)**: 模拟人类操作的触控涟漪效果。
@@ -39,7 +39,8 @@
 
 - **Android 9.0 (API 28)** 或更高版本
 - **Shizuku** (必需，用于高级权限授权)
-- **智谱 API Key** (用于调用 AutoGLM 模型) 或 **豆包 API Key**
+- **AutoGLM API Key** (用于 Agent 自动化)
+- **OpenAI 兼容模型 API Key** (用于主对话模型)
 
 ## 🚀 快速开始 Quick Start
 
@@ -58,8 +59,8 @@
 ### 3. 配置模型 (Configure Model)
 
 进入 **设置 (Settings) -> 智能配置 (Intelligence)**:
-1. 选择模型提供商 (AutoGLM / Doubao)。
-2. 填入对应的 API Key。
+1. 进入「模型配置」，选择 OpenAI 兼容的模型供应商并配置 API Key。
+2. 进入「AutoGLM 配置」，填写 AutoGLM 的 API Key。
 3. 点击保存。
 
 ### 4. 开始使用 (Start Using)

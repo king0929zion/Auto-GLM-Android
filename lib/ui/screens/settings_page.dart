@@ -5,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_config.dart';
 import '../../services/device/device_controller.dart';
 import '../theme/app_theme.dart';
-import 'model_settings_page.dart';
 import '../../l10n/app_strings.dart';
 
 /// 设置页面 - 极简风格
