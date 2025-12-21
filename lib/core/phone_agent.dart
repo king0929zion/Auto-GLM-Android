@@ -84,8 +84,7 @@ class PhoneAgent extends ChangeNotifier {
   /// 虚拟屏幕 ID
   int? _virtualScreenId;
   
-  /// 悬浮窗权限（会话内缓存，可选功能）
-  bool _overlayGrantedForSession = false;
+
 
   bool _stopRequested = false;
   String? _stopReason;
@@ -162,7 +161,6 @@ class PhoneAgent extends ChangeNotifier {
     }
 
     await _ensureRequiredPermissions();
-    _overlayGrantedForSession = await _deviceController.checkOverlayPermission();
      
     _isRunning = true;
     _shouldPause = false;
@@ -184,10 +182,7 @@ class PhoneAgent extends ChangeNotifier {
     );
     notifyListeners();
     
-    // 悬浮窗（可选）：无权限则跳过
-    if (_overlayGrantedForSession) {
-      await _deviceController.showFloatingWindow('正在处理: $task');
-    }
+
      
     try {
       // 第一步
@@ -280,7 +275,6 @@ class PhoneAgent extends ChangeNotifier {
     _latestScreenshot = null;  // 清除历史截图
     _isRunning = false;
     _shouldPause = false;
-    _overlayGrantedForSession = false;
     _stopRequested = false;
     _stopReason = null;
     _hasFinishedTask = false;
@@ -398,11 +392,7 @@ class PhoneAgent extends ChangeNotifier {
         MessageBuilder.removeImagesFromMessage(_context.last);
     }
     
-    // 更新运行指示器（可选）
-    if (_overlayGrantedForSession) {
-      final actionText = '步骤$_stepCount ${action.actionName}';
-      await _deviceController.updateFloatingWindow(actionText);
-    }
+
     
     // 执行动作
     ActionResult actionResult;
@@ -465,10 +455,7 @@ class PhoneAgent extends ChangeNotifier {
     );
     _isRunning = false;
      
-    // 隐藏悬浮窗（可选）
-    if (_overlayGrantedForSession) {
-      _deviceController.hideFloatingWindow();
-    }
+
      
     // 保存历史记录
     _saveHistory(status, message);

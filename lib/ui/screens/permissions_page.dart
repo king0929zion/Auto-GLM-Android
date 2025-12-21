@@ -16,7 +16,6 @@ class _PermissionsPageState extends State<PermissionsPage> with WidgetsBindingOb
   Timer? _checkTimer;
   
   bool _accessibilityEnabled = false;
-  bool _overlayPermission = false;
   bool _shizukuInstalled = false;
   bool _shizukuRunning = false;
   bool _shizukuAuthorized = false;
@@ -50,7 +49,6 @@ class _PermissionsPageState extends State<PermissionsPage> with WidgetsBindingOb
   Future<void> _checkAllPermissions() async {
     try {
       _accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
-      _overlayPermission = await _deviceController.checkOverlayPermission();
       _shizukuInstalled = await _deviceController.isShizukuInstalled();
       _shizukuRunning = await _deviceController.isShizukuRunning();
       _shizukuAuthorized = await _deviceController.isShizukuAuthorized();
@@ -105,14 +103,6 @@ class _PermissionsPageState extends State<PermissionsPage> with WidgetsBindingOb
           
           const SizedBox(height: 24),
           _buildSectionTitle('可选权限'),
-          const SizedBox(height: 12),
-          _buildPermissionCard(
-            title: '悬浮窗权限',
-            subtitle: '显示执行状态悬浮窗',
-            isEnabled: _overlayPermission,
-            isRequired: false,
-            onTap: () => _deviceController.requestOverlayPermission(),
-          ),
           const SizedBox(height: 12),
           _buildPermissionCard(
             title: '忽略电池优化',

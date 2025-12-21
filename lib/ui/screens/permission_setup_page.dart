@@ -7,7 +7,6 @@ import 'home_page.dart';
 
 /// 权限检查页面
 /// 必需：无障碍服务
-/// 可选：悬浮窗（用于显示任务状态）
 /// 可选：Shizuku（用于增强功能）
 class PermissionSetupPage extends StatefulWidget {
   const PermissionSetupPage({super.key});
@@ -25,9 +24,8 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
   bool _shizukuRunning = false;
   bool _shizukuAuthorized = false;
 
-  // 必需和可选权限
+  // 必需权限
   bool _accessibilityEnabled = false;
-  bool _overlayPermission = false;
 
   bool _isLoading = true;
   Timer? _autoCheckTimer;
@@ -74,7 +72,6 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
 
       // 必需权限检查
       _accessibilityEnabled = await _deviceController.isAccessibilityEnabled();
-      _overlayPermission = await _deviceController.checkOverlayPermission();
     } catch (e) {
       debugPrint('Check permissions error: $e');
     }
@@ -89,10 +86,9 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
     }
   }
 
-  // 必需权限：无障碍服务、悬浮窗、Shizuku
+  // 必需权限：无障碍服务和 Shizuku
   bool get _requiredPermissionsGranted {
-    // Shizuku 也作为必需权限，除非用户真的无法安装（但这里我们强制要求）
-    return _accessibilityEnabled && _overlayPermission && _shizukuAuthorized;
+    return _accessibilityEnabled && _shizukuAuthorized;
   }
 
   bool _hasNavigated = false;
@@ -168,18 +164,6 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
                         onTap: () => _handleAccessibilitySetup(),
                       ),
                       
-                      const SizedBox(height: 16),
-
-                      _buildPermissionCard(
-                        title: '悬浮窗权限',
-                        subtitle: _overlayPermission
-                            ? '已就绪'
-                            : '用于显示任务状态面板',
-                        icon: Icons.layers_outlined,
-                        isGranted: _overlayPermission,
-                        onTap: () => _handleOverlayPermission(),
-                      ),
-
                       const SizedBox(height: 16),
                       
                       _buildPermissionCard(
@@ -264,9 +248,8 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
   Widget _buildProgressIndicator() {
     int grantedCount = 0;
     if (_accessibilityEnabled) grantedCount++;
-    if (_overlayPermission) grantedCount++;
     if (_shizukuAuthorized) grantedCount++;
-    const totalCount = 3;
+    const totalCount = 2;
     final progress = grantedCount / totalCount;
 
     return Row(
@@ -425,17 +408,4 @@ class _PermissionSetupPageState extends State<PermissionSetupPage>
     _checkPermissions();
   }
 
-  Future<void> _handleOverlayPermission() async {
-    final success = await _deviceController.openOverlaySettings();
-    if (success) {
-      await Future.delayed(const Duration(seconds: 2));
-      _checkPermissions();
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('请在设置中授予悬浮窗权限')),
-        );
-      }
-    }
-  }
 }
