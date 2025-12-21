@@ -759,7 +759,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A1A),
+          color: AppTheme.grey900,
           borderRadius: const BorderRadius.vertical(
             top: Radius.circular(24),
           ),
@@ -774,7 +774,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: AppTheme.grey600,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1214,7 +1214,7 @@ class _ModeOptionTile extends StatelessWidget {
             Icon(
               icon,
               size: 26,
-              color: isSelected ? Colors.white : Colors.white.withOpacity(0.6),
+              color: isSelected ? AppTheme.white : AppTheme.grey400,
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -1226,7 +1226,7 @@ class _ModeOptionTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : Colors.white.withOpacity(0.8),
+                      color: isSelected ? AppTheme.white : AppTheme.grey300,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1234,7 +1234,7 @@ class _ModeOptionTile extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 13,
-                      color: Colors.white.withOpacity(0.5),
+                      color: AppTheme.grey500,
                     ),
                   ),
                 ],
@@ -1244,7 +1244,7 @@ class _ModeOptionTile extends StatelessWidget {
               Icon(
                 Icons.check_circle_rounded,
                 size: 22,
-                color: Colors.white,
+                color: AppTheme.accent,
               ),
           ],
         ),
