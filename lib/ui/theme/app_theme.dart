@@ -2,39 +2,45 @@ import 'package:flutter/material.dart';
 
 /// AutoZi 极简设计系统
 /// 设计理念：Less is More - 纯净、专注、优雅
+/// 配色：低饱和深米色调
 class AppTheme {
   AppTheme._();
 
   // ============================================
-  // 🎨 色彩系统 - 极简黑白灰
+  // 🎨 色彩系统 - 低饱和深米色调
   // ============================================
   
-  // 主色调
-  static const Color black = Color(0xFF000000);
+  // 主色调 - 温暖的深米色
+  static const Color black = Color(0xFF3D3A35);     // 深褐 (原纯黑)
   static const Color white = Color(0xFFFFFFFF);
   
-  // 灰度阶梯 (12级精细灰度)
-  static const Color grey50 = Color(0xFFFAFAFA);   // 几乎白色背景
-  static const Color grey100 = Color(0xFFF5F5F5);  // 极淡灰背景
-  static const Color grey150 = Color(0xFFEEEEEE);  // 分割线
-  static const Color grey200 = Color(0xFFE0E0E0);  // 边框
-  static const Color grey300 = Color(0xFFBDBDBD);  // 禁用态
-  static const Color grey400 = Color(0xFF9E9E9E);  // 占位符
-  static const Color grey500 = Color(0xFF757575);  // 次要文字
-  static const Color grey600 = Color(0xFF616161);  // 辅助文字
-  static const Color grey700 = Color(0xFF424242);  // 正文
-  static const Color grey800 = Color(0xFF303030);  // 标题
-  static const Color grey900 = Color(0xFF1A1A1A);  // 深黑
+  // 强调色 - 棕色
+  static const Color accent = Color(0xFF8B7355);    // 棕色强调
+  static const Color accentLight = Color(0xFFB39B7D); // 浅棕
+  
+  // 灰度阶梯 - 暖色调灰度
+  static const Color grey50 = Color(0xFFFAF9F7);    // 暖白背景
+  static const Color grey100 = Color(0xFFF7F5F2);   // 米白背景
+  static const Color grey150 = Color(0xFFECE9E4);   // 分割线
+  static const Color grey200 = Color(0xFFDDD9D2);   // 边框
+  static const Color grey300 = Color(0xFFC4BFB6);   // 禁用态
+  static const Color grey400 = Color(0xFFA39E94);   // 占位符
+  static const Color grey500 = Color(0xFF847F75);   // 次要文字
+  static const Color grey600 = Color(0xFF6E6860);   // 辅助文字
+  static const Color grey700 = Color(0xFF5C574F);   // 正文
+  static const Color grey800 = Color(0xFF4A4640);   // 标题
+  static const Color grey900 = Color(0xFF3D3A35);   // 深米 (主色)
 
-  // 功能色 - 极简单色调
-  static const Color success = Color(0xFF10B981);  // 翠绿
-  static const Color error = Color(0xFFEF4444);    // 红
-  static const Color warning = Color(0xFFF59E0B);  // 橙
-  static const Color info = Color(0xFF6B7280);     // 灰
+  // 功能色 - 柔和色调
+  static const Color success = Color(0xFF6B9B7A);   // 柔和绿
+  static const Color error = Color(0xFFCB6B6B);     // 柔和红
+  static const Color warning = Color(0xFFD4A55A);   // 柔和橙
+  static const Color info = Color(0xFF8B8B8B);      // 灰
 
   // 语义化别名
   static const Color primaryBlack = black;
   static const Color primaryDark = grey900;
+  static const Color primaryBrown = accent;         // 主强调色
   static const Color scaffoldWhite = white;
   static const Color scaffoldBackgroundColor = white;
   static const Color surfaceWhite = white;
@@ -47,17 +53,17 @@ class AppTheme {
   static const Color textDisabled = grey300;
 
   // 兼容旧代码
-  static const Color primaryBeige = white;
+  static const Color primaryBeige = grey100;
   static const Color secondaryBeige = grey100;
   static const Color warmBeige = grey200;
-  static const Color accentOrange = black;
+  static const Color accentOrange = accent;
   static const Color accentOrangeDeep = grey900;
   static const Color accentOrangeLight = grey100;
-  static const Color primaryColor = black;
+  static const Color primaryColor = accent;
   static const Color backgroundColor = grey50;
   static const Color surfaceColor = grey900;
   static const Color backgroundLight = white;
-  static const Color backgroundGrey = grey50;
+  static const Color backgroundGrey = grey100;
 
   // ============================================
   // 📏 间距系统 - 8px 基准

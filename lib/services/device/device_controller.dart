@@ -99,6 +99,8 @@ class DeviceController {
       return false;
     }
   }
+
+
   
   /// 检查悬浮窗权限
   Future<bool> checkOverlayPermission() async {
@@ -223,7 +225,7 @@ class DeviceController {
   
   /// 点击指定坐标
   /// [x], [y] 为相对坐标 (0-1000)
-  Future<bool> tap(int x, int y, {int delayMs = 1000}) async {
+  Future<bool> tap(int x, int y, {int delayMs = 1000, int displayId = -1}) async {
     final absX = _convertToAbsolute(x, _screenWidth);
     final absY = _convertToAbsolute(y, _screenHeight);
     
@@ -232,6 +234,7 @@ class DeviceController {
         'x': absX,
         'y': absY,
         'delay': delayMs,
+        'displayId': displayId,
       });
       return true;
     } on PlatformException catch (e) {
@@ -240,7 +243,7 @@ class DeviceController {
   }
   
   /// 双击指定坐标
-  Future<bool> doubleTap(int x, int y, {int delayMs = 1000}) async {
+  Future<bool> doubleTap(int x, int y, {int delayMs = 1000, int displayId = -1}) async {
     final absX = _convertToAbsolute(x, _screenWidth);
     final absY = _convertToAbsolute(y, _screenHeight);
     
@@ -249,6 +252,7 @@ class DeviceController {
         'x': absX,
         'y': absY,
         'delay': delayMs,
+        'displayId': displayId,
       });
       return true;
     } on PlatformException catch (e) {
@@ -260,6 +264,7 @@ class DeviceController {
   Future<bool> longPress(int x, int y, {
     int durationMs = 3000,
     int delayMs = 1000,
+    int displayId = -1,
   }) async {
     final absX = _convertToAbsolute(x, _screenWidth);
     final absY = _convertToAbsolute(y, _screenHeight);
@@ -270,6 +275,7 @@ class DeviceController {
         'y': absY,
         'duration': durationMs,
         'delay': delayMs,
+        'displayId': displayId,
       });
       return true;
     } on PlatformException catch (e) {
@@ -284,6 +290,7 @@ class DeviceController {
     int endX, int endY, {
     int? durationMs,
     int delayMs = 1000,
+    int displayId = -1,
   }) async {
     final absStartX = _convertToAbsolute(startX, _screenWidth);
     final absStartY = _convertToAbsolute(startY, _screenHeight);
@@ -303,6 +310,7 @@ class DeviceController {
         'endY': absEndY,
         'duration': duration,
         'delay': delayMs,
+        'displayId': displayId,
       });
       return true;
     } on PlatformException catch (e) {
@@ -311,10 +319,13 @@ class DeviceController {
   }
   
   /// 输入文本
-  Future<bool> typeText(String text) async {
+  Future<bool> typeText(String text, {int displayId = -1}) async {
     try {
       // 输入新文本（原生侧会按"聚焦→清空→输入"的顺序处理，尽量对齐 Python 版）
-      await _channel.invokeMethod('typeText', {'text': text});
+      await _channel.invokeMethod('typeText', {
+        'text': text,
+        'displayId': displayId,
+      });
       await Future.delayed(const Duration(milliseconds: 500));
       
       return true;
@@ -323,10 +334,24 @@ class DeviceController {
     }
   }
   
-  /// 按下返回键
-  Future<bool> pressBack({int delayMs = 1000}) async {
+  /// 清除文本
+  Future<bool> clearText({int displayId = -1}) async {
     try {
-      await _channel.invokeMethod('pressBack', {'delay': delayMs});
+      await _channel.invokeMethod('clearText', {'displayId': displayId});
+      await Future.delayed(const Duration(milliseconds: 300));
+      return true;
+    } on PlatformException catch (e) {
+      throw DeviceControlException('Clear text failed: ${e.message}');
+    }
+  }
+  
+  /// 按下返回键
+  Future<bool> pressBack({int delayMs = 1000, int displayId = -1}) async {
+    try {
+      await _channel.invokeMethod('pressBack', {
+        'delay': delayMs,
+        'displayId': displayId,
+      });
       return true;
     } on PlatformException catch (e) {
       throw DeviceControlException('Press back failed: ${e.message}');
@@ -334,9 +359,12 @@ class DeviceController {
   }
   
   /// 按下Home键
-  Future<bool> pressHome({int delayMs = 1000}) async {
+  Future<bool> pressHome({int delayMs = 1000, int displayId = -1}) async {
     try {
-      await _channel.invokeMethod('pressHome', {'delay': delayMs});
+      await _channel.invokeMethod('pressHome', {
+        'delay': delayMs,
+        'displayId': displayId,
+      });
       return true;
     } on PlatformException catch (e) {
       throw DeviceControlException('Press home failed: ${e.message}');
@@ -344,9 +372,16 @@ class DeviceController {
   }
   
   /// 启动应用
-  Future<bool> launchApp(String packageName) async {
+  Future<bool> launchApp(String packageName, {int displayId = -1}) async {
     try {
-      await _channel.invokeMethod('launchApp', {'package': packageName});
+      if (displayId != -1 && displayId != 0) {
+        await _channel.invokeMethod('launchAppOnVirtualScreen', {
+          'package': packageName,
+          'displayId': displayId,
+        });
+      } else {
+        await _channel.invokeMethod('launchApp', {'package': packageName});
+      }
       await Future.delayed(const Duration(seconds: 1));
       return true;
     } on PlatformException catch (e) {
@@ -424,16 +459,24 @@ class DeviceController {
   
   /// 创建虚拟屏幕
   /// 返回虚拟屏幕的信息
-  Future<VirtualScreenInfo?> createVirtualScreen() async {
+  Future<VirtualScreenInfo?> createVirtualScreen({
+    int width = 720,
+    int height = 1280,
+    int dpi = 320,
+  }) async {
     try {
-      final result = await _channel.invokeMethod<Map>('createVirtualScreen');
+      final result = await _channel.invokeMethod<Map>('createVirtualScreen', {
+        'width': width,
+        'height': height,
+        'dpi': dpi,
+      });
       if (result == null) return null;
       
       return VirtualScreenInfo(
         displayId: result['displayId'] as int? ?? 0,
-        width: result['width'] as int? ?? _screenWidth,
-        height: result['height'] as int? ?? _screenHeight,
-        density: result['density'] as int? ?? 420,
+        width: result['width'] as int? ?? width,
+        height: result['height'] as int? ?? height,
+        density: result['density'] as int? ?? dpi,
       );
     } on PlatformException {
       return null;

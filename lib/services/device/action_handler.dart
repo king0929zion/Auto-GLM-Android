@@ -48,7 +48,7 @@ class ActionHandler {
   });
 
   /// 执行动作
-  Future<ActionResult> execute(ActionData action) async {
+  Future<ActionResult> execute(ActionData action, {int? displayId}) async {
     // 处理结束动作
     if (action.isFinish) {
       return ActionResult(
@@ -71,22 +71,22 @@ class ActionHandler {
     try {
       switch (action.type) {
         case ActionType.launch:
-          return await _handleLaunch(action);
+          return await _handleLaunch(action, displayId: displayId);
         case ActionType.tap:
-          return await _handleTap(action);
+          return await _handleTap(action, displayId: displayId);
         case ActionType.type:
         case ActionType.typeName:
-          return await _handleType(action);
+          return await _handleType(action, displayId: displayId);
         case ActionType.swipe:
-          return await _handleSwipe(action);
+          return await _handleSwipe(action, displayId: displayId);
         case ActionType.back:
-          return await _handleBack(action);
+          return await _handleBack(action, displayId: displayId);
         case ActionType.home:
-          return await _handleHome(action);
+          return await _handleHome(action, displayId: displayId);
         case ActionType.doubleTap:
-          return await _handleDoubleTap(action);
+          return await _handleDoubleTap(action, displayId: displayId);
         case ActionType.longPress:
-          return await _handleLongPress(action);
+          return await _handleLongPress(action, displayId: displayId);
         case ActionType.wait:
           return await _handleWait(action);
         case ActionType.takeOver:
@@ -114,7 +114,7 @@ class ActionHandler {
   }
 
   /// 处理启动应用
-  Future<ActionResult> _handleLaunch(ActionData action) async {
+  Future<ActionResult> _handleLaunch(ActionData action, {int? displayId}) async {
     final appName = action.app;
     if (appName == null || appName.isEmpty) {
       return const ActionResult(
@@ -134,12 +134,12 @@ class ActionHandler {
       );
     }
     
-    await deviceController.launchApp(packageName);
+    await deviceController.launchApp(packageName, displayId: displayId ?? -1);
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理点击
-  Future<ActionResult> _handleTap(ActionData action) async {
+  Future<ActionResult> _handleTap(ActionData action, {int? displayId}) async {
     final element = action.element;
     if (element == null || element.length < 2) {
       return const ActionResult(
@@ -163,12 +163,12 @@ class ActionHandler {
       }
     }
     
-    await deviceController.tap(element[0], element[1]);
+    await deviceController.tap(element[0], element[1], displayId: displayId ?? -1);
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理输入
-  Future<ActionResult> _handleType(ActionData action) async {
+  Future<ActionResult> _handleType(ActionData action, {int? displayId}) async {
     final text = action.text ?? '';
     
     // 如果文本为空，直接返回成功
@@ -180,7 +180,7 @@ class ActionHandler {
     await Future.delayed(const Duration(milliseconds: 500));
     
     // 执行输入
-    final success = await deviceController.typeText(text);
+    final success = await deviceController.typeText(text, displayId: displayId ?? -1);
     
     // 输入后等待一下，让文本稳定显示
     await Future.delayed(const Duration(milliseconds: 300));
@@ -193,7 +193,7 @@ class ActionHandler {
   }
 
   /// 处理滑动
-  Future<ActionResult> _handleSwipe(ActionData action) async {
+  Future<ActionResult> _handleSwipe(ActionData action, {int? displayId}) async {
     final start = action.start;
     final end = action.end;
     
@@ -209,24 +209,25 @@ class ActionHandler {
     await deviceController.swipe(
       start[0], start[1],
       end[0], end[1],
+      displayId: displayId ?? -1,
     );
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理返回
-  Future<ActionResult> _handleBack(ActionData action) async {
-    await deviceController.pressBack();
+  Future<ActionResult> _handleBack(ActionData action, {int? displayId}) async {
+    await deviceController.pressBack(displayId: displayId ?? -1);
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理返回主页
-  Future<ActionResult> _handleHome(ActionData action) async {
-    await deviceController.pressHome();
+  Future<ActionResult> _handleHome(ActionData action, {int? displayId}) async {
+    await deviceController.pressHome(displayId: displayId ?? -1);
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理双击
-  Future<ActionResult> _handleDoubleTap(ActionData action) async {
+  Future<ActionResult> _handleDoubleTap(ActionData action, {int? displayId}) async {
     final element = action.element;
     if (element == null || element.length < 2) {
       return const ActionResult(
@@ -236,12 +237,12 @@ class ActionHandler {
       );
     }
     
-    await deviceController.doubleTap(element[0], element[1]);
+    await deviceController.doubleTap(element[0], element[1], displayId: displayId ?? -1);
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理长按
-  Future<ActionResult> _handleLongPress(ActionData action) async {
+  Future<ActionResult> _handleLongPress(ActionData action, {int? displayId}) async {
     final element = action.element;
     if (element == null || element.length < 2) {
       return const ActionResult(
@@ -251,14 +252,13 @@ class ActionHandler {
       );
     }
     
-    await deviceController.longPress(element[0], element[1]);
+    await deviceController.longPress(element[0], element[1], displayId: displayId ?? -1);
     return const ActionResult(success: true, shouldFinish: false);
   }
 
   /// 处理等待
   Future<ActionResult> _handleWait(ActionData action) async {
     final durationStr = action.duration ?? '1 seconds';
-    
     // 解析等待时长
     final match = RegExp(r'(\d+)').firstMatch(durationStr);
     final seconds = match != null ? int.parse(match.group(1)!) : 1;

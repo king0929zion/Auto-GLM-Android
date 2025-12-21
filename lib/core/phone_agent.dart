@@ -7,6 +7,7 @@ import '../services/device/device_controller.dart';
 import '../services/device/action_handler.dart';
 import '../services/history_service.dart';
 import '../data/models/task_record.dart';
+import '../data/repositories/model_config_repository.dart';
 import 'package:uuid/uuid.dart';
 
 /// PhoneAgent 配置
@@ -42,9 +43,8 @@ class AgentConfig {
 
 /// PhoneAgent - AI驱动的手机自动化代理
 class PhoneAgent extends ChangeNotifier {
-  /// 模型配置
-  final ModelConfig modelConfig;
-  
+  // 模型配置已移除，直接使用 ModelConfigRepository
+
   /// Agent配置
   final AgentConfig agentConfig;
   
@@ -80,6 +80,9 @@ class PhoneAgent extends ChangeNotifier {
   
   /// 是否正在运行
   bool _isRunning = false;
+  
+  /// 虚拟屏幕 ID
+  int? _virtualScreenId;
   
   /// 悬浮窗权限（会话内缓存，可选功能）
   bool _overlayGrantedForSession = false;
@@ -300,7 +303,12 @@ class PhoneAgent extends ChangeNotifier {
     notifyListeners();
     
     // 捕获屏幕状态
-    final screenshot = await _deviceController.getScreenshot();
+    ScreenshotData screenshot;
+    if (_virtualScreenId != null) {
+      screenshot = await _deviceController.getVirtualScreenFrame();
+    } else {
+      screenshot = await _deviceController.getScreenshot();
+    }
     _latestScreenshot = screenshot;
     final currentApp = await _deviceController.getCurrentApp();
     
@@ -401,7 +409,7 @@ class PhoneAgent extends ChangeNotifier {
     // 执行动作
     ActionResult actionResult;
     try {
-      actionResult = await _actionHandler.execute(action);
+      actionResult = await _actionHandler.execute(action, displayId: _virtualScreenId);
     } catch (e) {
       actionResult = ActionResult(
         success: false,

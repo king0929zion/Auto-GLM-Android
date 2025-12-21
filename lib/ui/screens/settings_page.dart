@@ -31,6 +31,8 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   bool _shizukuAuthorized = false;
   bool _batteryOptimizationIgnored = false;
   bool _autoZiImeEnabled = false;
+  
+  bool get _allPermissionsGranted => _accessibilityEnabled && _autoZiImeEnabled;
 
   final DeviceController _deviceController = DeviceController();
   Timer? _permissionCheckTimer;
@@ -188,86 +190,48 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // 权限配置
-                              _SectionHeader(title: _getStr('permissions')),
-                              _SettingsCard(
-                                children: [
-                                  _PermissionTile(
-                                    icon: Icons.accessibility_new_rounded,
-                                    title: _getStr('accessibility'),
-                                    subtitle: _accessibilityEnabled 
-                                        ? _getStr('active') 
-                                        : _getStr('required'),
-                                    isGranted: _accessibilityEnabled,
-                                    isRequired: true,
-                                    onTap: () => _deviceController.openAccessibilitySettings(),
-                                  ),
-                                  _PermissionTile(
-                                    icon: Icons.keyboard_rounded,
-                                    title: _getStr('inputMethod'),
-                                    subtitle: _autoZiImeEnabled 
-                                        ? _getStr('active') 
-                                        : _getStr('required'),
-                                    isGranted: _autoZiImeEnabled,
-                                    isRequired: true,
-                                    onTap: () => _deviceController.openInputMethodSettings(),
-                                  ),
-                                  _PermissionTile(
-                                    icon: Icons.terminal_rounded,
-                                    title: _getStr('shizuku'),
-                                    subtitle: _getShizukuStatusText(),
-                                    isGranted: _shizukuAuthorized,
-                                    isRequired: true,
-                                    onTap: _handleShizukuAction,
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: AppTheme.space24),
-
-                              // 增强功能
-                              _SectionHeader(title: _getStr('enhancements')),
-                              _SettingsCard(
-                                children: [
-                                  _PermissionTile(
-                                    icon: Icons.picture_in_picture_alt_rounded,
-                                    title: _getStr('floatingWindow'),
-                                    subtitle: _overlayPermission 
-                                        ? _getStr('active') 
-                                        : _getStr('optional'),
-                                    isGranted: _overlayPermission,
-                                    isRequired: false,
-                                    onTap: () => _deviceController.openOverlaySettings(),
-                                  ),
-                                  _PermissionTile(
-                                    icon: Icons.battery_charging_full_rounded,
-                                    title: _getStr('batteryOpt'),
-                                    subtitle: _batteryOptimizationIgnored 
-                                        ? _getStr('ignored') 
-                                        : _getStr('recommended'),
-                                    isGranted: _batteryOptimizationIgnored,
-                                    isRequired: false,
-                                    onTap: () => _deviceController.requestIgnoreBatteryOptimizations(),
-                                  ),
-                                ],
-                              ),
-
-                              const SizedBox(height: AppTheme.space24),
-
-                              // AI 配置
+                              // 模型配置
                               _SectionHeader(title: _getStr('intelligence')),
                               _SettingsCard(
                                 children: [
                                   _SettingsTile(
                                     icon: Icons.psychology_rounded,
-                                    title: _getStr('modelConfig'),
-                                    subtitle: 'AutoGLM / Doubao',
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => const ModelSettingsPage(),
+                                    title: '模型配置',
+                                    subtitle: '配置对话模型供应商',
+                                    onTap: () => Navigator.pushNamed(context, '/provider-config'),
+                                  ),
+                                  _SettingsTile(
+                                    icon: Icons.auto_awesome_rounded,
+                                    title: 'AutoGLM 配置',
+                                    subtitle: '配置自动化 Agent',
+                                    onTap: () => Navigator.pushNamed(context, '/autoglm-config'),
+                                  ),
+                                ],
+                              ),
+
+                              const SizedBox(height: AppTheme.space24),
+
+                              // 权限配置
+                              _SectionHeader(title: _getStr('permissions')),
+                              _SettingsCard(
+                                children: [
+                                  _SettingsTile(
+                                    icon: Icons.security_rounded,
+                                    title: '权限配置',
+                                    subtitle: _allPermissionsGranted
+                                        ? '所有权限已授予'
+                                        : '需要配置权限',
+                                    trailing: Container(
+                                      width: 8,
+                                      height: 8,
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        color: _allPermissionsGranted 
+                                            ? AppTheme.success 
+                                            : AppTheme.warning,
                                       ),
                                     ),
+                                    onTap: () => Navigator.pushNamed(context, '/permissions'),
                                   ),
                                 ],
                               ),
@@ -289,11 +253,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                                     title: _getStr('history'),
                                     onTap: () => Navigator.pushNamed(context, '/history'),
                                   ),
-                                  _SettingsTile(
-                                    icon: Icons.apps_rounded,
-                                    title: _getStr('supportedApps'),
-                                    onTap: () => Navigator.pushNamed(context, '/apps'),
-                                  ),
                                 ],
                               ),
 
@@ -303,11 +262,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                               _SectionHeader(title: _getStr('about')),
                               _SettingsCard(
                                 children: [
-                                  _SettingsTile(
-                                    icon: Icons.description_rounded,
-                                    title: _getStr('documentation'),
-                                    onTap: () => _launchGithub(''),
-                                  ),
                                   _SettingsTile(
                                     icon: Icons.code_rounded,
                                     title: _getStr('github'),
@@ -334,11 +288,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                                         ),
                                       ),
                                     ),
-                                  ),
-                                  _SettingsTile(
-                                    icon: Icons.refresh_rounded,
-                                    title: _getStr('resetOnboarding'),
-                                    onTap: _resetOnboarding,
                                   ),
                                 ],
                               ),

@@ -64,7 +64,7 @@ class MainActivity : FlutterActivity() {
             "longPress" -> longPress(call, result)
             "swipe" -> swipe(call, result)
             "typeText" -> typeText(call, result)
-            "clearText" -> clearText(result)
+            "clearText" -> clearText(call, result)
             "pressBack" -> pressBack(call, result)
             "pressHome" -> pressHome(call, result)
             "launchApp" -> launchApp(call, result)
@@ -265,8 +265,9 @@ class MainActivity : FlutterActivity() {
         val x = call.argument<Int>("x") ?: 0
         val y = call.argument<Int>("y") ?: 0
         val delay = call.argument<Int>("delay") ?: 1000
+        val displayId = call.argument<Int>("displayId") ?: -1
         
-        deviceController?.tap(x, y, delay) { success, message ->
+        deviceController?.tap(x, y, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -284,8 +285,9 @@ class MainActivity : FlutterActivity() {
         val x = call.argument<Int>("x") ?: 0
         val y = call.argument<Int>("y") ?: 0
         val delay = call.argument<Int>("delay") ?: 1000
+        val displayId = call.argument<Int>("displayId") ?: -1
         
-        deviceController?.doubleTap(x, y, delay) { success, message ->
+        deviceController?.doubleTap(x, y, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -304,8 +306,9 @@ class MainActivity : FlutterActivity() {
         val y = call.argument<Int>("y") ?: 0
         val duration = call.argument<Int>("duration") ?: 3000
         val delay = call.argument<Int>("delay") ?: 1000
+        val displayId = call.argument<Int>("displayId") ?: -1
         
-        deviceController?.longPress(x, y, duration, delay) { success, message ->
+        deviceController?.longPress(x, y, duration, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -326,8 +329,9 @@ class MainActivity : FlutterActivity() {
         val endY = call.argument<Int>("endY") ?: 0
         val duration = call.argument<Int>("duration") ?: 1000
         val delay = call.argument<Int>("delay") ?: 1000
+        val displayId = call.argument<Int>("displayId") ?: -1
         
-        deviceController?.swipe(startX, startY, endX, endY, duration, delay) { success, message ->
+        deviceController?.swipe(startX, startY, endX, endY, duration, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -343,8 +347,9 @@ class MainActivity : FlutterActivity() {
      */
     private fun typeText(call: MethodCall, result: MethodChannel.Result) {
         val text = call.argument<String>("text") ?: ""
+        val displayId = call.argument<Int>("displayId") ?: -1
         
-        deviceController?.typeText(text) { success, message ->
+        deviceController?.typeText(text, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -358,8 +363,10 @@ class MainActivity : FlutterActivity() {
     /**
      * 清除文本
      */
-    private fun clearText(result: MethodChannel.Result) {
-        deviceController?.clearText { success, message ->
+    private fun clearText(call: MethodCall, result: MethodChannel.Result) {
+        val displayId = call.argument<Int>("displayId") ?: -1
+        
+        deviceController?.clearText(displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -375,8 +382,9 @@ class MainActivity : FlutterActivity() {
      */
     private fun pressBack(call: MethodCall, result: MethodChannel.Result) {
         val delay = call.argument<Int>("delay") ?: 1000
+        val displayId = call.argument<Int>("displayId") ?: -1
         
-        deviceController?.pressBack(delay) { success, message ->
+        deviceController?.pressBack(delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -392,8 +400,9 @@ class MainActivity : FlutterActivity() {
      */
     private fun pressHome(call: MethodCall, result: MethodChannel.Result) {
         val delay = call.argument<Int>("delay") ?: 1000
+        val displayId = call.argument<Int>("displayId") ?: -1
         
-        deviceController?.pressHome(delay) { success, message ->
+        deviceController?.pressHome(delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
                     result.success(true)
@@ -698,16 +707,35 @@ class MainActivity : FlutterActivity() {
         try {
             val manager = VirtualScreenManager.getInstance(this)
             
-            // 确保虚拟屏幕已创建
-            if (!manager.isActive()) {
-                manager.createVirtualDisplay()
+            if (manager.getDisplayId() == -1) {
+                result.error("NO_DISPLAY", "Virtual display not created", null)
+                return
             }
             
-            val success = manager.launchAppOnVirtualDisplay(packageName)
-            result.success(success)
+            val intent = packageManager.getLaunchIntentForPackage(packageName)
+            if (intent != null) {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+                
+                // 指定在虚拟屏幕启动
+                val options = android.app.ActivityOptions.makeBasic()
+                
+                // 使用反射调用 setLaunchDisplayId (系统API)
+                try {
+                    val method = android.app.ActivityOptions::class.java.getMethod("setLaunchDisplayId", Int::class.javaPrimitiveType)
+                    method.invoke(options, manager.getDisplayId())
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Failed to set launch display ID: ${e.message}")
+                }
+                
+                startActivity(intent, options.toBundle())
+                result.success(true)
+            } else {
+                result.error("APP_NOT_FOUND", "App not found: $packageName", null)
+            }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Launch app on virtual screen error: ${e.message}")
-            result.success(false)
+            result.error("LAUNCH_ERROR", e.message, null)
         }
     }
     

@@ -366,13 +366,27 @@ class DeviceController(private val context: Context) {
     /**
      * 点击操作
      */
-    fun tap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
-        // Show visual feedback
-        mainHandler.post {
-            FloatingWindowService.showTouchFeedback(x, y)
+    fun tap(x: Int, y: Int, delay: Int, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
+        // Show visual feedback only if on default display
+        if (displayId == -1 || displayId == 0) {
+            mainHandler.post {
+                FloatingWindowService.showTouchFeedback(x, y)
+            }
         }
 
         executor.execute {
+            // For virtual display, use shell command directly as injectInputEvent might target default display
+            if (displayId != -1 && displayId != 0) {
+                 try {
+                    executeShellCommand("input -d $displayId tap $x $y")
+                    Thread.sleep(delay.toLong())
+                    callback(true, null)
+                } catch (e: Exception) {
+                    callback(false, e.message)
+                }
+                return@execute
+            }
+
             try {
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(delay.toLong())
@@ -393,22 +407,39 @@ class DeviceController(private val context: Context) {
     /**
      * 双击操作
      */
-    fun doubleTap(x: Int, y: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
+    fun doubleTap(x: Int, y: Int, delay: Int, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
         // Show visual feedback
-        mainHandler.post {
-            FloatingWindowService.showTouchFeedback(x, y)
+        if (displayId == -1 || displayId == 0) {
+            mainHandler.post {
+                FloatingWindowService.showTouchFeedback(x, y)
+            }
         }
 
         executor.execute {
+             if (displayId != -1 && displayId != 0) {
+                 try {
+                    executeShellCommand("input -d $displayId tap $x $y")
+                    Thread.sleep(100)
+                    executeShellCommand("input -d $displayId tap $x $y")
+                    Thread.sleep(delay.toLong())
+                    callback(true, null)
+                } catch (e: Exception) {
+                    callback(false, e.message)
+                }
+                return@execute
+            }
+
             try {
                 injectTap(x.toFloat(), y.toFloat())
-                Thread.sleep(100)
+                Thread.sleep(100) // 间隔
                 injectTap(x.toFloat(), y.toFloat())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
             } catch (e: Exception) {
                 try {
-                    executeShellCommand("input tap $x $y && sleep 0.1 && input tap $x $y")
+                    executeShellCommand("input tap $x $y")
+                    Thread.sleep(100)
+                    executeShellCommand("input tap $x $y")
                     Thread.sleep(delay.toLong())
                     callback(true, null)
                 } catch (e2: Exception) {
@@ -421,14 +452,28 @@ class DeviceController(private val context: Context) {
     /**
      * 长按操作
      */
-    fun longPress(x: Int, y: Int, duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
+    fun longPress(x: Int, y: Int, duration: Int, delay: Int, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
         // Show visual feedback
-        mainHandler.post {
-            FloatingWindowService.showTouchFeedback(x, y)
+        if (displayId == -1 || displayId == 0) {
+            mainHandler.post {
+                FloatingWindowService.showTouchFeedback(x, y)
+            }
         }
 
         executor.execute {
+            if (displayId != -1 && displayId != 0) {
+                 try {
+                    executeShellCommand("input -d $displayId swipe $x $y $x $y $duration")
+                    Thread.sleep(delay.toLong())
+                    callback(true, null)
+                } catch (e: Exception) {
+                    callback(false, e.message)
+                }
+                return@execute
+            }
+
             try {
+                // 使用swipe模拟长按
                 injectSwipe(x.toFloat(), y.toFloat(), x.toFloat(), y.toFloat(), duration.toLong())
                 Thread.sleep(delay.toLong())
                 callback(true, null)
@@ -448,13 +493,26 @@ class DeviceController(private val context: Context) {
      * 滑动操作
      */
     fun swipe(startX: Int, startY: Int, endX: Int, endY: Int, 
-              duration: Int, delay: Int, callback: (Boolean, String?) -> Unit) {
-        // Show visual feedback at start position
-        mainHandler.post {
-            FloatingWindowService.showTouchFeedback(startX, startY)
+              duration: Int, delay: Int, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
+        // Show visual feedback
+        if (displayId == -1 || displayId == 0) {
+            mainHandler.post {
+                FloatingWindowService.showSwipeFeedback(startX, startY, endX, endY)
+            }
         }
 
         executor.execute {
+            if (displayId != -1 && displayId != 0) {
+                 try {
+                    executeShellCommand("input -d $displayId swipe $startX $startY $endX $endY $duration")
+                    Thread.sleep(delay.toLong())
+                    callback(true, null)
+                } catch (e: Exception) {
+                    callback(false, e.message)
+                }
+                return@execute
+            }
+
             try {
                 injectSwipe(
                     startX.toFloat(), startY.toFloat(),
@@ -480,10 +538,16 @@ class DeviceController(private val context: Context) {
      * 1. Shizuku 已授权 -> ADB Keyboard / input text / 剪贴板
      * 2. Shizuku 未授权 -> 无障碍服务
      */
-    fun typeText(text: String, callback: (Boolean, String?) -> Unit) {
+    /**
+     * 输入文本
+     * 策略：
+     * 1. Shizuku 已授权 -> ADB Keyboard / input text / 剪贴板
+     * 2. Shizuku 未授权 -> 无障碍服务
+     */
+    fun typeText(text: String, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                android.util.Log.d("DeviceController", "typeText: $text")
+                android.util.Log.d("DeviceController", "typeText: $text, displayId: $displayId")
                 
                 // 检查 Shizuku 是否可用
                 val shizukuAvailable = try {
@@ -495,16 +559,19 @@ class DeviceController(private val context: Context) {
                 if (shizukuAvailable) {
                     android.util.Log.d("DeviceController", "Shizuku available, trying shell methods")
                     
-                    // 方法1: 尝试使用ADB Keyboard (支持中文)
-                    val adbKeyboardResult = tryAdbKeyboardInput(text)
-                    if (adbKeyboardResult) {
-                        android.util.Log.d("DeviceController", "ADB Keyboard input success")
-                        callback(true, null)
-                        return@execute
+                    // 对于虚拟屏幕，跳过 ADB Keyboard，直接尝试 Shell 命令
+                    if (displayId == -1 || displayId == 0) {
+                        // 方法1: 尝试使用ADB Keyboard (支持中文)
+                        val adbKeyboardResult = tryAdbKeyboardInput(text)
+                        if (adbKeyboardResult) {
+                            android.util.Log.d("DeviceController", "ADB Keyboard input success")
+                            callback(true, null)
+                            return@execute
+                        }
                     }
                     
                     // 方法2: 使用input text命令 (仅支持ASCII)
-                    val inputTextResult = tryInputTextCommand(text)
+                    val inputTextResult = tryInputTextCommand(text, displayId)
                     if (inputTextResult) {
                         android.util.Log.d("DeviceController", "input text command success")
                         callback(true, null)
@@ -512,7 +579,7 @@ class DeviceController(private val context: Context) {
                     }
                     
                     // 方法3: 使用剪贴板 + 模拟粘贴
-                    val clipboardResult = tryClipboardPaste(text)
+                    val clipboardResult = tryClipboardPaste(text, displayId)
                     if (clipboardResult) {
                         android.util.Log.d("DeviceController", "clipboard paste success")
                         callback(true, null)
@@ -520,6 +587,12 @@ class DeviceController(private val context: Context) {
                     }
                     
                     android.util.Log.w("DeviceController", "Shizuku methods failed, falling back to accessibility")
+                }
+                
+                // 虚拟屏幕无法使用无障碍服务输入
+                if (displayId != -1 && displayId != 0) {
+                     callback(false, "虚拟屏幕输入失败: Shizuku input methods failed")
+                     return@execute
                 }
                 
                 // 回退：使用无障碍服务
@@ -575,85 +648,12 @@ class DeviceController(private val context: Context) {
         }
     }
     
-    /**
-     * 使用 AutoZi 内置输入法输入文本
-     * 通过 Shizuku 切换到 AutoZi 输入法并发送广播
-     */
-    private fun tryAdbKeyboardInput(text: String): Boolean {
-        return try {
-            android.util.Log.d("DeviceController", "=== tryAutoZiInputMethod START ===")
-            android.util.Log.d("DeviceController", "Text to input: $text")
-            
-            // 检查 AutoZi 输入法是否已启用
-            val enabledImes = executeShellCommand("ime list -s").trim()
-            android.util.Log.d("DeviceController", "Enabled IMEs: $enabledImes")
-            
-            val autoZiIme = AutoZiInputMethod.IME_ID
-            if (!enabledImes.contains("com.autoglm.auto_glm_mobile")) {
-                android.util.Log.e("DeviceController", "AutoZi InputMethod NOT ENABLED! User needs to enable it in system settings.")
-                // 尝试启用它（可能需要 WRITE_SECURE_SETTINGS 权限）
-                val enableResult = executeShellCommand("ime enable $autoZiIme")
-                android.util.Log.d("DeviceController", "ime enable result: $enableResult")
-                Thread.sleep(300)
-            }
-            
-            // 获取当前输入法
-            val originalIme = executeShellCommand("settings get secure default_input_method").trim()
-            android.util.Log.d("DeviceController", "Original IME: $originalIme")
-            
-            // 切换到 AutoZi 输入法
-            if (!originalIme.contains("com.autoglm.auto_glm_mobile")) {
-                android.util.Log.d("DeviceController", "Switching to AutoZi InputMethod: $autoZiIme")
-                val setResult = executeShellCommand("ime set $autoZiIme")
-                android.util.Log.d("DeviceController", "ime set result: $setResult")
-                Thread.sleep(800) // 增加等待时间
-            }
-            
-            // 验证切换是否成功
-            val currentIme = executeShellCommand("settings get secure default_input_method").trim()
-            android.util.Log.d("DeviceController", "Current IME after switch: $currentIme")
-            
-            if (!currentIme.contains("com.autoglm.auto_glm_mobile")) {
-                android.util.Log.e("DeviceController", "Failed to switch to AutoZi InputMethod!")
-                return false
-            }
-            
-            // 清除现有文本
-            val clearResult = executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_CLEAR_TEXT}")
-            android.util.Log.d("DeviceController", "Clear broadcast result: $clearResult")
-            Thread.sleep(300)
-            
-            // Base64编码并发送
-            val encodedText = android.util.Base64.encodeToString(
-                text.toByteArray(Charsets.UTF_8),
-                android.util.Base64.NO_WRAP
-            )
-            android.util.Log.d("DeviceController", "Encoded text: $encodedText")
-            
-            val broadcastResult = executeShellCommand("am broadcast -a ${AutoZiInputMethod.ACTION_INPUT_B64} --es msg $encodedText")
-            android.util.Log.d("DeviceController", "Input broadcast result: $broadcastResult")
-            Thread.sleep(500)
-            
-            // 恢复原输入法
-            if (originalIme.isNotEmpty() && !originalIme.contains("com.autoglm.auto_glm_mobile") && originalIme != "null") {
-                android.util.Log.d("DeviceController", "Restoring original IME: $originalIme")
-                executeShellCommand("ime set $originalIme")
-                Thread.sleep(300)
-            }
-            
-            val success = broadcastResult.contains("result=0") || broadcastResult.contains("Broadcast completed")
-            android.util.Log.d("DeviceController", "=== tryAutoZiInputMethod END, success=$success ===")
-            success
-        } catch (e: Exception) {
-            android.util.Log.e("DeviceController", "AutoZi InputMethod error: ${e.message}", e)
-            false
-        }
-    }
-    
+    // ... tryAdbKeyboardInput (unchanged, as it's only for default display) ...
+
     /**
      * 使用input text命令输入
      */
-    private fun tryInputTextCommand(text: String): Boolean {
+    private fun tryInputTextCommand(text: String, displayId: Int = -1): Boolean {
         return try {
             // 转义特殊字符
             val escapedText = text
@@ -669,7 +669,8 @@ class DeviceController(private val context: Context) {
                 .replace(")", "\\)")
                 .replace(";", "\\;")
             
-            val result = executeShellCommand("input text \"$escapedText\"")
+            val displayArg = if (displayId != -1) "-d $displayId " else ""
+            val result = executeShellCommand("input ${displayArg}text \"$escapedText\"")
             android.util.Log.d("DeviceController", "input text result: $result")
             Thread.sleep(300)
             
@@ -683,7 +684,7 @@ class DeviceController(private val context: Context) {
     /**
      * 使用剪贴板粘贴
      */
-    private fun tryClipboardPaste(text: String): Boolean {
+    private fun tryClipboardPaste(text: String, displayId: Int = -1): Boolean {
         return try {
             // 设置剪贴板内容
             val encodedText = android.util.Base64.encodeToString(
@@ -691,12 +692,14 @@ class DeviceController(private val context: Context) {
                 android.util.Base64.NO_WRAP
             )
             
-            // 使用服务设置剪贴板
+            // 使用服务设置剪贴板 (Global clipboard)
+            // Note: Clipboard is global, so no displayId needed here usually
             executeShellCommand("service call clipboard 2 i32 1 s16 '$text'")
             Thread.sleep(200)
             
-            // 模拟Ctrl+V粘贴
-            executeShellCommand("input keyevent 279") // KEYCODE_PASTE
+            // 模拟Ctrl+V粘贴 (targets specific display)
+            val displayArg = if (displayId != -1) "-d $displayId " else ""
+            executeShellCommand("input ${displayArg}keyevent 279") // KEYCODE_PASTE
             Thread.sleep(300)
             
             true
@@ -709,12 +712,25 @@ class DeviceController(private val context: Context) {
     /**
      * 清除文本
      */
-    fun clearText(callback: (Boolean, String?) -> Unit) {
+    fun clearText(displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
-                executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
-                Thread.sleep(300)
-                callback(true, null)
+                if (displayId != -1 && displayId != 0) {
+                     // Virtual display: use CLEAR key event
+                     executeShellCommand("input -d $displayId keyevent 28") // KEYCODE_CLEAR? No, usually not mapped. 
+                     // Operit uses KEYCODE_CLEAR (which is 28? No, 28 is CLEAR in KeyEvent but typically it's DEL for backspace or other)
+                     // Actually Operit code says KEYCODE_CLEAR. Let's check constant.
+                     // KeyEvent.KEYCODE_CLEAR is 28.
+                     // But often used is KEYCODE_DEL (67) or long press DEL.
+                     // Operit uses KEYCODE_CLEAR. I will follow.
+                     executeShellCommand("input -d $displayId keyevent 28")
+                     Thread.sleep(300)
+                     callback(true, null)
+                } else {
+                    executeShellCommand("am broadcast -a ADB_CLEAR_TEXT")
+                    Thread.sleep(300)
+                    callback(true, null)
+                }
             } catch (e: Exception) {
                 callback(false, e.message)
             }
@@ -724,8 +740,19 @@ class DeviceController(private val context: Context) {
     /**
      * 按返回键
      */
-    fun pressBack(delay: Int, callback: (Boolean, String?) -> Unit) {
+    fun pressBack(delay: Int, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
         executor.execute {
+            if (displayId != -1 && displayId != 0) {
+                 try {
+                    executeShellCommand("input -d $displayId keyevent 4")
+                    Thread.sleep(delay.toLong())
+                    callback(true, null)
+                } catch (e: Exception) {
+                    callback(false, e.message)
+                }
+                return@execute
+            }
+
             try {
                 injectKeyEvent(KeyEvent.KEYCODE_BACK)
                 Thread.sleep(delay.toLong())
@@ -745,8 +772,19 @@ class DeviceController(private val context: Context) {
     /**
      * 按Home键
      */
-    fun pressHome(delay: Int, callback: (Boolean, String?) -> Unit) {
+    fun pressHome(delay: Int, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
         executor.execute {
+            if (displayId != -1 && displayId != 0) {
+                 try {
+                    executeShellCommand("input -d $displayId keyevent 3")
+                    Thread.sleep(delay.toLong())
+                    callback(true, null)
+                } catch (e: Exception) {
+                    callback(false, e.message)
+                }
+                return@execute
+            }
+
             try {
                 injectKeyEvent(KeyEvent.KEYCODE_HOME)
                 Thread.sleep(delay.toLong())

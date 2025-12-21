@@ -3,7 +3,10 @@ import 'package:flutter/services.dart';
 import 'config/settings_repository.dart';
 import 'data/repositories/history_repository.dart';
 import 'ui/theme/app_theme.dart';
-import 'ui/screens/screens.dart';
+import 'ui/screens/apps_list_page.dart';
+import 'ui/screens/permissions_page.dart';
+import 'ui/screens/provider_config_page.dart';
+import 'ui/screens/autoglm_config_page.dart';
 import 'ui/screens/permission_setup_page.dart';
 
 void main() async {
@@ -57,6 +60,9 @@ class AutoZiApp extends StatelessWidget {
         '/apps': (context) => const AppsListPage(),
         '/shizuku': (context) => const ShizukuSetupPage(),
         '/history': (context) => const TaskHistoryPage(),
+        '/permissions': (context) => const PermissionsPage(),
+        '/provider-config': (context) => const ProviderConfigPage(),
+        '/autoglm-config': (context) => const AutoGLMConfigPage(),
       },
       
       // 自定义路由（带参数）

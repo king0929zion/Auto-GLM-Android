@@ -687,8 +687,8 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   
   @override
   Widget build(BuildContext context) {
-    // 判断是横屏还是竖屏
-    final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
+    final actions = widget.execution.actions;
+    final currentAction = actions.isNotEmpty ? actions.last : null;
     
     return Scaffold(
       backgroundColor: Colors.black,
@@ -698,47 +698,119 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
             // 顶部控制栏
             _buildTopBar(),
             
-            // 主内容区
+            // 主内容区 - 虚拟屏幕
             Expanded(
-              child: isLandscape
-                  ? Row(
-                      children: [
-                        // 左侧动作列表面板
-                        Container(
-                          width: 280,
-                          color: const Color(0xFF0D0D0D),
-                          child: _buildActionsList(),
-                        ),
-                        
-                        // 右侧虚拟屏幕预览
-                        Expanded(
-                          child: _buildVirtualScreen(),
-                        ),
-                      ],
-                    )
-                  : Column(
-                      children: [
-                        // 上部虚拟屏幕
-                        Expanded(
-                          flex: 2,
-                          child: _buildVirtualScreen(),
-                        ),
-                        
-                        // 下部动作列表
-                        Expanded(
-                          flex: 1,
-                          child: Container(
-                            color: const Color(0xFF0D0D0D),
-                            child: _buildActionsList(),
-                          ),
-                        ),
-                      ],
-                    ),
+              child: _buildVirtualScreen(),
             ),
+            
+            // 底部简洁状态栏
+            _buildBottomStatusBar(currentAction),
           ],
         ),
       ),
     );
+  }
+  
+  Widget _buildBottomStatusBar(ExecutedAction? currentAction) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0D0D),
+        border: Border(
+          top: BorderSide(
+            color: Colors.white.withOpacity(0.1),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          // 步骤数
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${widget.execution.actions.length} 步',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withOpacity(0.7),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          
+          // 当前动作
+          Expanded(
+            child: currentAction != null
+                ? Row(
+                    children: [
+                      Icon(
+                        _getActionIcon(currentAction.type),
+                        size: 16,
+                        color: Colors.white.withOpacity(0.6),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          currentAction.type,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    '等待执行...',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.white.withOpacity(0.4),
+                    ),
+                  ),
+          ),
+          
+          // 耗时
+          Text(
+            widget.execution.formattedDuration,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white.withOpacity(0.5),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  IconData _getActionIcon(String actionType) {
+    switch (actionType.toLowerCase()) {
+      case 'tap':
+        return Icons.touch_app_rounded;
+      case 'doubletap':
+        return Icons.ads_click_rounded;
+      case 'longpress':
+        return Icons.pan_tool_rounded;
+      case 'swipe':
+        return Icons.swipe_rounded;
+      case 'type':
+      case 'typename':
+        return Icons.keyboard_rounded;
+      case 'back':
+        return Icons.arrow_back_rounded;
+      case 'home':
+        return Icons.home_rounded;
+      case 'launch':
+        return Icons.launch_rounded;
+      case 'wait':
+        return Icons.hourglass_empty_rounded;
+      default:
+        return Icons.play_arrow_rounded;
+    }
   }
   
   Widget _buildTopBar() {

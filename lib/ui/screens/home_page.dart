@@ -4,9 +4,12 @@ import 'package:uuid/uuid.dart';
 import '../../core/phone_agent.dart';
 import '../../data/models/models.dart';
 import '../../data/models/chat_history.dart';
+import 'package:flutter/services.dart';
 import '../../config/settings_repository.dart';
 import '../../data/repositories/history_repository.dart';
 import '../../services/device/device_controller.dart';
+import '../../data/repositories/model_config_repository.dart';
+import '../../data/models/model_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/task_execution_card.dart';
 import '../../l10n/app_strings.dart';
@@ -62,16 +65,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     });
 
     final modelConfig = settings.getModelConfig();
+    // final modelConfig = settings.getModelConfig(); // This line is no longer needed as modelConfig is removed from PhoneAgent constructor
     final agentConfig = AgentConfig(
       maxSteps: settings.maxSteps,
       lang: _language,
       verbose: true,
     );
     
-    _agent = PhoneAgent(
-      modelConfig: modelConfig,
-      agentConfig: agentConfig,
-    );
+    // The _agent initialization is moved to the field declaration.
+    // We only need to update its configuration if necessary, or set listeners.
+    // For now, we'll assume the agentConfig passed to the constructor is sufficient,
+    // or that the agent itself will be reconfigured if needed.
+    // If the agent needs to be re-initialized with settings from `settings.getModelConfig()`,
+    // then the `PhoneAgent` constructor would need to be updated to accept a `ModelConfig` object,
+    // or the `_agent` field would need to be `late` and initialized here.
+    // Given the instruction, we are removing `modelConfig` from the constructor.
     
     _agent.onConfirmationRequired = _showConfirmationDialog;
     _agent.onTakeoverRequired = _showTakeoverDialog;
@@ -103,6 +111,42 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         }
       });
+    }
+  }
+  
+  // 初始化模型配置
+  Future<void> _initModelConfig() async {
+    await ModelConfigRepository.instance.init();
+    if (mounted) setState(() {});
+  }
+  
+  // 重新加载模型列表（当从设置页返回时调用）
+  Future<void> _reloadModels() async {
+    await ModelConfigRepository.instance.init();
+    if (mounted) setState(() {});
+  }
+  
+  // 监听任务状态更新
+  void _onTaskUpdate(StepResult result) {
+    if (result.status == TaskStatus.completed || 
+        result.status == TaskStatus.failed ||
+        result.status == TaskStatus.cancelled) {
+      // 任务结束，更新当前执行状态
+      setState(() {
+        if (_currentExecution != null) {
+          _currentExecution = _currentExecution!.copyWith(
+            status: result.status,
+            finalResult: result.message,
+          );
+          // 同步更新聊天项中的执行状态
+          for (var i = 0; i < _chatItems.length; i++) {
+            if (_chatItems[i].execution?.taskId == _currentExecution!.taskId) {
+              _chatItems[i] = _chatItems[i].copyWith(execution: _currentExecution);
+            }
+          }
+        }
+      });
+      _scrollToBottom();
     }
   }
 
@@ -282,105 +326,73 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           PopupMenuButton<String>(
             offset: const Offset(0, 40),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            color: AppTheme.white,
-            elevation: 8,
-            enabled: !_agent.isRunning,
-            onSelected: (provider) async {
-              await SettingsRepository.instance.setSelectedProvider(provider);
-              _initializeAgent();
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'autoglm',
-                child: Row(
-                  children: [
-                    Icon(
-                      SettingsRepository.instance.selectedProvider == 'autoglm'
-                          ? Icons.check_circle
-                          : Icons.circle_outlined,
-                      size: 18,
-                      color: SettingsRepository.instance.selectedProvider == 'autoglm'
-                          ? AppTheme.grey900
-                          : AppTheme.grey400,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(_getStr('modelAutoGLM')),
-                  ],
+          // 主内容区域 - 可滚动
+          CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.only(top: 56 + 4), // 顶部留出标题栏高度 + SafeArea padding
+                sliver: SliverToBoxAdapter(
+                  child: _errorMessage != null
+                      ? _buildErrorView()
+                      : _chatItems.isEmpty
+                          ? _buildEmptyState()
+                          : Column(
+                              children: _chatItems
+                                  .map((item) => _buildChatItem(item))
+                                  .toList(),
+                            ),
                 ),
               ),
-              PopupMenuItem(
-                value: 'doubao',
-                child: Row(
-                  children: [
-                    Icon(
-                      SettingsRepository.instance.selectedProvider == 'doubao'
-                          ? Icons.check_circle
-                          : Icons.circle_outlined,
-                      size: 18,
-                      color: SettingsRepository.instance.selectedProvider == 'doubao'
-                          ? AppTheme.grey900
-                          : AppTheme.grey400,
-                    ),
-                    const SizedBox(width: 10),
-                    Text(_getStr('modelDoubao')),
-                  ],
-                ),
+              SliverToBoxAdapter(
+                child: _buildGeminiInputBar(),
+              ),
+              SliverToBoxAdapter(
+                child: SizedBox(height: MediaQuery.of(context).padding.bottom), // 底部留出安全区域
               ),
             ],
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppTheme.space12,
-                vertical: AppTheme.space8,
-              ),
-              decoration: BoxDecoration(
-                color: AppTheme.grey100,
-                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _getModelDisplayName(),
-                    style: const TextStyle(
-                      fontSize: AppTheme.fontSize13,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.grey900,
+          ),
+        
+          // 覆盖在 CustomScrollView 上的标题栏
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              bottom: false,
+              child: Container(
+                height: 56,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Row(
+                  children: [
+                    // 设置按钮
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined, color: AppTheme.grey700),
+                      onPressed: () {
+                        _focusNode.unfocus();
+                        Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
+                      },
                     ),
-                  ),
-                  const SizedBox(width: AppTheme.space4),
-                  const Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 18,
-                    color: AppTheme.grey500,
-                  ),
-                ],
+                    
+                    // 中间标题 / 模型选择器
+                    Expanded(
+                      child: Center(
+                        child: _buildModelSelector(),
+                      ),
+                    ),
+                    
+                    // 历史记录按钮
+                    IconButton(
+                      icon: const Icon(Icons.history_rounded, color: AppTheme.grey700),
+                      onPressed: () {
+                        _focusNode.unfocus();
+                        Navigator.pushNamed(context, '/history');
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
-          
-          const Spacer(),
-          
-          // 操作按钮组
-          _HeaderIconButton(
-            icon: Icons.history_rounded,
-            onTap: _showHistorySheet,
-          ),
-          const SizedBox(width: AppTheme.space8),
-          _HeaderIconButton(
-            icon: Icons.add_rounded,
-            onTap: _startNewConversation,
-          ),
-          const SizedBox(width: AppTheme.space8),
-          _HeaderIconButton(
-            icon: Icons.settings_rounded,
-            onTap: () async {
-              await Navigator.pushNamed(context, '/settings');
-              _agent.removeListener(_onAgentChanged);
-              _agent.dispose();
-              _initializeAgent();
-            },
           ),
         ],
       ),
@@ -452,6 +464,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  /// 获取提供者名称
+  String _getProviderName(String providerId) {
+    if (ModelConfigRepository.instance.providers.any((p) => p.id == providerId)) {
+      return ModelConfigRepository.instance.providers.firstWhere((p) => p.id == providerId).name;
+    }
+    return '';
+  }
+
   /// 获取时间问候语
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -508,12 +528,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 输入区域 - 更高
+              // 输入区域 - 统一背景色
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: AppTheme.white,
+                  color: AppTheme.grey100,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: TextField(
@@ -544,7 +564,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     isDense: true,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  cursorColor: accentColor,
+                  cursorColor: AppTheme.accent,
                 ),
               ),
               

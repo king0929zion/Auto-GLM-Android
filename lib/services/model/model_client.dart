@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../data/models/models.dart';
+import '../../data/repositories/model_config_repository.dart';
 
 /// 模型响应数据类
 class ModelResponse {
@@ -22,21 +23,25 @@ class ModelResponse {
 
 /// OpenAI兼容的模型客户端
 class ModelClient {
-  /// 模型配置
-  final ModelConfig config;
+  final String? overrideBaseUrl;
+  final String? overrideApiKey;
+  final String? overrideModelName;
   
-  /// HTTP客户端
-  late final Dio _dio;
-  CancelToken? _activeCancelToken;
+  ModelClient({
+    this.overrideBaseUrl,
+    this.overrideApiKey,
+    this.overrideModelName,
+  });
 
-  ModelClient({required this.config}) {
-    _dio = Dio(BaseOptions(
-      baseUrl: config.baseUrl,
+  /// 创建 Dio 实例
+  Dio _createDio(String baseUrl, String apiKey) {
+    return Dio(BaseOptions(
+      baseUrl: baseUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 60),
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ${config.apiKey}',
+        'Authorization': 'Bearer $apiKey',
       },
     ));
   }
@@ -46,26 +51,62 @@ class ModelClient {
     List<Map<String, dynamic>> messages, {
     CancelToken? cancelToken,
   }) async {
+    // 获取配置
+    String baseUrl;
+    String apiKey;
+    String modelName;
+
+    // 优先使用覆盖配置（用于 AutoGLM）
+    if (overrideBaseUrl != null && overrideApiKey != null && overrideModelName != null) {
+      baseUrl = overrideBaseUrl!;
+      apiKey = overrideApiKey!;
+      modelName = overrideModelName!;
+    } else {
+      // 否则使用主模型配置
+      final repo = ModelConfigRepository.instance;
+      // 确保已初始化
+      if (!repo.initialized) await repo.init();
+      
+      final activeModel = repo.activeModel;
+      if (activeModel == null) {
+        throw const ModelClientException('未选择任何模型，请在设置或首页选择模型');
+      }
+      
+      final provider = repo.getProviderForModel(activeModel.id);
+      if (provider == null) {
+        throw const ModelClientException('模型配置错误：找不到对应的供应商');
+      }
+      
+      if (provider.apiKey.isEmpty) {
+        throw const ModelClientException('所选供应商未配置 API Key');
+      }
+      
+      baseUrl = provider.baseUrl;
+      apiKey = provider.apiKey;
+      modelName = activeModel.modelId;
+    }
+
     final token = cancelToken ?? CancelToken();
     _activeCancelToken = token;
+    
+    // 创建 Dio
+    final dio = _createDio(baseUrl, apiKey);
+    
     final body = {
-      'model': config.modelName,
+      'model': modelName,
       'messages': messages,
-      'max_tokens': config.maxTokens,
-      'temperature': config.temperature,
-      'top_p': config.topP,
-      'frequency_penalty': config.frequencyPenalty,
-      'stream': false,  // 明确设置为非流式响应，魔搭API默认使用流式响应
+      'temperature': 0.7, // 默认配置
+      'stream': false,
     };
 
     // Debug log
     print('=== API Request ===');
-    print('URL: ${config.baseUrl}/chat/completions');
-    print('Model: ${config.modelName}');
-    print('API Key: ${config.apiKey.length > 10 ? config.apiKey.substring(0, 10) : config.apiKey}...');
+    print('URL: $baseUrl/chat/completions');
+    print('Model: $modelName');
+    print('API Key: ${apiKey.length > 10 ? apiKey.substring(0, 10) : apiKey}...');
 
     try {
-      final response = await _dio.post(
+      final response = await dio.post(
         '/chat/completions',
         data: body,
         cancelToken: token,
