@@ -128,15 +128,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   
   // 监听任务状态更新
   void _onTaskUpdate(StepResult result) {
-    if (result.status == TaskStatus.completed || 
-        result.status == TaskStatus.failed ||
-        result.status == TaskStatus.cancelled) {
+    if (result.finished) {
       // 任务结束，更新当前执行状态
+      final status = result.success ? TaskStatus.completed : TaskStatus.failed;
       setState(() {
         if (_currentExecution != null) {
           _currentExecution = _currentExecution!.copyWith(
-            status: result.status,
-            finalResult: result.message,
+            status: status,
           );
           // 同步更新聊天项中的执行状态
           for (var i = 0; i < _chatItems.length; i++) {
@@ -322,77 +320,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       ),
       child: Row(
         children: [
-          // 模型选择器 - 使用下拉菜单
-          PopupMenuButton<String>(
-            offset: const Offset(0, 40),
-            shape: RoundedRectangleBorder(
-          // 主内容区域 - 可滚动
-          CustomScrollView(
-            controller: _scrollController,
-            slivers: [
-              SliverPadding(
-                padding: const EdgeInsets.only(top: 56 + 4), // 顶部留出标题栏高度 + SafeArea padding
-                sliver: SliverToBoxAdapter(
-                  child: _errorMessage != null
-                      ? _buildErrorView()
-                      : _chatItems.isEmpty
-                          ? _buildEmptyState()
-                          : Column(
-                              children: _chatItems
-                                  .map((item) => _buildChatItem(item))
-                                  .toList(),
-                            ),
-                ),
-              ),
-              SliverToBoxAdapter(
-                child: _buildGeminiInputBar(),
-              ),
-              SliverToBoxAdapter(
-                child: SizedBox(height: MediaQuery.of(context).padding.bottom), // 底部留出安全区域
-              ),
-            ],
+          // 设置按钮
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: AppTheme.grey700),
+            onPressed: () {
+              _focusNode.unfocus();
+              Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
+            },
           ),
-        
-          // 覆盖在 CustomScrollView 上的标题栏
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              bottom: false,
-              child: Container(
-                height: 56,
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Row(
-                  children: [
-                    // 设置按钮
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined, color: AppTheme.grey700),
-                      onPressed: () {
-                        _focusNode.unfocus();
-                        Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
-                      },
-                    ),
-                    
-                    // 中间标题 / 模型选择器
-                    Expanded(
-                      child: Center(
-                        child: _buildModelSelector(),
-                      ),
-                    ),
-                    
-                    // 历史记录按钮
-                    IconButton(
-                      icon: const Icon(Icons.history_rounded, color: AppTheme.grey700),
-                      onPressed: () {
-                        _focusNode.unfocus();
-                        Navigator.pushNamed(context, '/history');
-                      },
-                    ),
-                  ],
-                ),
-              ),
+          
+          // 中间标题 / 模型选择器
+          Expanded(
+            child: Center(
+              child: _buildModelSelector(),
             ),
+          ),
+          
+          // 历史记录按钮
+          IconButton(
+            icon: const Icon(Icons.history_rounded, color: AppTheme.grey700),
+            onPressed: () {
+              _focusNode.unfocus();
+              Navigator.pushNamed(context, '/history');
+            },
           ),
         ],
       ),

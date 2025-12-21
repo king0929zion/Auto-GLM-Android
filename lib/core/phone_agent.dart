@@ -104,11 +104,9 @@ class PhoneAgent extends ChangeNotifier {
   void Function(StepResult result)? onStepCompleted;
 
   PhoneAgent({
-    ModelConfig? modelConfig,
     AgentConfig? agentConfig,
-  }) : modelConfig = modelConfig ?? const ModelConfig(),
-       agentConfig = agentConfig ?? const AgentConfig() {
-    _modelClient = ModelClient(config: this.modelConfig);
+  }) : agentConfig = agentConfig ?? const AgentConfig() {
+    _modelClient = ModelClient();
     _deviceController = DeviceController();
     _actionHandler = ActionHandler(
       deviceController: _deviceController,

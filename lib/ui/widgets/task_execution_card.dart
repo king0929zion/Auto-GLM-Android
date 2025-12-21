@@ -711,7 +711,7 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
     );
   }
   
-  Widget _buildBottomStatusBar(ExecutedAction? currentAction) {
+  Widget _buildBottomStatusBar(ActionRecord? currentAction) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
@@ -748,14 +748,14 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
                 ? Row(
                     children: [
                       Icon(
-                        _getActionIcon(currentAction.type),
+                        _getActionIcon(currentAction.actionType),
                         size: 16,
                         color: Colors.white.withOpacity(0.6),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          currentAction.type,
+                          currentAction.actionType,
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.white.withOpacity(0.8),

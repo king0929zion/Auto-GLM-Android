@@ -182,6 +182,26 @@ class DeviceController {
     }
   }
   
+  /// 请求悬浮窗权限 (跳转到设置)
+  Future<bool> requestOverlayPermission() async {
+    return openOverlaySettings();
+  }
+  
+  /// 请求忽略电池优化
+  Future<bool> requestIgnoreBatteryOptimization() async {
+    return requestIgnoreBatteryOptimizations();
+  }
+  
+  /// 打开 Shizuku 下载页面
+  Future<bool> openShizukuDownload() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('openShizukuDownload');
+      return result ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+  
   /// 获取截图
   Future<ScreenshotData> getScreenshot({int timeoutMs = 10000}) async {
     try {

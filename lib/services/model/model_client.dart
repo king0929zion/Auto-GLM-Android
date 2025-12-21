@@ -27,6 +27,8 @@ class ModelClient {
   final String? overrideApiKey;
   final String? overrideModelName;
   
+  CancelToken? _activeCancelToken;
+  
   ModelClient({
     this.overrideBaseUrl,
     this.overrideApiKey,
@@ -271,35 +273,6 @@ class ModelClient {
       }
     }
     return -1;
-  }
-
-  /// 检查API是否可用
-  Future<bool> checkAvailability() async {
-    try {
-      final response = await _dio.get('/models');
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /// 获取可用模型列表
-  Future<List<String>> getModels() async {
-    try {
-      final response = await _dio.get('/models');
-      final data = response.data;
-      final models = (data['data'] as List)
-          .map((m) => m['id'] as String)
-          .toList();
-      return models;
-    } catch (e) {
-      return [];
-    }
-  }
-
-  /// 释放资源
-  void dispose() {
-    _dio.close();
   }
 
   /// 取消当前请求（用于停止任务）

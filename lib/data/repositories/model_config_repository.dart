@@ -33,6 +33,7 @@ class ModelConfigRepository {
   List<String> get selectedModelIds => List.unmodifiable(_selectedModelIds);
   String? get activeModelId => _activeModelId;
   AutoGLMConfig get autoglmConfig => _autoglmConfig;
+  bool get initialized => _initialized;
   
   /// 获取已选择的模型列表
   List<Model> get selectedModels {
