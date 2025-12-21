@@ -64,22 +64,14 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       _language = settings.language;
     });
 
-    final modelConfig = settings.getModelConfig();
-    // final modelConfig = settings.getModelConfig(); // This line is no longer needed as modelConfig is removed from PhoneAgent constructor
     final agentConfig = AgentConfig(
       maxSteps: settings.maxSteps,
       lang: _language,
       verbose: true,
     );
     
-    // The _agent initialization is moved to the field declaration.
-    // We only need to update its configuration if necessary, or set listeners.
-    // For now, we'll assume the agentConfig passed to the constructor is sufficient,
-    // or that the agent itself will be reconfigured if needed.
-    // If the agent needs to be re-initialized with settings from `settings.getModelConfig()`,
-    // then the `PhoneAgent` constructor would need to be updated to accept a `ModelConfig` object,
-    // or the `_agent` field would need to be `late` and initialized here.
-    // Given the instruction, we are removing `modelConfig` from the constructor.
+    // 创建 PhoneAgent 实例
+    _agent = PhoneAgent(agentConfig: agentConfig);
     
     _agent.onConfirmationRequired = _showConfirmationDialog;
     _agent.onTakeoverRequired = _showTakeoverDialog;
