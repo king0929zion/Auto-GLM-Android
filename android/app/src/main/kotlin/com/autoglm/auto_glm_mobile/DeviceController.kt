@@ -541,13 +541,25 @@ class DeviceController(private val context: Context) {
     /**
      * 输入文本
      * 策略：
-     * 1. Shizuku 已授权 -> ADB Keyboard / input text / 剪贴板
-     * 2. Shizuku 未授权 -> 无障碍服务
+     * 1. AutoZi 输入法 (优先，支持中文)
+     * 2. Shizuku input text / 剪贴板
+     * 3. 无障碍服务
      */
     fun typeText(text: String, displayId: Int = -1, callback: (Boolean, String?) -> Unit) {
         executor.execute {
             try {
                 android.util.Log.d("DeviceController", "typeText: $text, displayId: $displayId")
+                
+                // 方法1: 使用 AutoZi 输入法 (对于默认屏幕)
+                if (displayId == -1 || displayId == 0) {
+                    val imeDirect = AutoZiInputMethod.inputTextDirect(text)
+                    if (imeDirect) {
+                        android.util.Log.d("DeviceController", "AutoZiInputMethod direct input success")
+                        callback(true, null)
+                        return@execute
+                    }
+                    android.util.Log.d("DeviceController", "AutoZi IME not available, trying other methods")
+                }
                 
                 // 检查 Shizuku 是否可用
                 val shizukuAvailable = try {
