@@ -571,16 +571,6 @@ class DeviceController(private val context: Context) {
                 if (shizukuAvailable) {
                     android.util.Log.d("DeviceController", "Shizuku available, trying shell methods")
                     
-                    // ADB Keyboard method disabled - method not implemented
-                    // if (displayId == -1 || displayId == 0) {
-                    //     val adbKeyboardResult = tryAdbKeyboardInput(text)
-                    //     if (adbKeyboardResult) {
-                    //         android.util.Log.d("DeviceController", "ADB Keyboard input success")
-                    //         callback(true, null)
-                    //         return@execute
-                    //     }
-                    // }
-                    
                     // 方法2: 使用input text命令 (仅支持ASCII)
                     val inputTextResult = tryInputTextCommand(text, displayId)
                     if (inputTextResult) {
@@ -659,8 +649,6 @@ class DeviceController(private val context: Context) {
         }
     }
     
-    // ... tryAdbKeyboardInput (unchanged, as it's only for default display) ...
-
     /**
      * 使用input text命令输入
      */
