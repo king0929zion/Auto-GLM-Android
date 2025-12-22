@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import '../../data/repositories/model_config_repository.dart';
+import 'model_url_builder.dart';
 
 /// 模型响应数据类
 class ModelResponse {
@@ -37,7 +38,7 @@ class ModelClient {
   /// 创建 Dio 实例
   Dio _createDio(String baseUrl, String apiKey) {
     return Dio(BaseOptions(
-      baseUrl: baseUrl,
+      baseUrl: ModelUrlBuilder.normalizeBaseUrl(baseUrl),
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 60),
       headers: {
@@ -92,8 +93,7 @@ class ModelClient {
     
     // 创建 Dio
     final dio = _createDio(baseUrl, apiKey);
-
-    final endpoint = _buildChatCompletionsPath(baseUrl);
+    final requestUrl = ModelUrlBuilder.buildChatCompletionsUrl(baseUrl);
     
     final body = {
       'model': modelName,
@@ -104,7 +104,7 @@ class ModelClient {
 
     try {
       final response = await dio.post(
-        endpoint,
+        requestUrl,
         data: body,
         cancelToken: token,
       );
@@ -176,6 +176,7 @@ class ModelClient {
     }
   }
 
+  // ignore: unused_element
   String _buildChatCompletionsPath(String baseUrl) {
     // Dio 的 path 如果以 "/" 开头，会覆盖 baseUrl 里已有的 path（例如 /v1）。
     // 因此这里统一使用相对路径。

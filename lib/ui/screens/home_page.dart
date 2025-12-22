@@ -284,7 +284,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.white,
+      backgroundColor: AppTheme.grey100,
       body: SafeArea(
         child: Column(
           children: [
@@ -314,20 +314,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   /// 顶部导航栏 - 极简风格
   Widget _buildHeader() {
     return Container(
+      color: AppTheme.grey100,
       padding: const EdgeInsets.symmetric(
         horizontal: AppTheme.space16,
-        vertical: AppTheme.space12,
+        vertical: AppTheme.space8,
       ),
       child: Row(
         children: [
           // 历史记录按钮
-          IconButton(
-            icon: const Icon(Icons.history_rounded, color: AppTheme.grey700),
-            onPressed: () {
+          _buildHeaderAction(
+            icon: Icons.history_rounded,
+            onTap: () {
               _focusNode.unfocus();
               Navigator.pushNamed(context, '/history');
             },
           ),
+          const SizedBox(width: AppTheme.space8),
           
           // 中间标题 / 模型选择器
           Expanded(
@@ -335,41 +337,53 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               child: GestureDetector(
                 onTap: _showModelSelector,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 240),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          _getModelDisplayName(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.grey900,
+                  constraints: const BoxConstraints(maxWidth: 200),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppTheme.space10,
+                      vertical: AppTheme.space6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppTheme.grey50,
+                      borderRadius: BorderRadius.circular(AppTheme.radius12),
+                      border: Border.all(color: AppTheme.grey150),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            _getModelDisplayName(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: AppTheme.fontSize13,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.grey900,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 2),
-                      const Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 18,
-                        color: AppTheme.grey500,
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 16,
+                          color: AppTheme.grey500,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.add_rounded, color: AppTheme.grey700),
-            onPressed: _startNewConversation,
+          _buildHeaderAction(
+            icon: Icons.add_rounded,
+            tooltip: '新对话',
+            onTap: _startNewConversation,
           ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, color: AppTheme.grey700),
-            onPressed: () {
+          _buildHeaderAction(
+            icon: Icons.settings_outlined,
+            onTap: () {
               _focusNode.unfocus();
               Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
             },
@@ -379,24 +393,56 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildHeaderAction({
+    required IconData icon,
+    required VoidCallback onTap,
+    String? tooltip,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Icon(icon, color: AppTheme.grey700, size: 22),
+        ),
+      ),
+    );
+  }
+
   /// 聊天区域
   Widget _buildChatArea() {
-    if (_chatItems.isEmpty) {
-      return _buildEmptyState();
-    }
+    final Widget content = _chatItems.isEmpty
+        ? _buildEmptyState()
+        : ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.only(
+              left: AppTheme.space20,
+              right: AppTheme.space20,
+              top: AppTheme.space16,
+              bottom: AppTheme.space8,
+            ),
+            itemCount: _chatItems.length,
+            itemBuilder: (context, index) => _buildChatItem(_chatItems[index]),
+          );
 
     return Column(
       children: [
         if (_buildAgentBanner() != null) _buildAgentBanner()!,
         Expanded(
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppTheme.space20,
-              vertical: AppTheme.space16,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: AppTheme.space12),
+            decoration: BoxDecoration(
+              color: AppTheme.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: AppTheme.grey150),
             ),
-            itemCount: _chatItems.length,
-            itemBuilder: (context, index) => _buildChatItem(_chatItems[index]),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              child: content,
+            ),
           ),
         ),
       ],
@@ -645,7 +691,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final isAgentToolSelected = _selectedTool == _ToolOption.agent;
     
     // 棕色主题色
-    const accentColor = Color(0xFF8B7355);
+    const accentColor = AppTheme.accent;
     
     return Container(
       color: AppTheme.grey100,
@@ -657,32 +703,33 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             mainAxisSize: MainAxisSize.min,
             children: [
               // 输入区域 - 统一背景色（保持旧样式）
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                decoration: BoxDecoration(
-                  color: AppTheme.grey100,
-                  borderRadius: BorderRadius.circular(24),
-                ),
+                Container(
+                  margin: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.grey100,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppTheme.grey200),
+                  ),
                 child: TextField(
                   controller: _taskController,
                   focusNode: _focusNode,
                   enabled: _isInitialized && !isBusy,
-                  maxLines: 5,
-                  minLines: 2,
+                    maxLines: 4,
+                    minLines: 1,
                   textInputAction: TextInputAction.newline,
                   onChanged: (_) => setState(() {}),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: AppTheme.grey900,
-                    height: 1.5,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: isBusy ? _getStr('working') : 'Ask AutoZi',
-                    hintStyle: const TextStyle(
-                      color: AppTheme.grey400,
-                      fontSize: 16,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: AppTheme.grey900,
+                      height: 1.5,
                     ),
+                    decoration: InputDecoration(
+                      hintText: isBusy ? _getStr('working') : _getStr('askHint'),
+                      hintStyle: const TextStyle(
+                        color: AppTheme.grey400,
+                        fontSize: 14,
+                      ),
                     filled: false,
                     border: InputBorder.none,
                     enabledBorder: InputBorder.none,
@@ -695,8 +742,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               ),
 
               // 工具栏：左侧图片/工具，右侧发送/停止
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                 child: Row(
                   children: [
                     _InputIconButton(

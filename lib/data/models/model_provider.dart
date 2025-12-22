@@ -141,7 +141,7 @@ class AutoGLMConfig {
   
   const AutoGLMConfig({
     this.apiKey = '',
-    this.baseUrl = 'https://open.bigmodel.cn/api/paas/v4',
+    this.baseUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
     this.modelName = 'autoglm-phone',
   });
   
@@ -166,7 +166,8 @@ class AutoGLMConfig {
   factory AutoGLMConfig.fromJson(Map<String, dynamic> json) {
     return AutoGLMConfig(
       apiKey: json['apiKey'] as String? ?? '',
-      baseUrl: json['baseUrl'] as String? ?? 'https://open.bigmodel.cn/api/paas/v4',
+      baseUrl: json['baseUrl'] as String? ??
+          'https://open.bigmodel.cn/api/paas/v4/chat/completions',
       modelName: json['modelName'] as String? ?? 'autoglm-phone',
     );
   }

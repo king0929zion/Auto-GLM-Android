@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/model_provider.dart';
 import '../../config/default_providers.dart';
+import '../../services/model/model_url_builder.dart';
 
 /// 模型配置仓库
 /// 管理供应商、模型选择、AutoGLM配置
@@ -311,7 +312,7 @@ class ModelConfigRepository {
     }
     
     final dio = Dio(BaseOptions(
-      baseUrl: provider.baseUrl,
+      baseUrl: ModelUrlBuilder.normalizeBaseUrl(provider.baseUrl),
       headers: {
         'Authorization': 'Bearer ${provider.apiKey}',
         'Content-Type': 'application/json',
@@ -322,10 +323,8 @@ class ModelConfigRepository {
     
     try {
       // 使用相对路径，避免覆盖 baseUrl 中已有的 /v1 路径
-      final baseUrl = provider.baseUrl;
-      final normalized = baseUrl.endsWith('/') ? baseUrl.substring(0, baseUrl.length - 1) : baseUrl;
-      final path = (normalized.endsWith('/v1') || normalized.contains('/v1/')) ? 'models' : 'v1/models';
-      final response = await dio.get(path);
+      final url = ModelUrlBuilder.buildModelsUrl(provider.baseUrl);
+      final response = await dio.get(url);
       final data = response.data;
       
       List<dynamic> modelList;

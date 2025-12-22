@@ -186,7 +186,7 @@ class _AutoGLMConfigPageState extends State<AutoGLMConfigPage> {
         TextField(
           controller: _baseUrlController,
           decoration: InputDecoration(
-            hintText: 'https://open.bigmodel.cn/api/paas/v4',
+            hintText: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
             filled: true,
             fillColor: AppTheme.grey50,
             border: OutlineInputBorder(
