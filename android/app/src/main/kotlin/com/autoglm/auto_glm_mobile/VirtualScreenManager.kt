@@ -42,6 +42,7 @@ class VirtualScreenManager private constructor(private val context: Context) {
     private var imageReader: ImageReader? = null
     private var displayId: Int? = null
     private val isActive = AtomicBoolean(false)
+    private var lastError: String? = null
     
     // 屏幕参数
     private var screenWidth: Int = 1080
@@ -99,14 +100,23 @@ class VirtualScreenManager private constructor(private val context: Context) {
             Log.d(TAG, "Virtual display already exists: $displayId")
             return displayId
         }
-        
+
+        lastError = null
+        val created = createVirtualDisplayInternal(screenWidth, screenHeight, screenDensity)
+        if (created != null) return created
+
+        // fallback size for devices that fail on full resolution
+        return createVirtualDisplayInternal(720, 1280, 320)
+    }
+
+    private fun createVirtualDisplayInternal(width: Int, height: Int, density: Int): Int? {
         return try {
+            release()
             val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
-            
-            // 创建ImageReader用于捕获帧
+
             imageReader = ImageReader.newInstance(
-                screenWidth,
-                screenHeight,
+                width,
+                height,
                 PixelFormat.RGBA_8888,
                 2
             ).apply {
@@ -114,33 +124,43 @@ class VirtualScreenManager private constructor(private val context: Context) {
                     processFrame(reader)
                 }, handler)
             }
-            
+
             val surface: Surface = imageReader!!.surface
-            
-            // 创建虚拟显示
+
             val flags = DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC or
-                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
-            
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_PRESENTATION
+
             virtualDisplay = displayManager.createVirtualDisplay(
                 VIRTUAL_DISPLAY_NAME,
-                screenWidth,
-                screenHeight,
-                screenDensity,
+                width,
+                height,
+                density,
                 surface,
                 flags
             )
-            
+
             displayId = virtualDisplay?.display?.displayId
+            if (displayId == null) {
+                lastError = "createVirtualDisplay returned null"
+                release()
+                return null
+            }
+
             isActive.set(true)
-            
-            Log.d(TAG, "Created virtual display: id=$displayId, size=${screenWidth}x${screenHeight}")
+            screenWidth = width
+            screenHeight = height
+            screenDensity = density
+            Log.d(TAG, "Created virtual display: id=$displayId, size=${width}x${height}")
             displayId
         } catch (e: Exception) {
+            lastError = e.message
             Log.e(TAG, "Failed to create virtual display", e)
             release()
             null
         }
     }
+
+    fun getLastError(): String? = lastError
 
     /**
      * 处理新帧

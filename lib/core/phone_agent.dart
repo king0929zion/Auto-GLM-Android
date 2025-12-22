@@ -225,7 +225,7 @@ class PhoneAgent extends ChangeNotifier {
     if (_virtualScreenId != null) return;
     final info = await _deviceController.createVirtualScreen();
     if (info == null) {
-      throw StateError('无法创建虚拟屏幕，请检查系统权限或设备兼容性');
+      throw StateError('无法创建虚拟屏幕，请检查系统权限、悬浮窗或设备兼容性');
     }
     _virtualScreenId = info.displayId;
   }

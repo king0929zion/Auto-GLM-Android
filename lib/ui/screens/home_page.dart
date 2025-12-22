@@ -294,9 +294,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 decoration: const BoxDecoration(
                   color: AppTheme.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                  border: Border(
-                    top: BorderSide(color: AppTheme.grey150, width: 1),
-                  ),
                 ),
                 child: ClipRRect(
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -319,21 +316,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         horizontal: AppTheme.space16,
         vertical: AppTheme.space8,
       ),
-      child: Row(
-        children: [
-          // 历史记录按钮
-          _buildHeaderAction(
-            icon: Icons.history_rounded,
-            onTap: () {
-              _focusNode.unfocus();
-              Navigator.pushNamed(context, '/history');
-            },
-          ),
-          const SizedBox(width: AppTheme.space8),
-          
-          // 中间标题 / 模型选择器
-          Expanded(
-            child: Center(
+      child: SizedBox(
+        height: 44,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _buildHeaderAction(
+                icon: Icons.history_rounded,
+                onTap: () {
+                  _focusNode.unfocus();
+                  Navigator.pushNamed(context, '/history');
+                },
+              ),
+            ),
+            Center(
               child: GestureDetector(
                 onTap: _showModelSelector,
                 child: ConstrainedBox(
@@ -375,20 +373,29 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
               ),
             ),
-          ),
-          _buildHeaderAction(
-            icon: Icons.add_rounded,
-            tooltip: '新对话',
-            onTap: _startNewConversation,
-          ),
-          _buildHeaderAction(
-            icon: Icons.settings_outlined,
-            onTap: () {
-              _focusNode.unfocus();
-              Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
-            },
-          ),
-        ],
+            Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildHeaderAction(
+                    icon: Icons.add_rounded,
+                    tooltip: '新对话',
+                    onTap: _startNewConversation,
+                  ),
+                  const SizedBox(width: AppTheme.space4),
+                  _buildHeaderAction(
+                    icon: Icons.settings_outlined,
+                    onTap: () {
+                      _focusNode.unfocus();
+                      Navigator.pushNamed(context, '/settings').then((_) => _reloadModels());
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -437,7 +444,13 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             decoration: BoxDecoration(
               color: AppTheme.white,
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border.all(color: AppTheme.grey150),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.grey200.withOpacity(0.4),
+                  blurRadius: 12,
+                  offset: const Offset(0, -2),
+                ),
+              ],
             ),
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),

@@ -644,7 +644,8 @@ class MainActivity : FlutterActivity() {
                     "density" to manager.getScreenDensity()
                 ))
             } else {
-                result.error("CREATE_ERROR", "Failed to create virtual display", null)
+                val err = manager.getLastError() ?: "Failed to create virtual display"
+                result.error("CREATE_ERROR", err, null)
             }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Create virtual screen error: ${e.message}")
