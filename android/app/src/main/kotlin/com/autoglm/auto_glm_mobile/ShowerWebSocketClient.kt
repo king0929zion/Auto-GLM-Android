@@ -4,16 +4,18 @@ import android.util.Log
 import org.java_websocket.client.WebSocketClient
 import org.java_websocket.handshake.ServerHandshake
 import java.net.URI
+import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 class ShowerWebSocketClient(serverUri: URI) {
     private val uri = serverUri
     private var client: WebSocketClient? = null
     @Volatile private var connected = false
 
-    @Volatile private var screenshotData: String? = null
-    private val screenshotLock = Any()
+    private val screenshotData = AtomicReference<String?>(null)
+    @Volatile private var screenshotLatch: CountDownLatch? = null
 
     fun connect(timeoutMs: Long = 2000): Boolean {
         if (connected) return true
@@ -24,18 +26,15 @@ class ShowerWebSocketClient(serverUri: URI) {
                 Log.d("ShowerClient", "WebSocket connected")
             }
 
-            override fun onMessage(message: String?) {
-                if (message == null) return
+            override fun onMessage(message: String) {
                 if (message.startsWith("SCREENSHOT_DATA ")) {
                     val data = message.removePrefix("SCREENSHOT_DATA ")
-                    synchronized(screenshotLock) {
-                        screenshotData = data
-                        screenshotLock.notifyAll()
-                    }
+                    screenshotData.set(data)
+                    screenshotLatch?.countDown()
                 }
             }
 
-            override fun onMessage(bytes: ByteArray?) {
+            override fun onMessage(bytes: ByteBuffer) {
                 // ignore raw video stream
             }
 
@@ -98,15 +97,20 @@ class ShowerWebSocketClient(serverUri: URI) {
 
     fun requestScreenshot(timeoutMs: Long = 2000): String? {
         if (!connected) return null
-        synchronized(screenshotLock) {
-            screenshotData = null
-            sendCommand("SCREENSHOT")
-            try {
-                screenshotLock.wait(timeoutMs)
-            } catch (_: InterruptedException) {
-            }
-            return screenshotData
+        screenshotData.set(null)
+        val ws = client
+        if (ws == null || !connected) return null
+
+        val latch = CountDownLatch(1)
+        screenshotLatch = latch
+        sendCommand("SCREENSHOT")
+        try {
+            latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (_: InterruptedException) {
+        } finally {
+            screenshotLatch = null
         }
+        return screenshotData.get()
     }
 
     private fun sendCommand(command: String) {
