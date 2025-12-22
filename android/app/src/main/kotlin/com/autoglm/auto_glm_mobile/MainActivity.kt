@@ -44,7 +44,7 @@ class MainActivity : FlutterActivity() {
     private lateinit var methodChannel: MethodChannel
     private var deviceController: DeviceController? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var showerClient: ShowerWebSocketClient? = null
+    private var showerClient: ShowerController? = null
     private var showerActive = false
     private var showerWidth = 1080
     private var showerHeight = 1920
@@ -279,8 +279,8 @@ class MainActivity : FlutterActivity() {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
-            showerClient?.sendTap(x, y)
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
+            showerClient?.tap(x, y)
             mainHandler.postDelayed({ result.success(true) }, delay.toLong())
             return
         }
@@ -305,10 +305,10 @@ class MainActivity : FlutterActivity() {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
-            showerClient?.sendTap(x, y)
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
+            showerClient?.tap(x, y)
             mainHandler.postDelayed({
-                showerClient?.sendTap(x, y)
+                showerClient?.tap(x, y)
                 result.success(true)
             }, 120)
             return
@@ -335,8 +335,8 @@ class MainActivity : FlutterActivity() {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
-            showerClient?.sendSwipe(x, y, x, y, duration)
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
+            showerClient?.swipe(x, y, x, y, duration.toLong())
             mainHandler.postDelayed({ result.success(true) }, delay.toLong())
             return
         }
@@ -364,8 +364,8 @@ class MainActivity : FlutterActivity() {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
-            showerClient?.sendSwipe(startX, startY, endX, endY, duration)
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
+            showerClient?.swipe(startX, startY, endX, endY, duration.toLong())
             mainHandler.postDelayed({ result.success(true) }, delay.toLong())
             return
         }
@@ -388,11 +388,11 @@ class MainActivity : FlutterActivity() {
         val text = call.argument<String>("text") ?: ""
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
             Thread {
                 val pasteOk = pasteTextViaShizuku(text)
                 if (pasteOk) {
-                    showerClient?.sendKey(279) // KEYCODE_PASTE
+                    showerClient?.key(279) // KEYCODE_PASTE
                 }
                 mainHandler.post {
                     if (pasteOk) {
@@ -422,8 +422,8 @@ class MainActivity : FlutterActivity() {
     private fun clearText(call: MethodCall, result: MethodChannel.Result) {
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
-            showerClient?.sendKey(28)
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
+            showerClient?.key(28)
             result.success(true)
             return
         }
@@ -446,8 +446,8 @@ class MainActivity : FlutterActivity() {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
-            showerClient?.sendKey(4)
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
+            showerClient?.key(4)
             mainHandler.postDelayed({ result.success(true) }, delay.toLong())
             return
         }
@@ -470,8 +470,8 @@ class MainActivity : FlutterActivity() {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
 
-        if (showerActive && showerClient?.isConnected() == true) {
-            showerClient?.sendKey(3)
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
+            showerClient?.key(3)
             mainHandler.postDelayed({ result.success(true) }, delay.toLong())
             return
         }
@@ -493,7 +493,7 @@ class MainActivity : FlutterActivity() {
     private fun launchApp(call: MethodCall, result: MethodChannel.Result) {
         val packageName = call.argument<String>("package") ?: ""
 
-        if (showerActive && showerClient?.isConnected() == true) {
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
             showerClient?.launchApp(packageName)
             result.success(true)
             return
@@ -749,8 +749,7 @@ class MainActivity : FlutterActivity() {
     private fun releaseVirtualScreen(result: MethodChannel.Result) {
         try {
             if (showerActive) {
-                showerClient?.destroyDisplay()
-                showerClient?.close()
+                showerClient?.shutdown()
                 showerClient = null
                 showerActive = false
                 ShowerServerManager.stopServer()
@@ -775,10 +774,15 @@ class MainActivity : FlutterActivity() {
                 val connected = client?.ensureConnected(1000) == true
                 if (connected) {
                     Thread {
-                        val data = client?.requestScreenshot(2500) ?: ""
+                        val data = client?.requestScreenshot(2500)
+                        val base64 = if (data != null) {
+                            Base64.encodeToString(data, Base64.NO_WRAP)
+                        } else {
+                            ""
+                        }
                         mainHandler.post {
                             result.success(mapOf(
-                                "base64" to data,
+                                "base64" to base64,
                                 "width" to showerWidth,
                                 "height" to showerHeight
                             ))
@@ -871,10 +875,6 @@ class MainActivity : FlutterActivity() {
     private fun isVirtualScreenActive(result: MethodChannel.Result) {
         try {
             val client = showerClient
-            if (showerActive && client?.isConnected() == true) {
-                result.success(true)
-                return
-            }
             if (showerActive && client?.ensureConnected(800) == true) {
                 result.success(true)
                 return
@@ -887,7 +887,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun startShowerVirtualScreenInternal(): ShowerStartResult {
-        if (showerActive && showerClient?.isConnected() == true) {
+        if (showerActive && showerClient?.ensureConnected(800) == true) {
             return ShowerStartResult(
                 true,
                 mapOf(
@@ -909,14 +909,14 @@ class MainActivity : FlutterActivity() {
             return ShowerStartResult(false, error = err)
         }
 
-        val client = ShowerWebSocketClient(java.net.URI("ws://127.0.0.1:8986"))
-        if (!client.connect(3000)) {
+        val client = ShowerController()
+        if (!client.ensureConnected(3000)) {
             return ShowerStartResult(false, error = "Shower server connect failed")
         }
 
         val displayOk = client.ensureDisplay(width, height, density)
         if (!displayOk) {
-            client.close()
+            client.shutdown()
             ShowerServerManager.stopServer()
             return ShowerStartResult(false, error = "Shower create display failed")
         }

@@ -1,7 +1,6 @@
 ﻿package com.autoglm.auto_glm_mobile
 
 import android.content.Context
-import android.os.Environment
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
@@ -61,9 +60,7 @@ object ShowerServerManager {
     }
 
     private fun copyJarToExternalDir(context: Context): File {
-        val baseDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: context.getExternalFilesDir(null)
-            ?: context.filesDir
+        val baseDir = File("/sdcard/Download/AutoZi")
         if (!baseDir.exists()) {
             baseDir.mkdirs()
         }
