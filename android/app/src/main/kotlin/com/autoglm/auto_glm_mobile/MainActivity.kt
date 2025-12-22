@@ -50,6 +50,12 @@ class MainActivity : FlutterActivity() {
     private var showerHeight = 1920
     private var showerDensity = 320
     
+    private data class ShowerStartResult(
+        val success: Boolean,
+        val payload: Map<String, Any>? = null,
+        val error: String? = null
+    )
+    
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
@@ -705,25 +711,36 @@ class MainActivity : FlutterActivity() {
      * 创建虚拟屏幕
      */
     private fun createVirtualScreen(result: MethodChannel.Result) {
-        try {
-            val manager = VirtualScreenManager.getInstance(this)
-            val displayId = manager.createVirtualDisplay()
-            
-            if (displayId != null) {
-                val (width, height) = manager.getScreenSize()
-                result.success(mapOf(
-                    "displayId" to displayId,
-                    "width" to width,
-                    "height" to height,
-                    "density" to manager.getScreenDensity()
-                ))
-            } else {
-                startShowerVirtualScreen(result)
+        Thread {
+            val showerResult = startShowerVirtualScreenInternal()
+            if (showerResult.success && showerResult.payload != null) {
+                mainHandler.post {
+                    result.success(showerResult.payload)
+                }
+                return@Thread
             }
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Create virtual screen error: ${e.message}")
-            result.error("CREATE_ERROR", e.message, null)
-        }
+
+            try {
+                val manager = VirtualScreenManager.getInstance(this)
+                val displayId = manager.createVirtualDisplay()
+                if (displayId != null) {
+                    val (width, height) = manager.getScreenSize()
+                    val payload = mapOf(
+                        "displayId" to displayId,
+                        "width" to width,
+                        "height" to height,
+                        "density" to manager.getScreenDensity()
+                    )
+                    mainHandler.post { result.success(payload) }
+                } else {
+                    val err = showerResult.error ?: manager.getLastError() ?: "Create virtual screen failed"
+                    mainHandler.post { result.error("CREATE_ERROR", err, null) }
+                }
+            } catch (e: Exception) {
+                val err = showerResult.error ?: e.message ?: "Create virtual screen failed"
+                mainHandler.post { result.error("CREATE_ERROR", err, null) }
+            }
+        }.start()
     }
     
     /**
@@ -753,18 +770,24 @@ class MainActivity : FlutterActivity() {
      */
     private fun getVirtualScreenFrame(result: MethodChannel.Result) {
         try {
-            if (showerActive && showerClient?.isConnected() == true) {
-                Thread {
-                    val data = showerClient?.requestScreenshot(2500) ?: ""
-                    mainHandler.post {
-                        result.success(mapOf(
-                            "base64" to data,
-                            "width" to showerWidth,
-                            "height" to showerHeight
-                        ))
-                    }
-                }.start()
-                return
+            if (showerActive) {
+                val client = showerClient
+                val connected = client?.ensureConnected(1000) == true
+                if (connected) {
+                    Thread {
+                        val data = client?.requestScreenshot(2500) ?: ""
+                        mainHandler.post {
+                            result.success(mapOf(
+                                "base64" to data,
+                                "width" to showerWidth,
+                                "height" to showerHeight
+                            ))
+                        }
+                    }.start()
+                    return
+                } else {
+                    showerActive = false
+                }
             }
 
             val manager = VirtualScreenManager.getInstance(this)
@@ -847,67 +870,72 @@ class MainActivity : FlutterActivity() {
      */
     private fun isVirtualScreenActive(result: MethodChannel.Result) {
         try {
-            if (showerActive) {
+            val client = showerClient
+            if (showerActive && client?.isConnected() == true) {
                 result.success(true)
                 return
             }
+            if (showerActive && client?.ensureConnected(800) == true) {
+                result.success(true)
+                return
+            }
+            showerActive = false
             result.success(VirtualScreenManager.getInstance(this).isActive())
         } catch (e: Exception) {
             result.success(false)
         }
     }
 
-    private fun startShowerVirtualScreen(result: MethodChannel.Result) {
-        Thread {
-            if (showerActive && showerClient?.isConnected() == true) {
-                mainHandler.post {
-                    result.success(mapOf(
-                        "displayId" to SHOWER_DISPLAY_ID,
-                        "width" to showerWidth,
-                        "height" to showerHeight,
-                        "density" to showerDensity
-                    ))
-                }
-                return@Thread
-            }
-
-            val manager = VirtualScreenManager.getInstance(this)
-            val (width, height) = manager.getScreenSize()
-            val density = manager.getScreenDensity()
-
-            val startResult = ShowerServerManager.ensureServerStarted(this)
-            if (!startResult.success) {
-                mainHandler.post {
-                    val err = startResult.error ?: "Failed to start Shower server"
-                    result.error("CREATE_ERROR", err, null)
-                }
-                return@Thread
-            }
-
-            val client = ShowerWebSocketClient(java.net.URI("ws://127.0.0.1:8986"))
-            if (!client.connect(3000)) {
-                mainHandler.post {
-                    result.error("CREATE_ERROR", "Shower server connect failed", null)
-                }
-                return@Thread
-            }
-
-            client.createDisplay(width, height, density)
-            showerClient = client
-            showerActive = true
-            showerWidth = width
-            showerHeight = height
-            showerDensity = density
-
-            mainHandler.post {
-                result.success(mapOf(
+    private fun startShowerVirtualScreenInternal(): ShowerStartResult {
+        if (showerActive && showerClient?.isConnected() == true) {
+            return ShowerStartResult(
+                true,
+                mapOf(
                     "displayId" to SHOWER_DISPLAY_ID,
-                    "width" to width,
-                    "height" to height,
-                    "density" to density
-                ))
-            }
-        }.start()
+                    "width" to showerWidth,
+                    "height" to showerHeight,
+                    "density" to showerDensity
+                )
+            )
+        }
+
+        val manager = VirtualScreenManager.getInstance(this)
+        val (width, height) = manager.getScreenSize()
+        val density = manager.getScreenDensity()
+
+        val startResult = ShowerServerManager.ensureServerStarted(this)
+        if (!startResult.success) {
+            val err = startResult.error ?: "Failed to start Shower server"
+            return ShowerStartResult(false, error = err)
+        }
+
+        val client = ShowerWebSocketClient(java.net.URI("ws://127.0.0.1:8986"))
+        if (!client.connect(3000)) {
+            return ShowerStartResult(false, error = "Shower server connect failed")
+        }
+
+        val displayOk = client.ensureDisplay(width, height, density)
+        if (!displayOk) {
+            client.close()
+            ShowerServerManager.stopServer()
+            return ShowerStartResult(false, error = "Shower create display failed")
+        }
+
+        showerClient = client
+        showerActive = true
+        showerWidth = width
+        showerHeight = height
+        showerDensity = density
+
+        return ShowerStartResult(
+            true,
+            mapOf(
+                "displayId" to SHOWER_DISPLAY_ID,
+                "width" to width,
+                "height" to height,
+                "density" to density
+            )
+        )
     }
 
     private fun pasteTextViaShizuku(text: String): Boolean {

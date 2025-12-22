@@ -16,6 +16,8 @@ class ShowerWebSocketClient(serverUri: URI) {
 
     private val screenshotData = AtomicReference<String?>(null)
     @Volatile private var screenshotLatch: CountDownLatch? = null
+    @Volatile private var videoWidth: Int = 0
+    @Volatile private var videoHeight: Int = 0
 
     fun connect(timeoutMs: Long = 2000): Boolean {
         if (connected) return true
@@ -30,6 +32,11 @@ class ShowerWebSocketClient(serverUri: URI) {
                 if (message.startsWith("SCREENSHOT_DATA ")) {
                     val data = message.removePrefix("SCREENSHOT_DATA ")
                     screenshotData.set(data)
+                    screenshotLatch?.countDown()
+                    return
+                }
+                if (message.startsWith("SCREENSHOT_ERROR")) {
+                    screenshotData.set(null)
                     screenshotLatch?.countDown()
                 }
             }
@@ -71,8 +78,37 @@ class ShowerWebSocketClient(serverUri: URI) {
         client = null
     }
 
-    fun createDisplay(width: Int, height: Int, dpi: Int) {
-        sendCommand("CREATE_DISPLAY $width $height $dpi")
+    fun ensureConnected(timeoutMs: Long = 2000): Boolean {
+        if (connected) return true
+        return connect(timeoutMs)
+    }
+
+    fun ensureDisplay(width: Int, height: Int, dpi: Int, bitrateKbps: Int? = null): Boolean {
+        if (!ensureConnected()) return false
+        sendCommand("DESTROY_DISPLAY")
+
+        var alignedWidth = width and -8
+        var alignedHeight = height and -8
+        if (alignedWidth <= 0 || alignedHeight <= 0) {
+            alignedWidth = maxOf(2, width)
+            alignedHeight = maxOf(2, height)
+        }
+        videoWidth = alignedWidth
+        videoHeight = alignedHeight
+
+        val cmd = buildString {
+            append("CREATE_DISPLAY ")
+            append(alignedWidth)
+            append(' ')
+            append(alignedHeight)
+            append(' ')
+            append(dpi)
+            if (bitrateKbps != null && bitrateKbps > 0) {
+                append(' ')
+                append(bitrateKbps)
+            }
+        }
+        return sendCommand(cmd)
     }
 
     fun destroyDisplay() {
@@ -113,13 +149,15 @@ class ShowerWebSocketClient(serverUri: URI) {
         return screenshotData.get()
     }
 
-    private fun sendCommand(command: String) {
-        val ws = client ?: return
-        if (!connected) return
-        try {
+    private fun sendCommand(command: String): Boolean {
+        val ws = client ?: return false
+        if (!connected) return false
+        return try {
             ws.send(command)
+            true
         } catch (e: Exception) {
             Log.e("ShowerClient", "sendCommand failed: $command", e)
+            false
         }
     }
 }
