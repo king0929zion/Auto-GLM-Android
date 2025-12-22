@@ -455,6 +455,7 @@ class _MiniPhonePreviewState extends State<_MiniPhonePreview> {
   Uint8List? _frameBytes;
   bool _virtualScreenAvailable = true;
   bool _loading = false;
+  DateTime? _lastAvailabilityCheck;
 
   @override
   void initState() {
@@ -465,6 +466,14 @@ class _MiniPhonePreviewState extends State<_MiniPhonePreview> {
   @override
   void didUpdateWidget(covariant _MiniPhonePreview oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final wasActive = oldWidget.execution.isRunning ||
+        oldWidget.execution.status == TaskStatus.paused;
+    final isActive = widget.execution.isRunning ||
+        widget.execution.status == TaskStatus.paused;
+    if (!wasActive && isActive) {
+      _initAndStart();
+      return;
+    }
     if (oldWidget.execution.status != widget.execution.status) {
       _restartTimerIfNeeded();
     }
@@ -480,9 +489,9 @@ class _MiniPhonePreviewState extends State<_MiniPhonePreview> {
       } else {
         _virtualScreenAvailable = false;
       }
-      return;
+    } else {
+      _virtualScreenAvailable = true;
     }
-    _virtualScreenAvailable = true;
     _restartTimerIfNeeded();
   }
 
@@ -497,7 +506,25 @@ class _MiniPhonePreviewState extends State<_MiniPhonePreview> {
 
   Future<void> _captureFrame() async {
     if (_loading) return;
-    if (!_virtualScreenAvailable) return;
+    if (!_virtualScreenAvailable) {
+      final now = DateTime.now();
+      if (_lastAvailabilityCheck != null &&
+          now.difference(_lastAvailabilityCheck!) < const Duration(seconds: 2)) {
+        return;
+      }
+      _lastAvailabilityCheck = now;
+      final isActive = await _deviceController.isVirtualScreenActive();
+      if (!isActive) {
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _virtualScreenAvailable = true;
+        });
+      } else {
+        _virtualScreenAvailable = true;
+      }
+    }
 
     _loading = true;
     try {
@@ -740,11 +767,28 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   Timer? _frameTimer;
   bool _isLoadingFrame = false;
   bool _virtualScreenAvailable = true;
+  DateTime? _lastAvailabilityCheck;
   
   @override
   void initState() {
     super.initState();
     _initVirtualScreen();
+  }
+
+  @override
+  void didUpdateWidget(covariant VirtualScreenPreviewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final wasActive = oldWidget.execution.isRunning ||
+        oldWidget.execution.status == TaskStatus.paused;
+    final isActive = widget.execution.isRunning ||
+        widget.execution.status == TaskStatus.paused;
+    if (!wasActive && isActive) {
+      _initVirtualScreen();
+      return;
+    }
+    if (oldWidget.execution.status != widget.execution.status) {
+      _startFrameCapture();
+    }
   }
   
   Future<void> _initVirtualScreen() async {
@@ -757,7 +801,8 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
       } else {
         _virtualScreenAvailable = false;
       }
-      return;
+    } else {
+      _virtualScreenAvailable = true;
     }
     
     _startFrameCapture();
@@ -785,8 +830,26 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
   
   Future<void> _captureFrame() async {
     if (_isLoadingFrame) return;
-    if (!_virtualScreenAvailable) return;
-    
+    if (!_virtualScreenAvailable) {
+      final now = DateTime.now();
+      if (_lastAvailabilityCheck != null &&
+          now.difference(_lastAvailabilityCheck!) < const Duration(seconds: 2)) {
+        return;
+      }
+      _lastAvailabilityCheck = now;
+      final isActive = await _deviceController.isVirtualScreenActive();
+      if (!isActive) {
+        return;
+      }
+      if (mounted) {
+        setState(() {
+          _virtualScreenAvailable = true;
+        });
+      } else {
+        _virtualScreenAvailable = true;
+      }
+    }
+      
     _isLoadingFrame = true;
     try {
       final frame = await _deviceController.getVirtualScreenFrame();
@@ -839,11 +902,6 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D0D),
-        border: Border(
-          top: BorderSide(
-            color: Colors.white.withOpacity(0.1),
-          ),
-        ),
       ),
       child: Row(
         children: [
@@ -941,11 +999,6 @@ class _VirtualScreenPreviewPageState extends State<VirtualScreenPreviewPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: const Color(0xFF0D0D0D),
-        border: Border(
-          bottom: BorderSide(
-            color: Colors.white.withOpacity(0.1),
-          ),
-        ),
       ),
       child: Row(
         children: [
