@@ -38,11 +38,17 @@ class MainActivity : FlutterActivity() {
     companion object {
         private const val CHANNEL_NAME = "com.autoglm.mobile/device"
         private const val REQUEST_CODE_PERMISSION = 1001
+        private const val SHOWER_DISPLAY_ID = -2
     }
     
     private lateinit var methodChannel: MethodChannel
     private var deviceController: DeviceController? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var showerClient: ShowerWebSocketClient? = null
+    private var showerActive = false
+    private var showerWidth = 1080
+    private var showerHeight = 1920
+    private var showerDensity = 320
     
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -266,7 +272,13 @@ class MainActivity : FlutterActivity() {
         val y = call.argument<Int>("y") ?: 0
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.sendTap(x, y)
+            mainHandler.postDelayed({ result.success(true) }, delay.toLong())
+            return
+        }
+
         deviceController?.tap(x, y, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -286,7 +298,16 @@ class MainActivity : FlutterActivity() {
         val y = call.argument<Int>("y") ?: 0
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.sendTap(x, y)
+            mainHandler.postDelayed({
+                showerClient?.sendTap(x, y)
+                result.success(true)
+            }, 120)
+            return
+        }
+
         deviceController?.doubleTap(x, y, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -307,7 +328,13 @@ class MainActivity : FlutterActivity() {
         val duration = call.argument<Int>("duration") ?: 3000
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.sendSwipe(x, y, x, y, duration)
+            mainHandler.postDelayed({ result.success(true) }, delay.toLong())
+            return
+        }
+
         deviceController?.longPress(x, y, duration, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -330,7 +357,13 @@ class MainActivity : FlutterActivity() {
         val duration = call.argument<Int>("duration") ?: 1000
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.sendSwipe(startX, startY, endX, endY, duration)
+            mainHandler.postDelayed({ result.success(true) }, delay.toLong())
+            return
+        }
+
         deviceController?.swipe(startX, startY, endX, endY, duration, delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -348,7 +381,24 @@ class MainActivity : FlutterActivity() {
     private fun typeText(call: MethodCall, result: MethodChannel.Result) {
         val text = call.argument<String>("text") ?: ""
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            Thread {
+                val pasteOk = pasteTextViaShizuku(text)
+                if (pasteOk) {
+                    showerClient?.sendKey(279) // KEYCODE_PASTE
+                }
+                mainHandler.post {
+                    if (pasteOk) {
+                        result.success(true)
+                    } else {
+                        result.error("TYPE_ERROR", "Shower paste failed", null)
+                    }
+                }
+            }.start()
+            return
+        }
+
         deviceController?.typeText(text, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -365,7 +415,13 @@ class MainActivity : FlutterActivity() {
      */
     private fun clearText(call: MethodCall, result: MethodChannel.Result) {
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.sendKey(28)
+            result.success(true)
+            return
+        }
+
         deviceController?.clearText(displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -383,7 +439,13 @@ class MainActivity : FlutterActivity() {
     private fun pressBack(call: MethodCall, result: MethodChannel.Result) {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.sendKey(4)
+            mainHandler.postDelayed({ result.success(true) }, delay.toLong())
+            return
+        }
+
         deviceController?.pressBack(delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -401,7 +463,13 @@ class MainActivity : FlutterActivity() {
     private fun pressHome(call: MethodCall, result: MethodChannel.Result) {
         val delay = call.argument<Int>("delay") ?: 1000
         val displayId = call.argument<Int>("displayId") ?: -1
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.sendKey(3)
+            mainHandler.postDelayed({ result.success(true) }, delay.toLong())
+            return
+        }
+
         deviceController?.pressHome(delay, displayId) { success, message ->
             mainHandler.post {
                 if (success) {
@@ -418,7 +486,13 @@ class MainActivity : FlutterActivity() {
      */
     private fun launchApp(call: MethodCall, result: MethodChannel.Result) {
         val packageName = call.argument<String>("package") ?: ""
-        
+
+        if (showerActive && showerClient?.isConnected() == true) {
+            showerClient?.launchApp(packageName)
+            result.success(true)
+            return
+        }
+
         try {
             val intent = packageManager.getLaunchIntentForPackage(packageName)
             if (intent != null) {
@@ -644,8 +718,7 @@ class MainActivity : FlutterActivity() {
                     "density" to manager.getScreenDensity()
                 ))
             } else {
-                val err = manager.getLastError() ?: "Failed to create virtual display"
-                result.error("CREATE_ERROR", err, null)
+                startShowerVirtualScreen(result)
             }
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Create virtual screen error: ${e.message}")
@@ -658,6 +731,15 @@ class MainActivity : FlutterActivity() {
      */
     private fun releaseVirtualScreen(result: MethodChannel.Result) {
         try {
+            if (showerActive) {
+                showerClient?.destroyDisplay()
+                showerClient?.close()
+                showerClient = null
+                showerActive = false
+                ShowerServerManager.stopServer()
+                result.success(true)
+                return
+            }
             VirtualScreenManager.getInstance(this).release()
             result.success(true)
         } catch (e: Exception) {
@@ -671,6 +753,20 @@ class MainActivity : FlutterActivity() {
      */
     private fun getVirtualScreenFrame(result: MethodChannel.Result) {
         try {
+            if (showerActive && showerClient?.isConnected() == true) {
+                Thread {
+                    val data = showerClient?.requestScreenshot(2500) ?: ""
+                    mainHandler.post {
+                        result.success(mapOf(
+                            "base64" to data,
+                            "width" to showerWidth,
+                            "height" to showerHeight
+                        ))
+                    }
+                }.start()
+                return
+            }
+
             val manager = VirtualScreenManager.getInstance(this)
             val frameBytes = manager.getLatestFrameAsJpeg(85)
             
@@ -706,6 +802,12 @@ class MainActivity : FlutterActivity() {
         val packageName = call.argument<String>("package") ?: ""
         
         try {
+            if (showerActive && showerClient?.isConnected() == true) {
+                showerClient?.launchApp(packageName)
+                result.success(true)
+                return
+            }
+
             val manager = VirtualScreenManager.getInstance(this)
             
             if (manager.getDisplayId() == null) {
@@ -745,10 +847,74 @@ class MainActivity : FlutterActivity() {
      */
     private fun isVirtualScreenActive(result: MethodChannel.Result) {
         try {
+            if (showerActive) {
+                result.success(true)
+                return
+            }
             result.success(VirtualScreenManager.getInstance(this).isActive())
         } catch (e: Exception) {
             result.success(false)
         }
+    }
+
+    private fun startShowerVirtualScreen(result: MethodChannel.Result) {
+        Thread {
+            if (showerActive && showerClient?.isConnected() == true) {
+                mainHandler.post {
+                    result.success(mapOf(
+                        "displayId" to SHOWER_DISPLAY_ID,
+                        "width" to showerWidth,
+                        "height" to showerHeight,
+                        "density" to showerDensity
+                    ))
+                }
+                return@Thread
+            }
+
+            val manager = VirtualScreenManager.getInstance(this)
+            val (width, height) = manager.getScreenSize()
+            val density = manager.getScreenDensity()
+
+            val startResult = ShowerServerManager.ensureServerStarted(this)
+            if (!startResult.success) {
+                mainHandler.post {
+                    val err = startResult.error ?: "Failed to start Shower server"
+                    result.error("CREATE_ERROR", err, null)
+                }
+                return@Thread
+            }
+
+            val client = ShowerWebSocketClient(java.net.URI("ws://127.0.0.1:8986"))
+            if (!client.connect(3000)) {
+                mainHandler.post {
+                    result.error("CREATE_ERROR", "Shower server connect failed", null)
+                }
+                return@Thread
+            }
+
+            client.createDisplay(width, height, density)
+            showerClient = client
+            showerActive = true
+            showerWidth = width
+            showerHeight = height
+            showerDensity = density
+
+            mainHandler.post {
+                result.success(mapOf(
+                    "displayId" to SHOWER_DISPLAY_ID,
+                    "width" to width,
+                    "height" to height,
+                    "density" to density
+                ))
+            }
+        }.start()
+    }
+
+    private fun pasteTextViaShizuku(text: String): Boolean {
+        val safeText = text.replace("'", "'\\''")
+        val cmd = "service call clipboard 2 i32 1 s16 '$safeText'"
+        val result = ShellCommandExecutor.execute(cmd)
+        return result.success
     }
     
     override fun onDestroy() {
